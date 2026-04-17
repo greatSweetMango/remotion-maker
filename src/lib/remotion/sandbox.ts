@@ -16,6 +16,10 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bwindow\s*\.\s*location/, label: 'Forbidden: window.location' },
   { pattern: /\bimport\s*\(/, label: 'Forbidden: dynamic import' },
   { pattern: /\bWebSocket\b/, label: 'Forbidden: WebSocket' },
+  { pattern: /\bglobalThis\b/, label: 'Forbidden: globalThis' },
+  { pattern: /\b__proto__\b/, label: 'Forbidden: __proto__' },
+  { pattern: /import\.meta\b/, label: 'Forbidden: import.meta' },
+  { pattern: /\bindexedDB\b/, label: 'Forbidden: indexedDB' },
 ];
 
 export function validateCode(code: string): ValidationResult {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db/prisma';
+import { prisma, type Prisma } from '@/lib/db/prisma';
 import { editAsset } from '@/lib/ai/edit';
 import { checkEditLimit } from '@/lib/usage';
 
@@ -17,17 +17,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'assetId, prompt, and currentCode required' }, { status: 400 });
   }
 
+  const isTemplate = assetId.startsWith('template-');
+
   const [user, asset] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
-    prisma.asset.findUnique({ where: { id: assetId, userId: session.user.id } }),
+    isTemplate
+      ? Promise.resolve(null)
+      : prisma.asset.findUnique({ where: { id: assetId, userId: session.user.id } }),
   ]);
 
-  if (!user || !asset) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
+  if (!isTemplate && !asset) {
+    return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+  }
+
+  // For template edits, use a synthetic edit key so usage is tracked per template
+  const usageKey = isTemplate ? assetId : assetId;
   const editUsage = (user.editUsage as Record<string, number>) || {};
-  const editCount = editUsage[assetId] || 0;
+  const editCount = editUsage[usageKey] || 0;
 
   const limitCheck = checkEditLimit({ tier: user.tier, editCount });
   if (!limitCheck.allowed) {
@@ -39,34 +49,70 @@ export async function POST(req: Request) {
   try {
     const edited = await editAsset(currentCode, prompt, model);
 
-    await prisma.$transaction([
-      prisma.assetVersion.create({
+    let savedAssetId = assetId;
+
+    if (isTemplate) {
+      // Save template edit as a brand new asset in DB
+      const newAsset = await prisma.asset.create({
         data: {
-          assetId,
-          code: edited.code,
-          jsCode: edited.jsCode,
-          parameters: edited.parameters as never,
-          prompt,
-        },
-      }),
-      prisma.asset.update({
-        where: { id: assetId },
-        data: {
-          code: edited.code,
-          jsCode: edited.jsCode,
-          parameters: edited.parameters as never,
+          userId: user.id,
           title: edited.title,
+          code: edited.code,
+          jsCode: edited.jsCode,
+          parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+          durationInFrames: edited.durationInFrames,
+          fps: edited.fps,
+          width: edited.width,
+          height: edited.height,
+          versions: {
+            create: {
+              code: edited.code,
+              jsCode: edited.jsCode,
+              parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+              prompt,
+            },
+          },
         },
-      }),
-      prisma.user.update({
+      });
+      savedAssetId = newAsset.id;
+
+      await prisma.user.update({
         where: { id: user.id },
         data: {
-          editUsage: { ...editUsage, [assetId]: editCount + 1 },
+          monthlyUsage: { increment: 1 },
+          editUsage: { ...editUsage, [usageKey]: editCount + 1 },
         },
-      }),
-    ]);
+      });
+    } else {
+      await prisma.$transaction([
+        prisma.assetVersion.create({
+          data: {
+            assetId,
+            code: edited.code,
+            jsCode: edited.jsCode,
+            parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+            prompt,
+          },
+        }),
+        prisma.asset.update({
+          where: { id: assetId },
+          data: {
+            code: edited.code,
+            jsCode: edited.jsCode,
+            parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+            title: edited.title,
+          },
+        }),
+        prisma.user.update({
+          where: { id: user.id },
+          data: {
+            editUsage: { ...editUsage, [usageKey]: editCount + 1 },
+          },
+        }),
+      ]);
+    }
 
-    return NextResponse.json({ ...edited, id: assetId });
+    return NextResponse.json({ ...edited, id: savedAssetId });
   } catch (error: unknown) {
     console.error('Edit error:', error);
     const msg = error instanceof Error ? error.message : 'Edit failed';

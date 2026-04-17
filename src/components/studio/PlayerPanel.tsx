@@ -24,8 +24,8 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
 
   const Component = useMemo(() => {
     if (!asset?.jsCode) return null;
-    return evaluateComponent(asset.jsCode, paramValues);
-  }, [asset?.jsCode, paramValues]);
+    return evaluateComponent(asset.jsCode);
+  }, [asset?.jsCode]);
 
   const backgroundStyle: React.CSSProperties = bg === 'checker'
     ? {

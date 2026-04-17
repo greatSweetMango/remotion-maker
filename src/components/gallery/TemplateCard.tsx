@@ -18,7 +18,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const defaultParams = Object.fromEntries(
     template.parameters.map(p => [p.key, p.value])
   );
-  const Component = evaluateComponent(template.jsCode, defaultParams);
+  const Component = evaluateComponent(template.jsCode);
 
   return (
     <div

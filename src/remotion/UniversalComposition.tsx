@@ -8,7 +8,7 @@ interface UniversalCompositionProps {
 }
 
 export const UniversalComposition: React.FC<UniversalCompositionProps> = ({ jsCode, params }) => {
-  const Component = evaluateComponent(jsCode, params);
+  const Component = evaluateComponent(jsCode);
 
   if (!Component) {
     return (

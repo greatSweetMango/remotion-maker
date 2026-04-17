@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db/prisma';
+import { prisma, type Prisma } from '@/lib/db/prisma';
 import { generateAsset } from '@/lib/ai/generate';
 import { checkGenerationLimit } from '@/lib/usage';
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         title: asset.title,
         code: asset.code,
         jsCode: asset.jsCode,
-        parameters: asset.parameters as never,
+        parameters: asset.parameters as unknown as Prisma.InputJsonValue,
         durationInFrames: asset.durationInFrames,
         fps: asset.fps,
         width: asset.width,
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
           create: {
             code: asset.code,
             jsCode: asset.jsCode,
-            parameters: asset.parameters as never,
+            parameters: asset.parameters as unknown as Prisma.InputJsonValue,
             prompt,
           },
         },

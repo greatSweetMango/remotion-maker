@@ -23,7 +23,7 @@ interface FormatOption {
 }
 
 const FORMAT_OPTIONS: FormatOption[] = [
-  { id: 'react', label: 'React Component', description: 'Download as .tsx file', tier: 'free', Icon: Code, serverRender: false },
+  { id: 'react', label: 'React Component', description: 'Download as .tsx file', tier: 'pro', Icon: Code, serverRender: false },
   { id: 'gif', label: 'Animated GIF', description: 'With watermark on Free', tier: 'free', Icon: Film, serverRender: true },
   { id: 'mp4', label: 'MP4 Video', description: '1080p H.264', tier: 'pro', Icon: Film, serverRender: true },
   { id: 'webm', label: 'WebM (Alpha)', description: 'Transparent background', tier: 'pro', Icon: Film, serverRender: true },
