@@ -1,12 +1,15 @@
+const nextJest = require('next/jest.js');
+
+const createJestConfig = nextJest({ dir: './' });
+
 /** @type {import('jest').Config} */
-module.exports = {
-  preset: 'ts-jest',
+const config = {
+  coverageProvider: 'v8',
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: { jsx: 'react-jsx', esModuleInterop: true, module: 'commonjs' } }],
-  },
-  testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
 };
+
+module.exports = createJestConfig(config);
