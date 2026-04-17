@@ -1,6 +1,6 @@
 'use client';
 import { useReducer, useCallback } from 'react';
-import type { StudioState, StudioAction } from '@/types';
+import type { GeneratedAsset, StudioState, StudioAction } from '@/types';
 import { toast } from 'sonner';
 
 function studioReducer(state: StudioState, action: StudioAction): StudioState {
@@ -96,8 +96,29 @@ const initialState: StudioState = {
   error: null,
 };
 
-export function useStudio() {
-  const [state, dispatch] = useReducer(studioReducer, initialState);
+export function useStudio(initialAsset?: GeneratedAsset | null) {
+  const [state, dispatch] = useReducer(studioReducer, {
+    ...initialState,
+    ...(initialAsset
+      ? {
+          asset: initialAsset,
+          paramValues: Object.fromEntries(
+            initialAsset.parameters.map((p) => [p.key, p.value]),
+          ),
+          versions: [
+            {
+              id: initialAsset.id,
+              code: initialAsset.code,
+              jsCode: initialAsset.jsCode,
+              parameters: initialAsset.parameters,
+              prompt: '(loaded)',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+          currentVersionIndex: 0,
+        }
+      : {}),
+  });
 
   const generate = useCallback(async (prompt: string) => {
     dispatch({ type: 'SET_GENERATING', payload: true });

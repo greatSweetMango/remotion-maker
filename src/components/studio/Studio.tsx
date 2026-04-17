@@ -9,17 +9,18 @@ import { useStudio } from '@/hooks/useStudio';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, Settings2, Download } from 'lucide-react';
-import type { Tier } from '@/types';
+import type { GeneratedAsset, Tier } from '@/types';
 import Link from 'next/link';
 
 interface StudioProps {
   tier: Tier;
   userImage?: string | null;
   userName?: string | null;
+  initialAsset?: GeneratedAsset | null;
 }
 
-export function Studio({ tier, userImage, userName }: StudioProps) {
-  const { state, generate, edit, updateParam, restoreVersion } = useStudio();
+export function Studio({ tier, userImage, userName, initialAsset }: StudioProps) {
+  const { state, generate, edit, updateParam, restoreVersion } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
   return (
