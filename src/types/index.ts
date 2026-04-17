@@ -1,0 +1,81 @@
+export type Tier = 'FREE' | 'PRO';
+
+export type ParameterType = 'color' | 'range' | 'text' | 'boolean' | 'select';
+
+export interface Parameter {
+  key: string;
+  label: string;
+  group: 'color' | 'size' | 'timing' | 'text' | 'other';
+  type: ParameterType;
+  value: string | number | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  options?: string[];
+}
+
+export interface GeneratedAsset {
+  id: string;
+  title: string;
+  code: string;
+  jsCode: string;
+  parameters: Parameter[];
+  durationInFrames: number;
+  fps: number;
+  width: number;
+  height: number;
+}
+
+export interface AssetVersion {
+  id: string;
+  code: string;
+  jsCode: string;
+  parameters: Parameter[];
+  prompt: string;
+  createdAt: string;
+}
+
+export interface StudioState {
+  asset: GeneratedAsset | null;
+  versions: AssetVersion[];
+  currentVersionIndex: number;
+  paramValues: Record<string, string | number | boolean>;
+  isGenerating: boolean;
+  isEditing: boolean;
+  isExporting: boolean;
+  error: string | null;
+}
+
+export type StudioAction =
+  | { type: 'SET_GENERATING'; payload: boolean }
+  | { type: 'SET_EDITING'; payload: boolean }
+  | { type: 'SET_EXPORTING'; payload: boolean }
+  | { type: 'SET_ASSET'; payload: GeneratedAsset }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'UPDATE_PARAM'; payload: { key: string; value: string | number | boolean } }
+  | { type: 'ADD_VERSION'; payload: AssetVersion }
+  | { type: 'RESTORE_VERSION'; payload: number };
+
+export interface Template {
+  id: string;
+  title: string;
+  description: string;
+  category: 'counter' | 'text' | 'chart' | 'background' | 'logo';
+  previewGif?: string;
+  code: string;
+  jsCode: string;
+  parameters: Parameter[];
+  durationInFrames: number;
+  fps: number;
+  width: number;
+  height: number;
+}
+
+export type ExportFormat = 'gif' | 'mp4' | 'webm' | 'react';
+
+export interface UsageInfo {
+  monthlyGenerations: number;
+  monthlyGenerationLimit: number;
+  tier: Tier;
+}
