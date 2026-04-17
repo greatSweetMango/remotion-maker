@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill } from 'remotion';
+import { Composition, AbsoluteFill } from 'remotion';
 import { evaluateComponent } from '@/lib/remotion/evaluator';
 
 interface UniversalCompositionProps {
@@ -22,3 +22,15 @@ export const UniversalComposition: React.FC<UniversalCompositionProps> = ({ jsCo
 
   return <Component {...params} />;
 };
+
+export const RemotionRoot: React.FC = () => (
+  <Composition
+    id="UniversalComposition"
+    component={UniversalComposition as unknown as React.FC<Record<string, unknown>>}
+    durationInFrames={150}
+    fps={30}
+    width={1920}
+    height={1080}
+    defaultProps={{ jsCode: '', params: {} }}
+  />
+);
