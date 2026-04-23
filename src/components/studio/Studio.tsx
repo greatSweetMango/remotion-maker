@@ -5,11 +5,12 @@ import { PromptPanel } from './PromptPanel';
 import { PlayerPanel } from './PlayerPanel';
 import { CustomizePanel } from './CustomizePanel';
 import { ExportPanel } from './ExportPanel';
+import { TemplatePicker } from './TemplatePicker';
 import { useStudio } from '@/hooks/useStudio';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Zap, Settings2, Download } from 'lucide-react';
-import type { GeneratedAsset, Tier } from '@/types';
+import { Zap, Settings2, Download, LayoutGrid } from 'lucide-react';
+import type { GeneratedAsset, Template, Tier } from '@/types';
 import Link from 'next/link';
 
 interface StudioProps {
@@ -17,14 +18,15 @@ interface StudioProps {
   userImage?: string | null;
   userName?: string | null;
   initialAsset?: GeneratedAsset | null;
+  templates?: Template[];
 }
 
-export function Studio({ tier, userImage, userName, initialAsset }: StudioProps) {
-  const { state, generate, edit, updateParam, restoreVersion } = useStudio(initialAsset);
+export function Studio({ tier, userImage, userName, initialAsset, templates = [] }: StudioProps) {
+  const { state, generate, edit, updateParam, restoreVersion, initTemplate, clearAsset } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950">
+    <div className="flex flex-col h-screen bg-slate-950 overflow-hidden"style={{ maxWidth: '100vw' }}>
       <header className="flex items-center gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900 flex-shrink-0">
         <Link href="/" className="flex items-center gap-1.5">
           <Zap className="h-5 w-5 text-violet-400" />
@@ -46,9 +48,22 @@ export function Studio({ tier, userImage, userName, initialAsset }: StudioProps)
 
         <div className="ml-auto flex items-center gap-2">
           {state.asset && (
-            <span className="text-xs text-slate-400 hidden sm:block truncate max-w-[200px]">
-              {state.asset.title}
-            </span>
+            <>
+              <span className="text-xs text-slate-400 hidden sm:block truncate max-w-[200px]">
+                {state.asset.title}
+              </span>
+              {templates.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAsset}
+                  className="h-7 text-xs text-slate-400 hover:text-white gap-1.5"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Templates
+                </Button>
+              )}
+            </>
           )}
           {userImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -66,7 +81,7 @@ export function Studio({ tier, userImage, userName, initialAsset }: StudioProps)
 
       <div className="flex-1 overflow-hidden hidden md:block">
         <PanelGroup orientation="horizontal" className="h-full">
-          <Panel defaultSize={22} minSize={18} maxSize={35}>
+          <Panel defaultSize="22" minSize="18" maxSize="35">
             <div className="h-full border-r border-slate-800">
               <PromptPanel
                 onGenerate={generate}
@@ -84,17 +99,21 @@ export function Studio({ tier, userImage, userName, initialAsset }: StudioProps)
 
           <PanelResizeHandle className="w-1 bg-slate-800 hover:bg-violet-600 transition-colors cursor-col-resize" />
 
-          <Panel defaultSize={52} minSize={35}>
-            <PlayerPanel
-              asset={state.asset}
-              paramValues={state.paramValues as Record<string, unknown>}
-              isGenerating={state.isGenerating}
-            />
+          <Panel defaultSize="52" minSize="35">
+            {!state.asset && templates.length > 0 ? (
+              <TemplatePicker templates={templates} onSelect={initTemplate} />
+            ) : (
+              <PlayerPanel
+                asset={state.asset}
+                paramValues={state.paramValues as Record<string, unknown>}
+                isGenerating={state.isGenerating}
+              />
+            )}
           </Panel>
 
           <PanelResizeHandle className="w-1 bg-slate-800 hover:bg-violet-600 transition-colors cursor-col-resize" />
 
-          <Panel defaultSize={26} minSize={20} maxSize={40}>
+          <Panel defaultSize="26" minSize="20" maxSize="40">
             <div className="h-full border-l border-slate-800 flex flex-col">
               <Tabs defaultValue="customize" className="flex flex-col h-full">
                 <TabsList className="w-full bg-slate-800 rounded-none border-b border-slate-700 flex-shrink-0">

@@ -5,6 +5,9 @@ const config: NextConfig = {
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
   },
+  env: {
+    DEV_AUTO_LOGIN: process.env.DEV_AUTO_LOGIN ?? '',
+  },
 };
 
 export default config;

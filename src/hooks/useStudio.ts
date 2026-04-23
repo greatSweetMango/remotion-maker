@@ -1,6 +1,6 @@
 'use client';
 import { useReducer, useCallback } from 'react';
-import type { GeneratedAsset, StudioState, StudioAction } from '@/types';
+import type { GeneratedAsset, StudioState, StudioAction, Template } from '@/types';
 import { toast } from 'sonner';
 
 function studioReducer(state: StudioState, action: StudioAction): StudioState {
@@ -80,6 +80,8 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         currentVersionIndex: action.payload,
       };
     }
+    case 'CLEAR_ASSET':
+      return { ...initialState };
     default:
       return state;
   }
@@ -183,5 +185,26 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     toast.success('Restored to previous version');
   }, []);
 
-  return { state, generate, edit, updateParam, restoreVersion };
+  const initTemplate = useCallback((template: Template) => {
+    dispatch({
+      type: 'SET_ASSET',
+      payload: {
+        id: `template-${template.id}`,
+        title: template.title,
+        code: template.code,
+        jsCode: template.jsCode,
+        parameters: template.parameters,
+        durationInFrames: template.durationInFrames,
+        fps: template.fps,
+        width: template.width,
+        height: template.height,
+      },
+    });
+  }, []);
+
+  const clearAsset = useCallback(() => {
+    dispatch({ type: 'CLEAR_ASSET' });
+  }, []);
+
+  return { state, generate, edit, updateParam, restoreVersion, initTemplate, clearAsset };
 }

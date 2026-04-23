@@ -55,7 +55,8 @@ export type StudioAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'UPDATE_PARAM'; payload: { key: string; value: string | number | boolean } }
   | { type: 'ADD_VERSION'; payload: AssetVersion }
-  | { type: 'RESTORE_VERSION'; payload: number };
+  | { type: 'RESTORE_VERSION'; payload: number }
+  | { type: 'CLEAR_ASSET' };
 
 export interface Template {
   id: string;

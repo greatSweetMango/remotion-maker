@@ -1,3 +1,5 @@
+import type { AIMessage } from './client';
+
 export const GENERATION_SYSTEM_PROMPT = `You are an expert Remotion animation developer. Generate a complete, working Remotion React component for the user's request.
 
 STRICT REQUIREMENTS:
@@ -70,18 +72,18 @@ Rules:
 - Maintain backward compatibility with existing PARAMS values
 - ALWAYS respond with valid JSON: { "title": "...", "code": "...", "durationInFrames": N, "fps": N, "width": N, "height": N }`;
 
-export function buildEditMessages(existingCode: string, userRequest: string) {
+export function buildEditMessages(existingCode: string, userRequest: string): AIMessage[] {
   return [
     {
-      role: 'user' as const,
+      role: 'user',
       content: [
         {
-          type: 'text' as const,
+          type: 'text',
           text: `EXISTING CODE:\n\`\`\`typescript\n${existingCode}\n\`\`\``,
-          cache_control: { type: 'ephemeral' as const },
+          cache: true,
         },
         {
-          type: 'text' as const,
+          type: 'text',
           text: `USER REQUEST: ${userRequest}\n\nReturn the complete modified code as JSON.`,
         },
       ],

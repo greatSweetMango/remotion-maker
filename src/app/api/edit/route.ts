@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma, type Prisma } from '@/lib/db/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { editAsset } from '@/lib/ai/edit';
+import { getModels } from '@/lib/ai/client';
 import { checkEditLimit } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -34,9 +35,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
   }
 
-  // For template edits, use a synthetic edit key so usage is tracked per template
   const usageKey = isTemplate ? assetId : assetId;
-  const editUsage = (user.editUsage as Record<string, number>) || {};
+  const editUsage = JSON.parse(user.editUsage as string) as Record<string, number>;
   const editCount = editUsage[usageKey] || 0;
 
   const limitCheck = checkEditLimit({ tier: user.tier, editCount });
@@ -44,7 +44,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: limitCheck.reason }, { status: 429 });
   }
 
-  const model = user.tier === 'PRO' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+  const models = getModels();
+  const model = user.tier === 'PRO' ? models.pro : models.free;
 
   try {
     const edited = await editAsset(currentCode, prompt, model);
@@ -52,14 +53,13 @@ export async function POST(req: Request) {
     let savedAssetId = assetId;
 
     if (isTemplate) {
-      // Save template edit as a brand new asset in DB
       const newAsset = await prisma.asset.create({
         data: {
           userId: user.id,
           title: edited.title,
           code: edited.code,
           jsCode: edited.jsCode,
-          parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+          parameters: JSON.stringify(edited.parameters),
           durationInFrames: edited.durationInFrames,
           fps: edited.fps,
           width: edited.width,
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
             create: {
               code: edited.code,
               jsCode: edited.jsCode,
-              parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+              parameters: JSON.stringify(edited.parameters),
               prompt,
             },
           },
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data: {
           monthlyUsage: { increment: 1 },
-          editUsage: { ...editUsage, [usageKey]: editCount + 1 },
+          editUsage: JSON.stringify({ ...editUsage, [usageKey]: editCount + 1 }),
         },
       });
     } else {
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
             assetId,
             code: edited.code,
             jsCode: edited.jsCode,
-            parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+            parameters: JSON.stringify(edited.parameters),
             prompt,
           },
         }),
@@ -99,14 +99,14 @@ export async function POST(req: Request) {
           data: {
             code: edited.code,
             jsCode: edited.jsCode,
-            parameters: edited.parameters as unknown as Prisma.InputJsonValue,
+            parameters: JSON.stringify(edited.parameters),
             title: edited.title,
           },
         }),
         prisma.user.update({
           where: { id: user.id },
           data: {
-            editUsage: { ...editUsage, [usageKey]: editCount + 1 },
+            editUsage: JSON.stringify({ ...editUsage, [usageKey]: editCount + 1 }),
           },
         }),
       ]);

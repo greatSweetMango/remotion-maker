@@ -8,7 +8,11 @@ export default auth((req) => {
   const isProtected = PROTECTED_PATHS.some(p => nextUrl.pathname.startsWith(p));
 
   if (isProtected && !session) {
-    return NextResponse.redirect(new URL('/login', nextUrl));
+    const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search);
+    if (process.env.DEV_AUTO_LOGIN === 'true') {
+      return NextResponse.redirect(new URL(`/dev-login?callbackUrl=${callbackUrl}`, nextUrl));
+    }
+    return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, nextUrl));
   }
 
   return NextResponse.next();

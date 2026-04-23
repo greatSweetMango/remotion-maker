@@ -6,6 +6,25 @@ type RemotionComponent = React.ComponentType<Record<string, unknown>>;
 
 const componentCache = new Map<string, RemotionComponent>();
 
+function buildReturnStatement(jsCode: string): string {
+  // Find PascalCase component names (must have lowercase letters — excludes SCREAMING_CASE like PARAMS)
+  const candidates = [...jsCode.matchAll(/(?:^|\n)\s*(?:const|function)\s+([A-Z][a-zA-Z0-9]*)\s*[=(]/g)]
+    .map(m => m[1])
+    .filter((name, i, arr) => arr.indexOf(name) === i) // dedupe
+    .filter(name => /[a-z]/.test(name)); // PascalCase only, not SCREAMING_CASE
+
+  const fallbacks = candidates
+    .map(name => `if (typeof ${name} !== 'undefined') return ${name};`)
+    .join('\n');
+
+  return `
+    if (typeof GeneratedAsset !== 'undefined') return GeneratedAsset;
+    if (typeof Component !== 'undefined') return Component;
+    ${fallbacks}
+    return null;
+  `;
+}
+
 export function evaluateComponent(jsCode: string): RemotionComponent | null {
   if (componentCache.has(jsCode)) return componentCache.get(jsCode)!;
 
@@ -23,11 +42,7 @@ export function evaluateComponent(jsCode: string): RemotionComponent | null {
 
       ${jsCode}
 
-      return typeof GeneratedAsset !== 'undefined'
-        ? GeneratedAsset
-        : typeof Component !== 'undefined'
-        ? Component
-        : null;
+      ${buildReturnStatement(jsCode)}
       `
     );
 

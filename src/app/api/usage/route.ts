@@ -14,7 +14,7 @@ export async function GET() {
     tier: user.tier,
     monthlyUsage: user.monthlyUsage,
     monthlyLimit: TIER_LIMITS[user.tier as 'FREE' | 'PRO'].monthlyGenerations,
-    editUsage: user.editUsage,
+    editUsage: JSON.parse(user.editUsage as string),
     usageResetAt: user.usageResetAt,
   });
 }

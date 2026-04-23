@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma, type Prisma } from '@/lib/db/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { generateAsset } from '@/lib/ai/generate';
+import { getModels } from '@/lib/ai/client';
 import { checkGenerationLimit } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { monthlyUsage: 0, usageResetAt: now, editUsage: {} },
+      data: { monthlyUsage: 0, usageResetAt: now, editUsage: '{}' },
     });
     user.monthlyUsage = 0;
   }
@@ -35,7 +36,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
   }
 
-  const model = user.tier === 'PRO' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+  const models = getModels();
+  const model = user.tier === 'PRO' ? models.pro : models.free;
 
   try {
     const asset = await generateAsset(prompt, model);
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
         title: asset.title,
         code: asset.code,
         jsCode: asset.jsCode,
-        parameters: asset.parameters as unknown as Prisma.InputJsonValue,
+        parameters: JSON.stringify(asset.parameters),
         durationInFrames: asset.durationInFrames,
         fps: asset.fps,
         width: asset.width,
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
           create: {
             code: asset.code,
             jsCode: asset.jsCode,
-            parameters: asset.parameters as unknown as Prisma.InputJsonValue,
+            parameters: JSON.stringify(asset.parameters),
             prompt,
           },
         },

@@ -4,7 +4,10 @@ import type { Template, Parameter } from '@/types';
 import fs from 'fs';
 import path from 'path';
 
-async function loadTemplate(filename: string, meta: Omit<Template, 'code' | 'jsCode' | 'parameters'>): Promise<Template> {
+async function loadTemplate(
+  filename: string,
+  meta: Omit<Template, 'code' | 'jsCode' | 'parameters'>
+): Promise<Template> {
   const filePath = path.join(process.cwd(), 'src/remotion/templates', filename);
   const code = fs.readFileSync(filePath, 'utf-8');
 
@@ -30,12 +33,13 @@ async function loadTemplate(filename: string, meta: Omit<Template, 'code' | 'jsC
       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
       let group: Parameter['group'] = 'other';
       if (type === 'color') group = 'color';
-      else if (key.toLowerCase().includes('size') || key.toLowerCase().includes('font')) group = 'size';
-      else if (key.toLowerCase().includes('speed') || key.toLowerCase().includes('duration')) group = 'timing';
+      else if (key.toLowerCase().includes('size') || key.toLowerCase().includes('font') || key.toLowerCase().includes('stroke') || key.toLowerCase().includes('width') || key.toLowerCase().includes('height') || key.toLowerCase().includes('gap') || key.toLowerCase().includes('bar') || key.toLowerCase().includes('blur')) group = 'size';
+      else if (key.toLowerCase().includes('speed') || key.toLowerCase().includes('duration') || key.toLowerCase().includes('stagger')) group = 'timing';
       else if (type === 'text') group = 'text';
 
       const cleanValue = rawValue.trim().replace(/,$/, '');
-      const value: string | number | boolean = type === 'color' ? cleanValue.replace(/['"]/g, '')
+      const value: string | number | boolean =
+        type === 'color' ? cleanValue.replace(/['"]/g, '')
         : type === 'boolean' ? cleanValue === 'true'
         : type === 'text' ? cleanValue.replace(/['"]/g, '')
         : parseFloat(cleanValue) || 0;
@@ -62,9 +66,19 @@ export async function getTemplates(): Promise<Template[]> {
     loadTemplate('CounterAnimation.tsx', {
       id: 'counter-animation',
       title: 'Counter Animation',
-      description: 'Animated number counter with spring physics',
+      description: 'Spring-physics number counter with progress bar',
       category: 'counter',
       durationInFrames: 150,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('ProgressCircle.tsx', {
+      id: 'progress-circle',
+      title: 'Progress Circle',
+      description: 'Animated SVG circular progress indicator',
+      category: 'counter',
+      durationInFrames: 120,
       fps: 30,
       width: 1920,
       height: 1080,
@@ -79,12 +93,72 @@ export async function getTemplates(): Promise<Template[]> {
       width: 1920,
       height: 1080,
     }),
+    loadTemplate('TextReveal.tsx', {
+      id: 'text-reveal',
+      title: 'Text Reveal',
+      description: 'Letters drop in one by one with spring stagger',
+      category: 'text',
+      durationInFrames: 120,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('Typewriter.tsx', {
+      id: 'typewriter',
+      title: 'Typewriter',
+      description: 'Classic typewriter text reveal with blinking cursor',
+      category: 'text',
+      durationInFrames: 150,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('SplitText.tsx', {
+      id: 'split-text',
+      title: 'Split Text',
+      description: 'Bold words slide in from opposite directions',
+      category: 'text',
+      durationInFrames: 90,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
     loadTemplate('BarChart.tsx', {
       id: 'bar-chart',
       title: 'Bar Chart',
       description: 'Animated bar chart with spring animation',
       category: 'chart',
       durationInFrames: 150,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('GradientOrbs.tsx', {
+      id: 'gradient-orbs',
+      title: 'Gradient Orbs',
+      description: 'Flowing color orbs abstract background',
+      category: 'background',
+      durationInFrames: 180,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('CirclePulse.tsx', {
+      id: 'circle-pulse',
+      title: 'Circle Pulse',
+      description: 'Rippling pulse circles — perfect for live badges',
+      category: 'background',
+      durationInFrames: 120,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('LowerThird.tsx', {
+      id: 'lower-third',
+      title: 'Lower Third',
+      description: 'Social media name card with slide-in animation',
+      category: 'logo',
+      durationInFrames: 120,
       fps: 30,
       width: 1920,
       height: 1080,

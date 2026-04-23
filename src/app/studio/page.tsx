@@ -14,10 +14,10 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   if (!session?.user) redirect('/login');
 
   const params = await searchParams;
+  const templates = await getTemplates();
   let initialAsset: GeneratedAsset | null = null;
 
   if (params.template) {
-    const templates = await getTemplates();
     const template = templates.find((t) => t.id === params.template);
     if (template) {
       initialAsset = {
@@ -42,7 +42,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         title: asset.title,
         code: asset.code,
         jsCode: asset.jsCode,
-        parameters: asset.parameters as unknown as Parameter[],
+        parameters: JSON.parse(asset.parameters as string) as Parameter[],
         durationInFrames: asset.durationInFrames,
         fps: asset.fps,
         width: asset.width,
@@ -57,6 +57,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       userImage={session.user.image}
       userName={session.user.name}
       initialAsset={initialAsset}
+      templates={templates}
     />
   );
 }

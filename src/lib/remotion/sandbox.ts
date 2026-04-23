@@ -40,5 +40,6 @@ export function sanitizeCode(code: string): string {
     .replace(/^import\s+.*?from\s+['"]react['"];?\s*$/gm, '')
     .replace(/^import\s+type\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
     .replace(/^export\s+default\s+/gm, 'const DefaultExport = ')
+    .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')
     .trim();
 }

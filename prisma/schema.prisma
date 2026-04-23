@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -14,12 +13,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -43,47 +42,47 @@ model VerificationToken {
 }
 
 model User {
-  id               String        @id @default(cuid())
-  email            String        @unique
-  emailVerified    DateTime?
-  name             String?
-  image            String?
-  password         String?
-  tier             Tier          @default(FREE)
-  monthlyUsage     Int           @default(0)
-  editUsage        Json          @default("{}")
-  usageResetAt     DateTime      @default(now())
-  assets           Asset[]
-  subscription     Subscription?
-  accounts         Account[]
-  sessions         Session[]
-  createdAt        DateTime      @default(now())
+  id            String        @id @default(cuid())
+  email         String        @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  password      String?
+  tier          Tier          @default(FREE)
+  monthlyUsage  Int           @default(0)
+  editUsage     String        @default("{}")
+  usageResetAt  DateTime      @default(now())
+  assets        Asset[]
+  subscription  Subscription?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime      @default(now())
 }
 
 model Asset {
-  id          String         @id @default(cuid())
-  userId      String
-  title       String         @default("Untitled")
-  code        String         @db.Text
-  jsCode      String         @db.Text
-  parameters  Json
-  durationInFrames Int       @default(150)
-  fps         Int            @default(30)
-  width       Int            @default(1920)
-  height      Int            @default(1080)
-  versions    AssetVersion[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  userId           String
+  title            String         @default("Untitled")
+  code             String
+  jsCode           String
+  parameters       String
+  durationInFrames Int            @default(150)
+  fps              Int            @default(30)
+  width            Int            @default(1920)
+  height           Int            @default(1080)
+  versions         AssetVersion[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AssetVersion {
   id         String   @id @default(cuid())
   assetId    String
-  code       String   @db.Text
-  jsCode     String   @db.Text
-  parameters Json
-  prompt     String   @db.Text
+  code       String
+  jsCode     String
+  parameters String
+  prompt     String
   createdAt  DateTime @default(now())
   asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 }
