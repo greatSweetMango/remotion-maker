@@ -18,10 +18,20 @@ model: sonnet
 ## 핵심 책임
 
 1. **작업 큐 관리**: Task Master에서 ready task fetch, 우선순위/의존성 정리
-2. **유형 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` 중 하나 부여
-3. **Worktree 락 관리**: `.agent-state/branch-locks.json`을 단일 원천으로 유지
-4. **컨텍스트 패키징**: build-team에 전달할 입력 (task 본문, worktree 경로, branch 명, 유형 태그, 관련 spec/ADR 링크)
-5. **리포트**: 일일 status.md 갱신, 매주 메타 분석 트리거
+2. **유형 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` / `#docs` 중 하나 부여
+3. **실행 위치 라우팅**:
+   - 코드 변경 task → 새 worktree 생성 + 락 테이블 등록
+   - **Wiki-only task (`#docs`, status 갱신, ADR, 메타 분석 등)** → **main worktree에서 직접 실행** (worktree 생성 X)
+4. **Worktree 락 관리**: `.agent-state/branch-locks.json`을 단일 원천으로 유지 (코드 task만)
+5. **컨텍스트 패키징**: build-team에 전달할 입력 (task 본문, 실행 위치, branch 명, 유형 태그, 관련 spec/ADR 링크)
+6. **리포트**: 일일 status.md 갱신, 매주 메타 분석 트리거
+
+## Wiki 소유권 규칙
+
+- wiki/는 **main 브랜치 단독 소유**
+- feature worktree에 wiki/ 사본이 있어도 **수정 금지**
+- 모든 wiki 변경은 main worktree에서 직접 commit
+- 코드 task가 진행 중 wiki 갱신이 필요하면 → 별도 wiki-only task를 main에 큐잉
 
 ## SOP
 

@@ -17,10 +17,11 @@ status: active
 - **작업 실행 단위**: `/build-team:build-team` 스킬 (단순 subagent dispatch 대신)
 - **회고 자동화**: `/build-team:team-retrospective` 스킬 (매 세션 후 자동 호출)
 - **메타 분석**: 주간/월간 워크플로우 리포트 (팀 소통, 병렬 효율, 정확도 분석 + 개선안)
-- **작업 SoT**: Task Master MCP (research-driven 분해 포함)
+- **작업 SoT**: Task Master MCP (Researcher subagent로 외부 리서치)
 - **지식 SoT**: Obsidian (`wiki/`, 사람도 읽는 영구 저장소)
 - **리포트 SoT**: `wiki/05-reports/` (세션별 + 주기 메타 분석)
-- **병렬성**: 모든 task는 자체 worktree에서 실행, PM이 worktree/branch 락 테이블 관리
+- **wiki 소유권**: **main 브랜치 단독** — feature worktree는 wiki를 읽기만 함, 수정은 main에서만
+- **병렬성**: 모든 코드 task는 자체 worktree에서 실행, PM이 worktree/branch 락 테이블 관리
 - **점진 자율화**: Phase 0→5 단계별로 신뢰 쌓고 게이트 완화
 
 ## 2. 아키텍처
@@ -88,7 +89,28 @@ Orchestrator: Claude Code 메인 세션 (Opus 4.7)
 
 ## 3.5 병렬 작업 + Worktree 관리 (PM 책임)
 
-**핵심 제약**: 모든 코드 수정 작업은 격리된 worktree에서만 진행. PM이 worktree/branch 락 테이블을 관리하며, 동일 브랜치를 두 worktree가 동시에 점유하지 못하도록 한다.
+**핵심 제약**: 모든 **코드** 수정 작업은 격리된 worktree에서만 진행. PM이 worktree/branch 락 테이블을 관리하며, 동일 브랜치를 두 worktree가 동시에 점유하지 못하도록 한다.
+
+### Wiki 소유권 규칙 (옵션 2)
+
+`wiki/` 폴더는 **main 브랜치 단독 소유**:
+
+- ✅ wiki/ 물리적 단일 위치: `~/Desktop/remotion-maker/wiki/` (main worktree 루트)
+- ✅ Obsidian vault는 항상 이 경로를 봄 → 단일 진실 보장
+- ✅ git에 정상 추적됨 (프로젝트 history에 wiki 변경 포함)
+- ❌ feature worktree는 wiki를 **수정하지 않음** (읽기만)
+  - 이유: worktree는 git이 자동으로 wiki 사본을 만들지만, 수정만 안 하면 충돌 무관
+- ✅ wiki 변경이 필요한 작업은 **main worktree에서 직접 실행** (PM/Marketer/메타 분석/문서 task 등)
+- ✅ wiki 변경은 별도 commit으로 main에 즉시 적용 (auto-commit by Stop hook)
+- 코드 task가 진행 중 wiki 업데이트가 필요하면 → 별도 wiki-only task를 main에서 처리
+
+#### 작업 종류별 실행 위치
+
+| 작업 종류 | 실행 위치 | 예시 |
+|---|---|---|
+| 코드 변경 (`src/`, `tests/`, etc.) | feature worktree | feature, fix, refactor, experiment |
+| **Wiki 변경 (`wiki/**`)** | **main worktree 직접** | status 갱신, PRD, ADR, 회고, mermaid 추가 등 |
+| 코드 + wiki 혼합 | feature worktree | 단, wiki는 PR 머지 시까지 보류 — 또는 별도 wiki commit |
 
 ### 디렉토리 컨벤션
 
