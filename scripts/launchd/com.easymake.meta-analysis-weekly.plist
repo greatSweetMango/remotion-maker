@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.easymake.meta-analysis-weekly</string>
+
+  <!--
+    매주 일요일 23:59 (사용자 로컬 타임존, KST 환경 가정).
+    실제 실행은 launchd가 시스템 타임존을 따름.
+    EasyMake 저장소 절대경로는 사용자가 등록 시 치환.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd __REPO_ROOT__ &amp;&amp; git fetch origin &amp;&amp; git checkout main &amp;&amp; git pull --ff-only &amp;&amp; ./scripts/meta-analysis.sh weekly &gt;&gt; .agent-state/meta-analysis-logs/launchd.log 2&gt;&amp;1</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer> <!-- 0 = Sunday -->
+    <key>Hour</key>
+    <integer>23</integer>
+    <key>Minute</key>
+    <integer>59</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/.agent-state/meta-analysis-logs/weekly.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/.agent-state/meta-analysis-logs/weekly.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

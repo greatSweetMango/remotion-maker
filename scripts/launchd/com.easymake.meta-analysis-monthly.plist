@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.easymake.meta-analysis-monthly</string>
+
+  <!--
+    매월 28/29/30/31일 23:59에 셸이 "내일이 다음 달인지" 확인하고 실행.
+    launchd는 "마지막 날" 직접 표현이 없으므로 28-31일 모두 트리거하고
+    셸에서 다음 날짜가 다음 달인지 검사.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>tomorrow_month=$(date -v+1d +%m 2>/dev/null || date -d "tomorrow" +%m); today_month=$(date +%m); if [ "$tomorrow_month" != "$today_month" ]; then cd __REPO_ROOT__ &amp;&amp; git fetch origin &amp;&amp; git checkout main &amp;&amp; git pull --ff-only &amp;&amp; ./scripts/meta-analysis.sh monthly &gt;&gt; .agent-state/meta-analysis-logs/launchd.log 2&gt;&amp;1; fi</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Day</key><integer>28</integer>
+      <key>Hour</key><integer>23</integer>
+      <key>Minute</key><integer>59</integer>
+    </dict>
+    <dict>
+      <key>Day</key><integer>29</integer>
+      <key>Hour</key><integer>23</integer>
+      <key>Minute</key><integer>59</integer>
+    </dict>
+    <dict>
+      <key>Day</key><integer>30</integer>
+      <key>Hour</key><integer>23</integer>
+      <key>Minute</key><integer>59</integer>
+    </dict>
+    <dict>
+      <key>Day</key><integer>31</integer>
+      <key>Hour</key><integer>23</integer>
+      <key>Minute</key><integer>59</integer>
+    </dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/.agent-state/meta-analysis-logs/monthly.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/.agent-state/meta-analysis-logs/monthly.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
