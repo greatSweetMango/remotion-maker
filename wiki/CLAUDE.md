@@ -116,7 +116,25 @@ flowchart TD
 - **`/weekly-status`**: 최근 7일 git log + 새 ADR/회의록 종합해 `02-dev/status.md` 갱신
 - **`/adr <title>`**: 새 ADR 생성 (다음 번호 자동 할당, 템플릿 적용)
 
-## 8. 금지사항
+## 8. build-team 산출물 경로 컨벤션
+
+build-team의 각 역할이 산출물을 저장하는 표준 경로. Phase 1 dry-run 회고에서 도출.
+
+| 역할 | 저장 위치 | 명명 규칙 |
+|---|---|---|
+| **Researcher** | `wiki/03-research/` | `<topic-slug>.md` (재사용 가능, 주제 중심) |
+| **Architect** | `wiki/01-pm/decisions/` | `<NNNN>-<slug>.md` (ADR, 4자리 zero-pad) |
+| **Developer** (plan) | 컨텍스트 파일 또는 `wiki/02-dev/tasks/` | task별 plan |
+| **Implementer** | 대상 파일 자체 (코드 또는 wiki) | — |
+| **QA** | `wiki/05-reports/` | `<YYYY-MM-DD>-<task_id>-qa.md` |
+| **Reviewer** | gh pr comment + `wiki/05-reports/` | `<YYYY-MM-DD>-<task_id>-review.md` |
+| **Validator** | `wiki/05-reports/` | `<YYYY-MM-DD>-<task_id>-validation.md` |
+| **Retrospective** | `wiki/05-reports/` | `<YYYY-MM-DD>-<task_id>-retro.md` |
+| **Marketer** | `wiki/50-marketing/` 또는 `wiki/05-reports/releases/` | `<date>-<topic>.md` / `v<version>.md` |
+
+build-team 호출 시 이 컨벤션을 **컨텍스트 파일에 명시**하고, **각 teammate 프롬프트에 강조**한다. 모든 산출물에는 frontmatter 필수.
+
+## 9. 금지사항
 
 - vault 외부의 코드를 멋대로 수정하지 않는다 (별도 작업으로 분리)
 - 같은 사실을 여러 페이지에 복제하지 않는다 (한 곳에 두고 링크)
