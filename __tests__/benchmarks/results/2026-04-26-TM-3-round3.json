@@ -1,0 +1,817 @@
+{
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "total": 50,
+    "concurrency": 6,
+    "elapsedMs": 62575,
+    "finishedAt": "2026-04-26T17:22:29.589Z"
+  },
+  "summary": {
+    "total": 50,
+    "passed": 44,
+    "passRate": 0.88,
+    "byCategory": {
+      "data-viz": {
+        "total": 10,
+        "passed": 8,
+        "rate": 0.8
+      },
+      "text-anim": {
+        "total": 10,
+        "passed": 10,
+        "rate": 1
+      },
+      "transition": {
+        "total": 10,
+        "passed": 8,
+        "rate": 0.8
+      },
+      "loader": {
+        "total": 10,
+        "passed": 10,
+        "rate": 1
+      },
+      "infographic": {
+        "total": 10,
+        "passed": 8,
+        "rate": 0.8
+      }
+    },
+    "failureCounts": {
+      "clarify-mode": 3,
+      "json-parse-error": 2,
+      "missing-type-comments": 1
+    }
+  },
+  "results": [
+    {
+      "id": "dv-01",
+      "category": "data-viz",
+      "prompt": "Animated counter from 0 to 100 with spring effect, blue text on transparent background",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 6,
+      "failureModes": [],
+      "durationMs": 7028
+    },
+    {
+      "id": "dv-02",
+      "category": "data-viz",
+      "prompt": "월별 매출 막대그래프, 1월부터 6월까지 [120, 150, 180, 200, 240, 280] 단위 만원, 보라색 톤",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 6,
+      "failureModes": [],
+      "durationMs": 7167
+    },
+    {
+      "id": "dv-03",
+      "category": "data-viz",
+      "prompt": "Pie chart with 4 slices: 40% sales, 30% marketing, 20% R&D, 10% admin, pastel colors",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 6,
+      "failureModes": [],
+      "durationMs": 11037
+    },
+    {
+      "id": "dv-04",
+      "category": "data-viz",
+      "prompt": "Line graph showing growth from 10 to 90, smooth curve, green gradient stroke",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 10297
+    },
+    {
+      "id": "dv-05",
+      "category": "data-viz",
+      "prompt": "실시간 주식 시세 그래프 느낌, 빨강/초록 캔들, 8개 막대",
+      "pass": false,
+      "checks": {
+        "c1": false,
+        "c2": false,
+        "c3": false,
+        "c4": false
+      },
+      "extractorCount": 0,
+      "failureModes": [
+        "clarify-mode"
+      ],
+      "durationMs": 2097,
+      "rawResponseExcerpt": "{\n  \"mode\": \"clarify\",\n  \"questions\": [\n    {\n      \"id\": \"data_kind\",\n      \"question\": \"데이터 종류는 무엇인가요?\",\n      \"choices\": [\n        { \"id\": \"sales\", \"label\": \"매출\" },\n        { \"id\": \"users\", \"label\": \"사용자수\" },\n        { \"id\": \"ranking\", \"label\": \"순위\" }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "id": "dv-06",
+      "category": "data-viz",
+      "prompt": "Animated percentage ring filling from 0% to 75%, neon cyan color, dark background",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 7997
+    },
+    {
+      "id": "dv-07",
+      "category": "data-viz",
+      "prompt": "인구 증가 카운터 8,000,000,000 까지 빠르게 올라가는 애니메이션",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6787
+    },
+    {
+      "id": "dv-08",
+      "category": "data-viz",
+      "prompt": "Horizontal bar race, 5 brands [Apple 320, Samsung 280, Xiaomi 200, Google 150, Sony 100], orange theme",
+      "pass": false,
+      "checks": {
+        "c1": false,
+        "c2": false,
+        "c3": false,
+        "c4": false
+      },
+      "extractorCount": 0,
+      "failureModes": [
+        "json-parse-error"
+      ],
+      "durationMs": 8445,
+      "rawResponseExcerpt": "{\n  \"mode\": \"generate\",\n  \"title\": \"Horizontal Bar Race for 5 Brands\",\n  \"code\": \"import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';\\n\\nconst PARAMS = {\\n  primaryColor: '#FFA500',    // type: color\\n  secondaryColor: '#FF4500',  // type: color\\n  speed: 1.0,                  // type: range, min: 0.1, max: 3.0\\n  text: 'Brand Race',           // type: text\\n  fontSize: 80,                // type: range, min: 20, max: 200, unit: px\\n  visible: true,               // type: boolean\\n  animStyle: 'linear',         // type: select, options: bounce|spring|linear\\n} as const;\\n\\nconst brands = [\\n  {name: 'Apple', value: 320},\\n  {name: 'Samsung', value: 280},\\n  {name: 'Xiaomi', value: 200},\\n  {name: 'Google', value: 150},\\n  {name: 'Sony', value: 100}\\n];\\n\\nexport const GeneratedAsset = ({\\n  primaryColor = PARAMS.primaryColor,\\n  speed = PARAMS.speed,\\n  text = PARAMS.text,\\n  fontSize = PARAMS.fontSize,\\n  visible = PARAMS.visible,\\n}: typeof PARAMS = PARAMS) => {\\n  const frame = useCurrentFrame();\\n  const {durationInFrames, fps, width, height} = useVideoConfig();\\n\\n  return (\\n    <AbsoluteFill style={{backgroundColor: 'transparent'}}>\\n      <h1 style={{textAlign: 'center', fontSize: fontSize}}>{text}</h1>\\n      <div style={{width: '100%', height: '100%', position: 'relative'}}> \\n        {brands.map((brand, index) => {\\n          const progress = interpolate(\\n            frame,\\n            [0, durationInFrames],\\n            [0, brand.value],\\n            {extrapolateRight: 'clamp'}\\n          );\\n          return (\\n            <div key={brand.name} style={{margin: '10px 0', position: 'relative'}}>\\n              <div style={{\\n                backgroundColor: primaryColor,\\n                width: `${progress}px`,\\n                height: '50px',\\n                transition: \\`width ${speed}s linear\\`,\\n                position: 'absolute',\\n                top: 0,\\n                left: 0,\\n              }} />\\n              <span style={{position: 'absolute', left: '10px'}}>{brand.name}</span>\\n            </div>\\n          );\\n        })}\\n      </div>\\n    </AbsoluteFill>\\n  );\\n};\",\n  \"durationInFrames\": 150,\n  \"fps\": 30,\n  \"width\": 1920,\n  \"height\": 1080\n}"
+    },
+    {
+      "id": "dv-09",
+      "category": "data-viz",
+      "prompt": "Animated KPI dashboard tile: revenue $1.2M with 12% green up arrow",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6791
+    },
+    {
+      "id": "dv-10",
+      "category": "data-viz",
+      "prompt": "도넛 차트 60%/40% 분할, 부드럽게 채워지는 애니메이션, 파란색 강조",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 6471
+    },
+    {
+      "id": "ta-01",
+      "category": "text-anim",
+      "prompt": "Comic book style POW! text exploding into view, yellow with black outline",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6425
+    },
+    {
+      "id": "ta-02",
+      "category": "text-anim",
+      "prompt": "\"Hello World\" 타이핑 효과, 모노스페이스 폰트, 흰 배경 검정 글씨",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6268
+    },
+    {
+      "id": "ta-03",
+      "category": "text-anim",
+      "prompt": "Big bold \"SALE\" text bouncing in with spring, red color, drop shadow",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7037
+    },
+    {
+      "id": "ta-04",
+      "category": "text-anim",
+      "prompt": "Word-by-word reveal of the sentence \"Make the impossible possible\", elegant serif font",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7700
+    },
+    {
+      "id": "ta-05",
+      "category": "text-anim",
+      "prompt": "\"NEW\" 글자가 회전하면서 등장, 금색 그라데이션, 5초 길이",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6872
+    },
+    {
+      "id": "ta-06",
+      "category": "text-anim",
+      "prompt": "Glitchy cyberpunk title \"SYSTEM ONLINE\", green RGB shift effect",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6656
+    },
+    {
+      "id": "ta-07",
+      "category": "text-anim",
+      "prompt": "Quote text fading in line by line, italic, navy blue background",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6151
+    },
+    {
+      "id": "ta-08",
+      "category": "text-anim",
+      "prompt": "브랜드 로고 텍스트 \"EasyMake\" 좌우로 슬라이드 인, 굵은 산세리프",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6207
+    },
+    {
+      "id": "ta-09",
+      "category": "text-anim",
+      "prompt": "Numbers 3, 2, 1, GO! countdown with each number scaling up and fading out",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 6746
+    },
+    {
+      "id": "ta-10",
+      "category": "text-anim",
+      "prompt": "Handwritten signature \"Claude\" stroke animation, black ink on white",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 6,
+      "failureModes": [],
+      "durationMs": 5950
+    },
+    {
+      "id": "tr-01",
+      "category": "transition",
+      "prompt": "Slide transition from left to right, two colored panels (purple to teal)",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 4,
+      "failureModes": [],
+      "durationMs": 6155
+    },
+    {
+      "id": "tr-02",
+      "category": "transition",
+      "prompt": "페이드 인 페이드 아웃, 검정에서 흰색으로 1.5초",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6407
+    },
+    {
+      "id": "tr-03",
+      "category": "transition",
+      "prompt": "Zoom-in transition on a circular mask, revealing pink background",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 9150
+    },
+    {
+      "id": "tr-04",
+      "category": "transition",
+      "prompt": "Wipe transition diagonal from top-left to bottom-right, two color blocks",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 4,
+      "failureModes": [],
+      "durationMs": 7766
+    },
+    {
+      "id": "tr-05",
+      "category": "transition",
+      "prompt": "원이 화면을 가득 채우며 다음 색으로 전환, 노랑→파랑",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 3,
+      "failureModes": [],
+      "durationMs": 5710
+    },
+    {
+      "id": "tr-06",
+      "category": "transition",
+      "prompt": "Iris-out transition, black aperture closing on a red background",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 3,
+      "failureModes": [],
+      "durationMs": 5253
+    },
+    {
+      "id": "tr-07",
+      "category": "transition",
+      "prompt": "Page flip transition simulating a book turning, beige tones",
+      "pass": false,
+      "checks": {
+        "c1": false,
+        "c2": false,
+        "c3": false,
+        "c4": false
+      },
+      "extractorCount": 0,
+      "failureModes": [
+        "clarify-mode"
+      ],
+      "durationMs": 2380,
+      "rawResponseExcerpt": "{\n  \"mode\": \"clarify\",\n  \"questions\": [\n    {\n      \"id\": \"data_kind\",\n      \"question\": \"데이터 종류는 무엇인가요?\",\n      \"choices\": [\n        { \"id\": \"sales\", \"label\": \"매출\" },\n        { \"id\": \"users\", \"label\": \"사용자수\" },\n        { \"id\": \"ranking\", \"label\": \"순위\" }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "id": "tr-08",
+      "category": "transition",
+      "prompt": "Glitchy cut transition between two scenes, RGB split, 0.4 seconds",
+      "pass": false,
+      "checks": {
+        "c1": true,
+        "c2": false,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 1,
+      "failureModes": [
+        "missing-type-comments"
+      ],
+      "durationMs": 5454,
+      "codeExcerpt": "import { useCurrentFrame, useVideoConfig, AbsoluteFill, interpolate } from 'remotion';\n\nconst PARAMS = {\n  duration: 24, // type: range, min: 1, max: 90\n} as const;\n\nexport const GeneratedAsset = ({ duration = PARAMS.duration }: typeof PARAMS = PARAMS) => {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const progress = frame / (duration * fps);\n\n  const rgbOffset = interpolate(progress, [0, 0.3, 0.4, 1], [0, 10, -10, 0]);\n\n  return (\n    <AbsoluteFill style={{ backgroundColor: 'black' }}>\n      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'transparent', clipPath: `inset(0 0 0 ${rgbOffset}px)` }}>\n        {/* Scene 1 Content */}\n      </div>\n      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'transparent', filter: `translateX(${rgbOffset}px)` }}>\n        {/* Scene 2 Content */}\n      </div>\n    </AbsoluteFill>\n  );\n};"
+    },
+    {
+      "id": "tr-09",
+      "category": "transition",
+      "prompt": "블라인드 효과 전환, 가로 5줄, 검정에서 흰색",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 7163
+    },
+    {
+      "id": "tr-10",
+      "category": "transition",
+      "prompt": "Morph transition from circle to square, single accent color (#FF6B6B)",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 3,
+      "failureModes": [],
+      "durationMs": 6835
+    },
+    {
+      "id": "ld-01",
+      "category": "loader",
+      "prompt": "Circular spinner loader, 8 dots rotating, primary blue color",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 3,
+      "failureModes": [],
+      "durationMs": 6581
+    },
+    {
+      "id": "ld-02",
+      "category": "loader",
+      "prompt": "진행률 바 0%에서 100%까지, 초록색, 둥근 모서리",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 6,
+      "failureModes": [],
+      "durationMs": 7030
+    },
+    {
+      "id": "ld-03",
+      "category": "loader",
+      "prompt": "Bouncing 3 dots loader, gray on white, ease-in-out",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 8713
+    },
+    {
+      "id": "ld-04",
+      "category": "loader",
+      "prompt": "Skeleton shimmer loading effect, gradient sweep across a card",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 9030
+    },
+    {
+      "id": "ld-05",
+      "category": "loader",
+      "prompt": "Pulsing heart loader, red, scale 1.0 to 1.3 with spring",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 8911
+    },
+    {
+      "id": "ld-06",
+      "category": "loader",
+      "prompt": "무한 회전하는 링 스피너, 두께 8px, 보라색 하이라이트",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7070
+    },
+    {
+      "id": "ld-07",
+      "category": "loader",
+      "prompt": "Loading bar with percentage text \"Loading 42%\", dark theme",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7610
+    },
+    {
+      "id": "ld-08",
+      "category": "loader",
+      "prompt": "Hourglass flip loader, sand falling animation, sepia tone",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 9534
+    },
+    {
+      "id": "ld-09",
+      "category": "loader",
+      "prompt": "4개의 사각형이 순차로 페이드되는 로더, 청록색",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 3,
+      "failureModes": [],
+      "durationMs": 6085
+    },
+    {
+      "id": "ld-10",
+      "category": "loader",
+      "prompt": "Animated wave loader, three waves bouncing, ocean blue",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 4,
+      "failureModes": [],
+      "durationMs": 6396
+    },
+    {
+      "id": "ig-01",
+      "category": "infographic",
+      "prompt": "Step indicator 1-2-3-4 with checkmarks animating in, green accent",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 8372
+    },
+    {
+      "id": "ig-02",
+      "category": "infographic",
+      "prompt": "3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안 — 가로 배치 페이드인",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 6760
+    },
+    {
+      "id": "ig-03",
+      "category": "infographic",
+      "prompt": "Comparison side-by-side: \"Before 30s\" vs \"After 5s\", red vs green",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7476
+    },
+    {
+      "id": "ig-04",
+      "category": "infographic",
+      "prompt": "Timeline 2020→2021→2022→2023, dots connected by line, sequential reveal",
+      "pass": false,
+      "checks": {
+        "c1": false,
+        "c2": false,
+        "c3": false,
+        "c4": false
+      },
+      "extractorCount": 0,
+      "failureModes": [
+        "json-parse-error"
+      ],
+      "durationMs": 9858,
+      "rawResponseExcerpt": "{\n  \"mode\": \"generate\",\n  \"title\": \"Sequential Timeline with Dots and Lines\",\n  \"code\": \"const PARAMS = {\\n  primaryColor: \\\"#7C3AED\\\",     // type: color\\n  secondaryColor: \\\"#A78BFA\\\",   // type: color\\n  speed: 1.0,                  // type: range, min: 0.1, max: 3.0\\n  text: \\\"Timeline\\\",            // type: text\\n  fontSize: 80,                // type: range, min: 20, max: 200, unit: px\\n  visible: true,               // type: boolean\\n  animStyle: \\\"bounce\\\",         // type: select, options: bounce|spring|linear\\n} as const;\\n\\nexport const GeneratedAsset = ({\\n  primaryColor = PARAMS.primaryColor,\\n  secondaryColor = PARAMS.secondaryColor,\\n  speed = PARAMS.speed,\\n  text = PARAMS.text,\\n  fontSize = PARAMS.fontSize,\\n  visible = PARAMS.visible,\\n  animStyle = PARAMS.animStyle,\\n}: typeof PARAMS = PARAMS) => {\\n  const frame = useCurrentFrame();\\n  const { durationInFrames } = useVideoConfig();\\n  const totalDots = 4;\\n  const revealDuration = Math.floor(durationInFrames / totalDots);\\n\\n  return (\\n    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>\\n      <svg width=\\\"100%\\\" height=\\\"100%\\\">\\n        {/* Draw the timeline line */}\\n        <line x1=\\\"10%\\\" y1=\\\"50%\\\" x2=\\\"90%\\\" y2=\\\"50%\\\" stroke={secondaryColor} strokeWidth=\\\"2\\\" />\\n        {/* Create dots for each year */}\\n        {[2020, 2021, 2022, 2023].map((year, index) => {\\n          const position = 10 + index * 20; // calculate position\\n          const isVisible = frame > index * revealDuration;\\n          return (\\n            <circle\\n              key={year}\\n              cx={`${position}%`}\\n              cy=\\\"50%\\\"\\n              r=\\\"8\\\"\\n              fill={isVisible ? primaryColor : 'transparent'}\\n              stroke={isVisible ? primaryColor : 'transparent'}\\n              strokeWidth=\\\"2\\\"\\n            />\\n          );\\n        })}\\n        {/* Display text for each year */}\\n        {[2020, 2021, 2022, 2023].map((year, index) => {\\n          const position = 10 + index * 20;\\n          return (\\n            <text\\n              key={`text-${year}`}\\n              x={`${position}%`}\\n              y=\\\"55%\\\"\\n              fontSize={fontSize}\\n              fill={primaryColor}\\n              opacity={frame > index * revealDuration ? 1 : 0}\\n              style={{transition: \\`opacity ${speed}s\\`,}}\\n            >\\n              {year}\\n            </text>\\n          );\\n        })}\\n      </svg>\\n    </AbsoluteFill>\\n  );\\n};\",\n  \"durationInFrames\": 150,\n  \"fps\": 30,\n  \"width\": 1920,\n  \"height\": 1080\n}"
+    },
+    {
+      "id": "ig-05",
+      "category": "infographic",
+      "prompt": "피라미드 다이어그램 3단계: Vision/Strategy/Execution, 보라 그라디언트",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7763
+    },
+    {
+      "id": "ig-06",
+      "category": "infographic",
+      "prompt": "Stat callout: \"10x faster\", giant number with subtitle, orange theme",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 7223
+    },
+    {
+      "id": "ig-07",
+      "category": "infographic",
+      "prompt": "Process flow with 4 boxes connected by arrows, sequential fill, blue",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 7,
+      "failureModes": [],
+      "durationMs": 10839
+    },
+    {
+      "id": "ig-08",
+      "category": "infographic",
+      "prompt": "아이콘 그리드 6개 (홈/검색/설정/유저/알림/카트), 순서대로 팝인",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 5,
+      "failureModes": [],
+      "durationMs": 7705
+    },
+    {
+      "id": "ig-09",
+      "category": "infographic",
+      "prompt": "Quote card with avatar circle, name, and 5-star rating animation",
+      "pass": false,
+      "checks": {
+        "c1": false,
+        "c2": false,
+        "c3": false,
+        "c4": false
+      },
+      "extractorCount": 0,
+      "failureModes": [
+        "clarify-mode"
+      ],
+      "durationMs": 2060,
+      "rawResponseExcerpt": "{\n  \"mode\": \"clarify\",\n  \"questions\": [\n    {\n      \"id\": \"data_kind\",\n      \"question\": \"데이터 종류는 무엇인가요?\",\n      \"choices\": [\n        { \"id\": \"sales\", \"label\": \"매출\" },\n        { \"id\": \"users\", \"label\": \"사용자수\" },\n        { \"id\": \"ranking\", \"label\": \"순위\" }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "id": "ig-10",
+      "category": "infographic",
+      "prompt": "Map pin dropping onto a location label \"Seoul\", red pin, gray map",
+      "pass": true,
+      "checks": {
+        "c1": true,
+        "c2": true,
+        "c3": true,
+        "c4": true
+      },
+      "extractorCount": 4,
+      "failureModes": [],
+      "durationMs": 6971
+    }
+  ]
+}
