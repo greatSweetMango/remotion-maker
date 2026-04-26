@@ -38,7 +38,7 @@ model: sonnet
    a. 유형 태그 결정 (이미 있으면 유지, 없으면 키워드로 추정 — 모호하면 escalate)
    b. branch 이름 결정: TM-{id}-{slug} 형식
    c. branch-locks.json에 동일 branch 락 있으면 skip
-   d. worktree 경로 결정: ../<repo-name>-{slug}
+   d. worktree 경로 결정: **worktrees/{TM-id}-{slug}** (저장소 루트 기준 상대 경로, 모든 worktree는 worktrees/ 하위에 격리)
    e. 의존 task가 있고 미머지면 stack PR 메모 (Phase 5+에서만)
 8. branch-locks.json 갱신 (status: "queued")
 9. Orchestrator에 전달:
@@ -50,7 +50,7 @@ model: sonnet
          "type": "feature|fix|experiment|refactor",
          "tags": ["#frontend-ui", ...],
          "branch": "TM-101-foo-bar",
-         "worktree": "../remotion-maker-foo-bar",
+         "worktree": "worktrees/TM-101-foo-bar",
          "spec_links": ["wiki/01-pm/decisions/...", ...],
          "context_files": [...]
        },

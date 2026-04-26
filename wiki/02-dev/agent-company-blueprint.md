@@ -90,12 +90,28 @@ Orchestrator: Claude Code 메인 세션 (Opus 4.7)
 
 **핵심 제약**: 모든 코드 수정 작업은 격리된 worktree에서만 진행. PM이 worktree/branch 락 테이블을 관리하며, 동일 브랜치를 두 worktree가 동시에 점유하지 못하도록 한다.
 
+### 디렉토리 컨벤션
+
+모든 worktree는 저장소 루트 하위 **`worktrees/`** 디렉토리에 격리:
+
+```
+remotion-maker/                            ← 메인 worktree (main 브랜치)
+├── src/, wiki/, .claude/, ...
+├── .gitignore (worktrees/ 추가됨)
+└── worktrees/                             ← (gitignored, 그러나 디렉토리 자체는 사용)
+    ├── TM-101-auth-base/                  ← Implementer A 작업
+    ├── TM-102-auth-oauth/                 ← Implementer B 작업
+    └── setup-agent-company-bootstrap/     ← (예시) 셋업 작업
+```
+
+이렇게 두면 `~/Desktop`이 깔끔하고, 단일 프로젝트 폴더 안에서 모든 작업이 자기완결적이다.
+
 ### 락 테이블 (`.agent-state/branch-locks.json`)
 
 ```json
 {
-  "feat/auth-base": {
-    "worktree": "/Users/kjh/Desktop/remotion-maker-task-101",
+  "TM-101-auth-base": {
+    "worktree": "worktrees/TM-101-auth-base",
     "task_id": "TM-101",
     "claimed_by": "team-auth-base",
     "claimed_at": "2026-04-26T10:23:00Z",
@@ -104,18 +120,20 @@ Orchestrator: Claude Code 메인 세션 (Opus 4.7)
 }
 ```
 
+`worktree` 값은 **저장소 루트 기준 상대 경로**.
+
 ### PM의 워크트리 라이프사이클
 
 ```
 1. PM이 ready task fetch
-2. branch 이름 결정 (TM-{id}-{slug} 또는 feat/{slug})
+2. branch 이름 결정: TM-{id}-{slug}
 3. branch-locks.json 확인 — 이미 락 걸려있으면 skip
-4. git worktree add ../<repo>-{slug} -b {branch}
-5. branch-locks.json 갱신 (locked)
+4. git worktree add worktrees/{TM-id}-{slug} -b {branch}
+5. branch-locks.json 갱신 (locked, worktree: "worktrees/...")
 6. build-team에 worktree 경로 + branch 명 전달
 7. ... 팀이 작업 ...
 8. PR 생성 후 PM이 lock 상태 = "pr_open" 으로 업데이트
-9. PR 머지 후 PM이 git worktree remove + lock 해제
+9. PR 머지 후 PM이 git worktree remove worktrees/{slug} + lock 해제
 10. 매주 1회 git worktree prune
 ```
 
@@ -235,7 +253,7 @@ build-team의 기본 역할 풀에 우리 워크플로우의 PM/Planner/Marketer
 | **QA** | ✅ | 테스트, Playwright 검증 | playwright, superpowers:verification-before-completion |
 | **Validator** | ✅ | 최종 검증, spec 충족 확인 | superpowers:verification-before-completion |
 | **PM** | ➕ 커스텀 | 작업 큐, 우선순위, 리포트 | task-master, obsidian |
-| **Planner** (PRD) | ➕ 커스텀 | PRD, research 분해 | task-master (parse-prd, expand --research) |
+| **Planner** (PRD) | ➕ 커스텀 | PRD, task 분해. 리서치 필요 시 Researcher subagent 호출 | task-master (parse-prd, expand), context7 |
 | **Marketer** | ➕ 커스텀 | 릴리즈 노트, 카피 | obsidian |
 
 ### 권한 격리
@@ -281,15 +299,24 @@ build-team의 기본 역할 풀에 우리 워크플로우의 PM/Planner/Marketer
 [Ralph 루프: 다음 iter]
 ```
 
-## 6. Task Master 리서치 통합
+## 6. 리서치 워크플로우 (커스텀 Researcher 사용)
+
+> Task Master의 `--research` 옵션 (Perplexity 의존)은 **사용하지 않는다**.
+> 대신 build-team의 **Researcher 역할**이 모든 외부 리서치를 담당 (Claude 구독 + context7 + WebSearch).
 
 | 트리거 | 동작 |
 |---|---|
-| 새 PRD 입력 | `parse-prd` → 초기 task tree |
-| 모든 신규 task | `analyze-complexity` 자동 실행 |
-| 복잡도 ≥ 7 | `expand --id=<X> --research` 자동 실행 |
-| 새 라이브러리/API/보안 작업 | `research` 명령 → 외부 컨텍스트 수집 |
-| 일일 리서치 예산 초과 | 자동 비활성화 (Hook 차단) |
+| 새 PRD 입력 | Planner가 `parse-prd` → 초기 task tree |
+| 모든 신규 task | Planner가 `analyze-complexity` 호출 |
+| 복잡도 ≥ 7 또는 도메인 지식 필요 | Planner가 **Researcher subagent 호출** |
+| Researcher 결과 | `wiki/03-research/<slug>.md`에 저장 후 Planner가 참조하여 `expand` 수동 분해 |
+| build-team 실행 중 추가 리서치 필요 | Researcher 역할이 Phase 1에서 수행 (build-team 내장) |
+
+**Researcher의 핵심 도구**:
+- `mcp__plugin_context7_context7__*` — 라이브러리 공식 문서
+- `WebSearch`, `WebFetch` — 최신 정보, 블로그, 이슈
+- `mcp__plugin_serena_serena__*` — 기존 코드베이스 시맨틱 분석
+- 결과물: `wiki/03-research/<slug>.md` 또는 build-team 컨텍스트 파일
 
 ## 7. 리포트 시스템
 
@@ -472,7 +499,6 @@ status: completed | escalated | aborted
 | `PreToolUse(Bash)` | `--no-verify`, `git push --force`, `rm -rf`, main 직접 푸시 차단 |
 | `PostToolUse(Edit\|Write)` | prettier/eslint 자동 적용 |
 | `PostToolUse(*)` | spend.json 토큰/비용 추적 |
-| `PostToolUse(task-master__research)` | 리서치 비용 별도 추적 |
 | `Stop` | status.md 갱신, **회고 리포트 자동 트리거** |
 | `PreCompact` | 핵심 결정을 Obsidian에 외부화 |
 
@@ -550,7 +576,7 @@ remotion-maker/
 권한/저장소 문제 해결 후:
 
 1. `git worktree add ../remotion-maker-agentco -b feat/agent-company` 어프루벌
-2. `.mcp.json`에 task-master MCP 추가, API 키 (`ANTHROPIC`, `PERPLEXITY`) 세팅
+2. `.mcp.json`에 task-master MCP 추가 (Claude Code 구독 사용, 별도 API 키 불필요)
 3. `wiki/05-reports/README.md` + `weekly/`, `releases/` 디렉토리 생성
 4. `.claude/agents/{pm,planner,marketer}.md` 3개 커스텀 agent 스텁 (build-team 표준 역할은 그대로 사용)
 5. `.claude/hooks/` 안전 게이트 + Stop 훅에서 `team-retrospective` 자동 트리거
