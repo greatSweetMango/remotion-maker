@@ -15,6 +15,14 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/post-tool-use.sh" }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
