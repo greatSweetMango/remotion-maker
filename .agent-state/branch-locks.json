@@ -1,1 +1,12 @@
-{}
+{
+  "TM-11-gen-06-clarifying-questions": {
+    "worktree": "worktrees/TM-11-gen-06-clarifying-questions",
+    "task_id": "TM-11",
+    "type": "feature",
+    "tags": ["#feature", "#frontend-ui", "#ai-prompt"],
+    "title": "GEN-06: AI 역질문 (clarifying questions) 인터랙션",
+    "claimed_by": "build-tm-11-clarify",
+    "claimed_at": "2026-04-26T22:50:00Z",
+    "status": "in_progress"
+  }
+}
