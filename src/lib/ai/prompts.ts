@@ -63,6 +63,71 @@ ALWAYS respond with valid JSON in this exact format:
   "height": 1080
 }`;
 
+/**
+ * GEN-06 clarifying questions — single LLM call decides clarify vs generate.
+ * Prepends a RESPONSE MODE DECISION block to GENERATION_SYSTEM_PROMPT.
+ *
+ * Response modes:
+ *   - "clarify": prompt is ambiguous; ask 1-3 short multiple-choice questions
+ *   - "generate": prompt is clear (or answers were provided); produce full asset
+ *
+ * Questions must be in the user's input language (default Korean).
+ * Cost: roughly +$0.002/clarify call on Haiku.
+ */
+export const GENERATION_WITH_CLARIFY_SYSTEM_PROMPT = `RESPONSE MODE DECISION (read this first):
+
+Inspect the user's prompt. Decide one of two response modes:
+
+  - mode "clarify": the prompt is ambiguous (vague subject, missing concrete data,
+    no clear visual style, no specific text content, etc.). Ask 1-3 SHORT
+    multiple-choice questions to disambiguate. Each question must be answerable
+    by picking ONE option. Keep choices to 2-4 short labels. Always write
+    questions in the user's input language (default Korean if unclear).
+
+  - mode "generate": the prompt is clear enough OR the user has already provided
+    answers in a [USER ANSWERS] block below. Produce the full Remotion asset.
+
+When mode = "clarify", respond with ONLY this JSON (no other keys):
+{
+  "mode": "clarify",
+  "questions": [
+    {
+      "id": "data_kind",
+      "question": "데이터 종류는 무엇인가요?",
+      "choices": [
+        { "id": "sales", "label": "매출" },
+        { "id": "users", "label": "사용자수" },
+        { "id": "ranking", "label": "순위" }
+      ]
+    }
+  ]
+}
+
+When mode = "generate", respond with the standard generation JSON described
+below, but wrapped in:
+{
+  "mode": "generate",
+  "title": "...",
+  "code": "...",
+  "durationInFrames": N,
+  "fps": N,
+  "width": N,
+  "height": N
+}
+
+Heuristic for ambiguity (be strict — only ask when truly needed):
+  - Prompt is < ~10 words AND lacks any of: concrete subject, color, text content,
+    specific data, named visual style.
+  - Examples that should trigger clarify: "애니메이션 만들어줘", "차트 보여줘",
+    "make something cool".
+  - Examples that should NOT trigger clarify: "Animated counter from 0 to 100
+    with spring effect", "빨간 카운터 0~100, 3초", "Comic book POW! text".
+  - If the user prompt contains a [USER ANSWERS] block, ALWAYS pick "generate".
+
+==================== STANDARD GENERATION RULES (mode=generate) ====================
+
+` + GENERATION_SYSTEM_PROMPT;
+
 export const EDIT_SYSTEM_PROMPT = `You are an expert Remotion animation developer modifying existing code.
 
 Rules:

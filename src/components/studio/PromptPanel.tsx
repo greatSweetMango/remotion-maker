@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import type { AssetVersion, Tier } from '@/types';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle } from 'lucide-react';
+import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
 import { TIER_LIMITS } from '@/lib/usage';
 
 interface PromptPanelProps {
@@ -18,6 +18,9 @@ interface PromptPanelProps {
   isEditing: boolean;
   hasAsset: boolean;
   tier: Tier;
+  clarify?: { questions: ClarifyQuestion[]; pendingPrompt: string } | null;
+  onSubmitClarifyAnswers?: (answers: ClarifyAnswers) => void;
+  onSkipClarify?: () => void;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -29,9 +32,93 @@ const EXAMPLE_PROMPTS = [
   'Neon text glow animation',
 ];
 
+interface ClarifyCardProps {
+  questions: ClarifyQuestion[];
+  pendingPrompt: string;
+  isGenerating: boolean;
+  onSubmit: (answers: ClarifyAnswers) => void;
+  onSkip: () => void;
+}
+
+function ClarifyCard({ questions, pendingPrompt, isGenerating, onSubmit, onSkip }: ClarifyCardProps) {
+  const [answers, setAnswers] = useState<ClarifyAnswers>({});
+  const allAnswered = questions.every((q) => answers[q.id]);
+
+  return (
+    <div className="px-4 py-3 border-b border-slate-700 bg-violet-950/30">
+      <div className="flex items-center gap-1.5 mb-2">
+        <HelpCircle className="h-3.5 w-3.5 text-violet-300" />
+        <span className="text-xs font-semibold text-violet-200">조금만 더 알려주세요</span>
+      </div>
+      <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+        {`"${pendingPrompt}" — 더 정확한 결과를 위해 선택해 주세요.`}
+      </p>
+      <div className="flex flex-col gap-3">
+        {questions.map((q) => {
+          const selected = answers[q.id];
+          return (
+            <div key={q.id} className="flex flex-col gap-1.5">
+              <p className="text-xs text-slate-200">{q.question}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {q.choices.map((c) => {
+                  const isOn = selected === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setAnswers((a) => ({ ...a, [q.id]: c.id }))}
+                      disabled={isGenerating}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        isOn
+                          ? 'bg-violet-600 border-violet-500 text-white'
+                          : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2 mt-3">
+        <Button
+          type="button"
+          size="sm"
+          disabled={isGenerating || !allAnswered}
+          onClick={() => onSubmit(answers)}
+          className="bg-violet-600 hover:bg-violet-700 h-7 text-xs flex-1"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+              생성 중...
+            </>
+          ) : (
+            '답변하고 생성'
+          )}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isGenerating}
+          onClick={onSkip}
+          className="h-7 text-xs text-slate-400 hover:text-white"
+        >
+          건너뛰기
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function PromptPanel({
   onGenerate, onEdit, versions, currentVersionIndex,
   onRestoreVersion, isGenerating, isEditing, hasAsset, tier,
+  clarify, onSubmitClarifyAnswers, onSkipClarify,
 }: PromptPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<'generate' | 'edit'>('generate');
@@ -125,7 +212,18 @@ export function PromptPanel({
         </div>
       )}
 
-      {!hasAsset && (
+      {clarify && clarify.questions.length > 0 && (
+        <ClarifyCard
+          key={clarify.pendingPrompt}
+          questions={clarify.questions}
+          pendingPrompt={clarify.pendingPrompt}
+          isGenerating={isGenerating}
+          onSubmit={(answers) => onSubmitClarifyAnswers?.(answers)}
+          onSkip={() => onSkipClarify?.()}
+        />
+      )}
+
+      {!hasAsset && !clarify && (
         <div className="px-4 py-3 border-b border-slate-700">
           <p className="text-xs text-slate-500 mb-2">Try an example:</p>
           <div className="flex flex-wrap gap-1.5">

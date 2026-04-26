@@ -22,7 +22,17 @@ interface StudioProps {
 }
 
 export function Studio({ tier, userImage, userName, initialAsset, templates = [] }: StudioProps) {
-  const { state, generate, edit, updateParam, restoreVersion, initTemplate, clearAsset } = useStudio(initialAsset);
+  const {
+    state,
+    generate,
+    edit,
+    updateParam,
+    restoreVersion,
+    initTemplate,
+    clearAsset,
+    submitClarifyAnswers,
+    skipClarify,
+  } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
   return (
@@ -93,6 +103,9 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                 isEditing={state.isEditing}
                 hasAsset={!!state.asset}
                 tier={tier}
+                clarify={state.clarify}
+                onSubmitClarifyAnswers={submitClarifyAnswers}
+                onSkipClarify={skipClarify}
               />
             </div>
           </Panel>
@@ -162,6 +175,9 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
               isEditing={state.isEditing}
               hasAsset={!!state.asset}
               tier={tier}
+              clarify={state.clarify}
+              onSubmitClarifyAnswers={submitClarifyAnswers}
+              onSkipClarify={skipClarify}
             />
           )}
           {mobileTab === 'customize' && (

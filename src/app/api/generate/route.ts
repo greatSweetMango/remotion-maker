@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: limitCheck.reason }, { status: 429 });
   }
 
-  const { prompt } = await req.json();
+  const body = await req.json();
+  const { prompt, answers } = body as { prompt?: string; answers?: Record<string, string> };
   if (!prompt?.trim()) {
     return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
   }
@@ -40,7 +41,14 @@ export async function POST(req: Request) {
   const model = user.tier === 'PRO' ? models.pro : models.free;
 
   try {
-    const asset = await generateAsset(prompt, model);
+    const result = await generateAsset(prompt, model, { answers });
+
+    // Clarify-only response: do NOT consume monthly quota.
+    if (result.type === 'clarify') {
+      return NextResponse.json({ type: 'clarify', questions: result.questions });
+    }
+
+    const asset = result.asset;
 
     const dbAsset = await prisma.asset.create({
       data: {
@@ -69,7 +77,7 @@ export async function POST(req: Request) {
       data: { monthlyUsage: { increment: 1 } },
     });
 
-    return NextResponse.json({ ...asset, id: dbAsset.id });
+    return NextResponse.json({ type: 'generate', asset: { ...asset, id: dbAsset.id } });
   } catch (error: unknown) {
     console.error('Generation error:', error);
     const msg = error instanceof Error ? error.message : 'Generation failed';
