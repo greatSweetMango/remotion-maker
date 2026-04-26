@@ -73,6 +73,29 @@ status: active
 - pending: 27건 (TM-3, 5, 12-13, 14-18, 22-35 — TM-26은 의존 해제됨)
 - deferred: TM-1/2/9/10 (출시 단계)
 
+## 다음 날 (2026-04-27) iter 3 완료
+
+### 머지된 task (3건 병렬)
+- **TM-3** (PR #8): A1 PARAMS 추출 신뢰도 88% pass — 가설 ACCEPT (ADR-0002 검증). 프로덕션 prompt + parser 동시 강화.
+- **TM-17** (PR #6): C6 테마 팔레트 일괄 적용 — 6개 팔레트 + 14 신규 테스트 (28→42).
+- **TM-26** (PR #7): G1 메타 분석 agent — prompts/meta-analyzer.md + scripts/meta-analysis.sh + launchd plist 2종, 첫 weekly 시드.
+
+### 새 회고
+- [[../05-reports/2026-04-26-TM-3-validation|TM-3 Validation]]
+- [[../05-reports/2026-04-26-TM-3-retro|TM-3 Retro]]
+- [[../05-reports/2026-04-26-TM-17-theme-palette-bulk-apply-retro|TM-17 Retro]]
+- [[../05-reports/2026-04-26-TM-26-retro|TM-26 Retro]]
+- [[../05-reports/weekly/2026-W17|2026-W17 Weekly Meta]]
+
+### 인사이트 → 신규 task
+- TM-36: ADR 번호 충돌 회피
+- TM-37: continuous idle ScheduleWakeup 자동화
+
+### 사용자 후속 작업 필요
+- `scripts/launchd/README.md` 절차에 따라 `launchctl load` (TM-26 자동 실행)
+- 다음 일요일 23:59 첫 자동 호출 검증
+- TM-3 후속: maxTokens 상향, exemplar 라벨링, claude-haiku 재현 (P2)
+
 ## 최근 세션 (2026-04-25 ~ 2026-04-26)
 
 ### Studio 통합 & UX 개선
