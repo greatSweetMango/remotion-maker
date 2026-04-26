@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { ParameterControl } from './ParameterControl';
+import { ThemePalettes } from './ThemePalettes';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,15 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        <ThemePalettes
+          parameters={parameters}
+          onApply={updates => {
+            for (const [key, value] of Object.entries(updates)) {
+              onParamChange(key, value);
+            }
+          }}
+        />
+
         {GROUP_ORDER.map(group => {
           const groupParams = groupedParams[group];
           if (!groupParams?.length) return null;
