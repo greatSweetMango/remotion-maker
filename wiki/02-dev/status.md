@@ -48,6 +48,31 @@ status: active
 이 한 줄이면 PM → build-team → 회고 → commit → 다음 task 자동 반복.
 정지: `touch .agent-state/STOP`. 자세한 내용: [[orchestrator-runbook|Runbook]] 참고.
 
+## 오늘 요약 (2026-04-26)
+
+### 머지된 task
+- **TM-11** (PR #2): GEN-06 AI 역질문 (clarifying questions) — 9 파일, 28/28 회귀, verdict APPROVE 92%
+- **TM-19** (PR #5): spend.json 자동 갱신 PostToolUse hook — ADR-0006, 3 파일
+- **TM-20** (PR #4): /orchestrate 인자 모드 (--once / --max=N / TM-X) — 1 파일
+- **TM-21** (PR #3): PM ↔ Task Master 자동 통합 — 2 파일
+
+### 인프라 변경
+- **3-tier Orchestrator** 구조 채택 (`prompts/team-lead.md` + `.claude/commands/orchestrate.md` 갱신)
+- 3건 병렬 실행 검증 — Orchestrator 컨텍스트 격리 작동 (요약 JSON만 수신)
+- spend.json 자동 추적 (ADR-0006)
+- PM이 Task Master를 단일 작업 큐 원천으로 통합
+
+### 새 회고 (오늘)
+- [[../05-reports/2026-04-26-task-TM-11-retro|TM-11 회고]]
+- [[../05-reports/2026-04-26-TM-19-retro|TM-19 회고]]
+- [[../05-reports/2026-04-26-TM-20-retro|TM-20 회고]]
+- [[../05-reports/2026-04-26-TM-21-retro|TM-21 회고]]
+
+### 백로그 (Task Master)
+- done: TM-11, 19, 20, 21 (4건)
+- pending: 27건 (TM-3, 5, 12-13, 14-18, 22-35 — TM-26은 의존 해제됨)
+- deferred: TM-1/2/9/10 (출시 단계)
+
 ## 최근 세션 (2026-04-25 ~ 2026-04-26)
 
 ### Studio 통합 & UX 개선
