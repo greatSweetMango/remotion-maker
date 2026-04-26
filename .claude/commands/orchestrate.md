@@ -78,7 +78,12 @@ if execution_location == "worktree":
 elif execution_location == "main":
   worktree 생성 X
   branch-locks.json에 등록 X (단 동시 wiki-only 1개 직렬화)
+
+# Task Master 상태 전이 (모든 task 공통, 디스패치 직전 1회)
+mcp__task-master-ai__set_task_status(id={tm_id}, status="in-progress")
 ```
+
+> Task Master 통합 상세는 `.claude/agents/pm.md` §Task Master MCP 통합 참조. PM이 fetch 시 `tm_details` 필드를 채워 보내므로, Orchestrator는 그대로 TeamLead에 전달한다.
 
 ### Step 4: TeamLead Agent 위임 (병렬)
 
@@ -145,6 +150,7 @@ for summary in team_lead_summaries:
     # 사람 escalate
     blocking_questions 기록, status: "blocked"
     branch-locks.json에서 entry 유지하되 status: "blocked"
+    mcp__task-master-ai__set_task_status(id={tm_id}, status="blocked")
     사용자 알림 메시지 출력
 ```
 

@@ -49,52 +49,165 @@ model: sonnet
 - 모든 wiki 변경은 main worktree에서 직접 commit
 - 코드 task가 진행 중 wiki 갱신이 필요하면 → 별도 wiki-only task를 main에 큐잉
 
+## Task Master MCP 통합 (필수)
+
+PM은 **Task Master MCP를 단일 작업 큐 원천**으로 사용한다. 모든 task fetch / 상태 전이 / 본문 임베드는 아래 도구로 수행한다.
+
+### 사용 도구
+
+- `mcp__task-master-ai__next_task` — 다음 ready task 1건 (의존성/우선순위 자동 정렬)
+- `mcp__task-master-ai__get_tasks` — 다중 fetch (`status="pending"` 필터, 가용 슬롯만큼)
+- `mcp__task-master-ai__get_task` — 특정 id 본문 (description / details / testStrategy / complexity)
+- `mcp__task-master-ai__set_task_status` — 상태 전이 (`pending` → `in-progress` → `done` / `blocked`)
+
+### 상태 전이 규칙 (매 디스패치/머지/escalate 시 호출)
+
+| 시점 | 호출 | 비고 |
+|---|---|---|
+| Orchestrator가 디스패치 직전 (worktree 생성 후) | `set_task_status(id, status="in-progress")` | 락 등록 직후 1회 |
+| TeamLead가 PR 머지 + 락 해제 완료 보고 | `set_task_status(id, status="done")` | Orchestrator Step 5 내부 |
+| TeamLead가 verdict=BLOCK 또는 escalate 시 | `set_task_status(id, status="blocked")` | blocking_questions와 함께 |
+| 작업 폐기 (`abandoned`) | `set_task_status(id, status="cancelled")` | 락 삭제 후 |
+
+PM은 위 호출을 **본인이 수행**한다 (Orchestrator가 PM에 위임). 단, `done` 전이는 PR 머지 사실이 확인된 뒤에만 호출 — Orchestrator가 PM에게 `task_completed` 알림을 보낼 때.
+
+### 컨텍스트 파일에 TM 본문 자동 임베드
+
+PM은 build-team 컨텍스트 파일(`.agent-state/context-{task_id}-{slug}.md`) 작성 시 **반드시 다음을 포함**한다:
+
+1. `get_task(id)` 응답에서 추출:
+   - `title`, `description`, `details`, `testStrategy`, `priority`, `dependencies`, `complexityScore`
+2. 컨텍스트 파일에 별도 섹션 `## Task Master 본문` 으로 임베드
+3. `details`가 길면(>2KB) 1차 헤더 + 핵심 단락만 발췌, 원본 링크/id 명시
+
+### Task spec 출력 JSON 스키마 (TM 필드 보강)
+
+Orchestrator로 반환하는 `tasks[]` 원소는 **반드시 다음 TM 필드를 포함**한다:
+
+```json
+{
+  "id": "TM-101",
+  "tm_id": 101,
+  "title": "<TM.title>",
+  "type": "feature|fix|experiment|refactor|docs|infra",
+  "tags": ["#..."],
+  "branch": "TM-101-foo-bar",
+  "worktree_path": "worktrees/TM-101-foo-bar",
+  "execution_location": "worktree|main",
+  "spec_links": ["wiki/..."],
+  "context_files": [".agent-state/context-TM-101-foo-bar.md", "..."],
+  "complexity_estimate": "low|medium|high|extreme",
+  "blocking_questions": [],
+  "automation": "auto",
+  "tm_details": {
+    "description": "<TM.description>",
+    "details": "<TM.details (truncated to 2KB if longer)>",
+    "test_strategy": "<TM.testStrategy>",
+    "priority": "P0|P1|P2",
+    "dependencies": [<TM ids>],
+    "complexity_score": 1-10
+  }
+}
+```
+
+`tm_details`가 누락되면 Orchestrator/TeamLead는 PM에 재요청한다 (PM 책임).
+
+### 컨텍스트 마크다운 템플릿 (build-team 입력)
+
+PM은 컨텍스트 파일을 다음 템플릿으로 생성한다:
+
+```markdown
+---
+task_id: TM-{id}
+tm_id: {numeric}
+title: {title}
+type: {type}
+tags: [{tags}]
+branch: {branch}
+execution_location: {worktree|main}
+worktree_path: {path or null}
+complexity: {estimate}
+automation: auto
+generated_at: {ISO8601}
+---
+
+# {title}
+
+## Task Master 본문
+
+**Description**: {description}
+
+**Details**:
+{details (truncated to 2KB)}
+
+**Test Strategy**: {testStrategy}
+
+**Dependencies**: {dependencies}
+**Priority**: {priority}
+**Complexity Score**: {complexityScore}
+
+## Spec / 관련 문서
+
+- {spec_links 각 줄 하나씩}
+
+## 컨텍스트 파일 (코드)
+
+- {context_files 각 줄 하나씩}
+
+## 산출물 경로 컨벤션 (wiki/CLAUDE.md §8)
+
+- ADR: `wiki/01-pm/decisions/{NNNN}-{slug}.md` (main 단독 commit)
+- 회고: `wiki/05-reports/{date}-{task_id}-retro.md` (main 단독 commit)
+- QA / Validation: `wiki/05-reports/{date}-{task_id}-{qa|validation}.md`
+- 코드 변경: `worktrees/{branch}/` 내부 (PR로 main 머지)
+
+## 자동화 정책
+
+모든 단계 어프루벌 SKIP. 다음 시 즉시 escalate:
+- 새 의존성 추가, 외부 결제, DB migration, 같은 sub-task 3회 escalate, complexity 9+
+```
+
 ## SOP
 
 ### Orchestrator 호출 시 응답 절차
 
 ```
-1. 현재 .agent-state/branch-locks.json 읽기 (열린 락 N개 확인)
+1. .agent-state/branch-locks.json 읽기 (열린 락 N개 확인)
 2. .agent-state/concurrency-limit 읽기 (기본 3, Phase에 따라 조정)
 3. 가용 슬롯 = limit - 활성 락
 4. 가용 슬롯이 0이면 → "no_capacity" 반환 + 가장 오래된 락 정보 같이 반환
-5. Task Master에서 ready task fetch (의존성 미해결 제외)
-6. 가용 슬롯만큼 task 선정 (우선순위: P0 > P1 > P2, 동일 우선순위면 ID 오름차순)
-7. 각 task에:
-   a. 유형 태그 결정 (이미 있으면 유지, 없으면 키워드로 추정 — 모호하면 escalate)
-   b. branch 이름 결정: TM-{id}-{slug} 형식
-   c. branch-locks.json에 동일 branch 락 있으면 skip
-   d. worktree 경로 결정: **worktrees/{TM-id}-{slug}** (저장소 루트 기준 상대 경로, 모든 worktree는 worktrees/ 하위에 격리)
-   e. 의존 task가 있고 미머지면 stack PR 메모 (Phase 5+에서만)
-8. branch-locks.json 갱신 (status: "queued")
-9. Orchestrator에 전달:
-   {
-     "tasks": [
-       {
-         "id": "TM-101",
-         "title": "...",
-         "type": "feature|fix|experiment|refactor",
-         "tags": ["#frontend-ui", ...],
-         "branch": "TM-101-foo-bar",
-         "worktree": "worktrees/TM-101-foo-bar",
-         "spec_links": ["wiki/01-pm/decisions/...", ...],
-         "context_files": [...]
-       },
-       ...
-     ]
-   }
+5. Task Master fetch:
+   a. mcp__task-master-ai__get_tasks(status="pending") 호출
+   b. 의존성 미해결 (dependencies 안에 status≠"done" 항목) 제외
+   c. 우선순위 정렬: P0 > P1 > P2 → 동일 우선순위면 id 오름차순
+   d. 가용 슬롯만큼 선정
+6. 각 task에:
+   a. mcp__task-master-ai__get_task(id) 본문 fetch → tm_details 구성
+   b. 유형 태그 결정 (키워드 매트릭스 §핵심책임 2 참조 — 모호하면 escalate)
+   c. branch 이름: TM-{id}-{slug}
+   d. branch-locks.json에 동일 branch 락 있으면 skip
+   e. worktree 경로: worktrees/{TM-id}-{slug} (저장소 루트 상대)
+   f. 컨텍스트 파일 생성: .agent-state/context-{task_id}-{slug}.md (위 템플릿)
+   g. 의존 task가 있고 미머지면 stack PR 메모 (Phase 5+)
+7. branch-locks.json 갱신 (status: "queued")
+8. (Orchestrator가 worktree 생성 + 디스패치 직전) PM이 호출:
+   mcp__task-master-ai__set_task_status(id={tm_id}, status="in-progress")
+9. Orchestrator에 응답 (위 schema의 tasks[])
 ```
 
-### Task 완료 알림 받았을 때
+### Task 완료 알림 받았을 때 (Orchestrator → PM)
 
 ```
 1. PR 머지 또는 폐기 확인
-2. branch-locks.json에서 해당 락 status 갱신:
-   - "merged" 또는 "abandoned"
-3. git worktree remove <path>
-4. (필요 시) git branch -d <branch>
-5. branch-locks.json에서 락 항목 삭제
-6. status.md의 "최근 완료" 섹션 갱신
+2. branch-locks.json에서 해당 락 status 갱신: "merged" | "abandoned"
+3. Task Master 상태 전이:
+   - merged    → mcp__task-master-ai__set_task_status(id, status="done")
+   - blocked   → mcp__task-master-ai__set_task_status(id, status="blocked")
+   - abandoned → mcp__task-master-ai__set_task_status(id, status="cancelled")
+4. git worktree remove <path>
+5. (필요 시) git branch -d <branch>
+6. branch-locks.json에서 락 항목 삭제
+7. status.md "최근 완료" 섹션 갱신
 ```
 
 ### 일일 리포트 (Stop hook으로 자동 트리거)
