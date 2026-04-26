@@ -45,6 +45,34 @@ export interface StudioState {
   isEditing: boolean;
   isExporting: boolean;
   error: string | null;
+  clarify: ClarifyState | null;
+}
+
+export interface ClarifyChoice {
+  id: string;
+  label: string;
+}
+
+export interface ClarifyQuestion {
+  id: string;
+  question: string;
+  choices: ClarifyChoice[];
+}
+
+export interface ClarifyResponse {
+  questions: ClarifyQuestion[];
+}
+
+export type GenerateApiResponse =
+  | { type: 'clarify'; questions: ClarifyQuestion[] }
+  | { type: 'generate'; asset: GeneratedAsset };
+
+/** Map of clarify question id → selected choice id */
+export type ClarifyAnswers = Record<string, string>;
+
+export interface ClarifyState {
+  questions: ClarifyQuestion[];
+  pendingPrompt: string;
 }
 
 export type StudioAction =
@@ -56,7 +84,9 @@ export type StudioAction =
   | { type: 'UPDATE_PARAM'; payload: { key: string; value: string | number | boolean } }
   | { type: 'ADD_VERSION'; payload: AssetVersion }
   | { type: 'RESTORE_VERSION'; payload: number }
-  | { type: 'CLEAR_ASSET' };
+  | { type: 'CLEAR_ASSET' }
+  | { type: 'SET_CLARIFY'; payload: { questions: ClarifyQuestion[]; prompt: string } }
+  | { type: 'CLEAR_CLARIFY' };
 
 export interface Template {
   id: string;

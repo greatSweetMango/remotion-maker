@@ -1,6 +1,12 @@
 'use client';
 import { useReducer, useCallback } from 'react';
-import type { GeneratedAsset, StudioState, StudioAction, Template } from '@/types';
+import type {
+  GeneratedAsset,
+  StudioState,
+  StudioAction,
+  Template,
+  ClarifyAnswers,
+} from '@/types';
 import { toast } from 'sonner';
 
 function studioReducer(state: StudioState, action: StudioAction): StudioState {
@@ -80,6 +86,15 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         currentVersionIndex: action.payload,
       };
     }
+    case 'SET_CLARIFY':
+      return {
+        ...state,
+        clarify: { questions: action.payload.questions, pendingPrompt: action.payload.prompt },
+        isGenerating: false,
+        error: null,
+      };
+    case 'CLEAR_CLARIFY':
+      return { ...state, clarify: null };
     case 'CLEAR_ASSET':
       return { ...initialState };
     default:
@@ -96,6 +111,7 @@ const initialState: StudioState = {
   isEditing: false,
   isExporting: false,
   error: null,
+  clarify: null,
 };
 
 export function useStudio(initialAsset?: GeneratedAsset | null) {
@@ -122,17 +138,25 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       : {}),
   });
 
-  const generate = useCallback(async (prompt: string) => {
+  const generate = useCallback(async (prompt: string, answers?: ClarifyAnswers) => {
     dispatch({ type: 'SET_GENERATING', payload: true });
+    dispatch({ type: 'CLEAR_CLARIFY' });
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, ...(answers ? { answers } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
-      dispatch({ type: 'SET_ASSET', payload: data });
+
+      if (data.type === 'clarify') {
+        dispatch({ type: 'SET_CLARIFY', payload: { questions: data.questions, prompt } });
+        return;
+      }
+      // type === 'generate' (or legacy plain asset shape)
+      const asset = data.type === 'generate' ? data.asset : data;
+      dispatch({ type: 'SET_ASSET', payload: asset });
       toast.success('Animation created!');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Generation failed';
@@ -140,6 +164,22 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       toast.error(message);
     }
   }, []);
+
+  const submitClarifyAnswers = useCallback(
+    async (answers: ClarifyAnswers) => {
+      const pending = state.clarify?.pendingPrompt;
+      if (!pending) return;
+      await generate(pending, answers);
+    },
+    [state.clarify, generate],
+  );
+
+  const skipClarify = useCallback(async () => {
+    const pending = state.clarify?.pendingPrompt;
+    if (!pending) return;
+    // Send a sentinel "skip" answer so LLM forces generate mode.
+    await generate(pending, { __skip__: 'true' });
+  }, [state.clarify, generate]);
 
   const edit = useCallback(async (prompt: string) => {
     if (!state.asset) return;
@@ -206,5 +246,15 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     dispatch({ type: 'CLEAR_ASSET' });
   }, []);
 
-  return { state, generate, edit, updateParam, restoreVersion, initTemplate, clearAsset };
+  return {
+    state,
+    generate,
+    edit,
+    updateParam,
+    restoreVersion,
+    initTemplate,
+    clearAsset,
+    submitClarifyAnswers,
+    skipClarify,
+  };
 }
