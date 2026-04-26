@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "relative",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "_meta/attachments",
+  "promptDelete": true,
+  "showLineNumber": true,
+  "communityPlugins": true
+}
