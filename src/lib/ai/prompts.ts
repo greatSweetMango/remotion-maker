@@ -61,7 +61,14 @@ ALWAYS respond with valid JSON in this exact format:
   "fps": 30,
   "width": 1920,
   "height": 1080
-}`;
+}
+
+CRITICAL JSON SERIALIZATION RULES (failure here breaks the whole pipeline):
+- The "code" field MUST be a standard JSON string delimited by double quotes ("...").
+- NEVER use backticks (\`) to wrap the code value — backticks are not valid JSON.
+- Inside the "code" string, escape every newline as \\n, every double quote as \\", and every backslash as \\\\.
+- Do NOT wrap the JSON in markdown code fences (no \`\`\`json ... \`\`\` around the response).
+- The response body must be exactly one JSON object and nothing else (no leading prose).`;
 
 /**
  * GEN-06 clarifying questions — single LLM call decides clarify vs generate.
@@ -115,13 +122,25 @@ below, but wrapped in:
   "height": N
 }
 
-Heuristic for ambiguity (be strict — only ask when truly needed):
-  - Prompt is < ~10 words AND lacks any of: concrete subject, color, text content,
-    specific data, named visual style.
+Heuristic for ambiguity (be VERY strict — only ask when truly needed):
+  - Default mode is "generate". Only pick "clarify" when the prompt is so vague
+    that you cannot produce a sensible default without guessing the entire subject.
+  - Trigger "clarify" ONLY if ALL of the following are true:
+      a) Prompt is shorter than ~6 words, AND
+      b) Prompt names no concrete subject, no color, no text content, no specific
+         data, and no named visual style, AND
+      c) You would otherwise have to invent the subject from scratch.
   - Examples that should trigger clarify: "애니메이션 만들어줘", "차트 보여줘",
-    "make something cool".
-  - Examples that should NOT trigger clarify: "Animated counter from 0 to 100
-    with spring effect", "빨간 카운터 0~100, 3초", "Comic book POW! text".
+    "make something cool", "뭐 좀 멋진거".
+  - Examples that should NOT trigger clarify (always generate, even if brief):
+      "Animated counter from 0 to 100 with spring effect"
+      "빨간 카운터 0~100, 3초"
+      "Comic book POW! text"
+      "페이드 인 페이드 아웃, 검정에서 흰색으로 1.5초"
+      "원형 스피너 8개 점, 파란색"
+      "Slide transition from left to right, two colored panels"
+      "타이핑 효과 Hello World, 모노스페이스"
+  - When in doubt, prefer "generate" with reasonable defaults over asking.
   - If the user prompt contains a [USER ANSWERS] block, ALWAYS pick "generate".
 
 ==================== STANDARD GENERATION RULES (mode=generate) ====================

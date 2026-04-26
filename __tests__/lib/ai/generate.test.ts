@@ -90,6 +90,18 @@ describe('generateAsset', () => {
     await expect(generateAsset('x', 'haiku')).rejects.toThrow(/JSON/i);
   });
 
+  it('repairs JS template-literal backticks emitted by smaller models', async () => {
+    // gpt-4o-mini occasionally emits the `code` value as `…` instead of "…".
+    // The tolerant extractor must repair this before JSON.parse.
+    const malformed = '{\n  "mode": "generate",\n  "title": "X",\n  "code": `const PARAMS = {} as const;\nexport const GeneratedAsset = () => null;`,\n  "durationInFrames": 150,\n  "fps": 30,\n  "width": 1920,\n  "height": 1080\n}';
+    mockedChat.mockResolvedValueOnce(malformed);
+    const result = await generateAsset('Animated counter 0-100', 'haiku');
+    expect(result.type).toBe('generate');
+    if (result.type === 'generate') {
+      expect(result.asset.code).toContain('GeneratedAsset');
+    }
+  });
+
   it('throws when generate code fails validation', async () => {
     const { validateCode } = jest.requireMock('@/lib/remotion/sandbox');
     (validateCode as jest.Mock).mockReturnValueOnce({ valid: false, errors: ['bad'] });
