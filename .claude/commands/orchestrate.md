@@ -21,6 +21,44 @@ description: 에이전트 컴퍼니 Orchestrator — 3-tier Ralph 루프. PM이 
 - Orchestrator는 TeamLead의 **요약 JSON만** 받음
 - main 단일 변경(branch-locks.json, wiki commit, PR 머지) 모두 Orchestrator가 수행
 
+## 실행 모드 (argv 파싱) — Step 0
+
+`/orchestrate` 호출 시 인자(`$ARGUMENTS`)를 파싱하여 루프 동작을 결정한다. **루프 진입 전 (Step 1 이전) 1회만 실행**.
+
+| 인자 | mode | 동작 |
+|---|---|---|
+| (없음) | `continuous` | 연속 모드 (default) — STOP/예산/loop-count/ready 고갈까지 무한 |
+| `--once` | `once` | 1 task 처리 후 종료 (TeamLead 요약 수집 + main 처리까지 마치고 exit) |
+| `--max=N` (N은 양의 정수) | `max_n` | N개 task 처리(=`completed_count >= N`) 후 종료 |
+| `TM-X` (예: `TM-3`) | `forced` | 우선순위/ready 무시하고 해당 task 1건만 강제 실행 → 처리 후 종료 |
+
+**파싱 규칙**:
+
+```
+args = ($ARGUMENTS).trim().split(/\s+/).filter(Boolean)
+mode = "continuous"
+forced_task_id = null
+max_count = null
+
+for a in args:
+  if a == "--once": mode = "once"
+  elif a.startsWith("--max="):
+    n = parseInt(a.slice(6))
+    assert n >= 1, "--max=N requires N>=1"
+    mode = "max_n"; max_count = n
+  elif /^TM-\d+$/.test(a):
+    mode = "forced"; forced_task_id = a
+  else: error("unknown arg: " + a)
+
+# 동시 지정 시 우선순위: forced > once > max_n > continuous
+# (조합 미지원 — 두 개 이상 모드 인자 발견 시 마지막 것이 이김, 단 forced는 항상 우선)
+
+completed_count = 0  # main 처리(머지 또는 escalate 확정)까지 끝난 task 수
+```
+
+루프 시작 전 transcript에 모드 출력:
+- `[mode] continuous` / `[mode] once` / `[mode] max_n N=3` / `[mode] forced task=TM-7`
+
 ## 안전 가드 (매 iter 시작 시 검사)
 
 1. `.agent-state/STOP` 존재 → **즉시 종료**
@@ -44,11 +82,18 @@ description: 에이전트 컴퍼니 Orchestrator — 3-tier Ralph 루프. PM이 
 
 `Agent({subagent_type: "general-purpose", prompt: "..."})` 로 PM 호출. PM은 `.claude/agents/pm.md` SOP 따름.
 
-PM에게 전달:
+**모드별 분기**:
+
+- `mode == "forced"`: PM에게 `next_ready_tasks` 대신 `get_specific_task` 요청. 우선순위/ready 검사 무시하고 `forced_task_id` 1건만 spec 조회. 단 `pending|review|in_progress` 상태인지만 확인 (이미 done이면 즉시 종료, escalated면 경고 후 진행).
+- `mode == "once"`: PM 호출하되 `max=1`로 제한 (사용 가능 슬롯이 더 있어도 1개만).
+- `mode == "max_n"`: 매 iter PM에게 `max=min(available_slots, max_count - completed_count)` 전달. 남은 할당량이 0이면 즉시 Step 7로.
+- `mode == "continuous"` (default): 기존 동작 — `max=available_slots`.
+
+PM에게 전달 (continuous/once/max_n):
 ```json
 {
   "request": "next_ready_tasks",
-  "max": available_slots,
+  "max": effective_max,
   "skip_blocking": true,
   "policy": {
     "complexity_max": 9,
@@ -58,11 +103,22 @@ PM에게 전달:
 }
 ```
 
+PM에게 전달 (forced):
+```json
+{
+  "request": "get_specific_task",
+  "task_id": forced_task_id,
+  "bypass_priority": true
+}
+```
+
 PM 응답에서 추출:
 - `tasks[]` (각 task에 branch/worktree_path/spec_links/context_files 등 포함)
 - `current_locks`, `available_slots_after`
 
-**0개**면 idle 모드 (Step 7 → ScheduleWakeup).
+**0개**면:
+- `mode == "forced"`: 에러 — 사용자에게 알림 후 종료
+- 그 외: idle 모드 (Step 7 → ScheduleWakeup 또는 mode에 따라 종료)
 
 ### Step 3: 워크트리 + 락 사전 할당 (Orchestrator 책임)
 
@@ -142,6 +198,8 @@ for summary in team_lead_summaries:
     # Task Master 상태 갱신
     mcp__task-master-ai__set_task_status(id={task_id}, status="done")
 
+    completed_count++   # 모드 종료 조건 평가용 (once/max_n)
+
   elif summary.verdict == "REQUEST_CHANGES":
     # 1 round 재실행 (loop guard 2회까지) — TeamLead가 자체 처리하지 못한 경우만 도달
     blocking_questions 기록, status: "review"
@@ -165,15 +223,49 @@ wiki/02-dev/status.md 오늘 요약 갱신:
 .agent-state/loop-count++
 ```
 
-### Step 7: 다음 iter 결정
+### Step 7: 다음 iter 결정 (모드별 분기)
 
 ```
+# 7-1) 글로벌 안전 가드 (모드 무관, 항상 우선)
 test -f .agent-state/STOP && exit
-spend 95% 초과 && exit
+spend 95% 초과 && exit (경고 출력)
 loop-count > 100 && exit (사람 호출)
-사용 가능 슬롯 + ready task → Step 1로 (즉시 다음 iter)
-ready task 0 → ScheduleWakeup(30분 후) 또는 종료
+
+# 7-2) 모드별 종료 조건
+switch (mode):
+  case "forced":
+    # 1건 처리 후 무조건 종료. 다음 iter 없음.
+    transcript: "[mode=forced] task=<forced_task_id> 처리 완료, 종료"
+    exit
+
+  case "once":
+    if completed_count >= 1:
+      transcript: "[mode=once] 1 task 처리 완료, 종료"
+      exit
+    # 아직 0건이면(예: PM이 ready 0개 반환) → 7-3로 fallthrough
+    #   단 다음 iter Step 2의 effective_max 는 여전히 1로 캡
+
+  case "max_n":
+    if completed_count >= max_count:
+      transcript: "[mode=max_n] max=<max_count> 처리 완료, 종료"
+      exit
+    # 남았으면 7-3로 fallthrough
+
+  case "continuous":
+    # 종료 조건 없음 — 7-3로 fallthrough
+
+# 7-3) 다음 iter / idle 결정 (continuous + 미달 once/max_n 공통)
+if (사용 가능 슬롯 > 0 && ready task 존재):
+  → Step 1로 (즉시 다음 iter)
+elif (ready task 0):
+  if (mode in {"once", "max_n"}):
+    # 짧은 ScheduleWakeup 후 재진입 — 모드 유지를 위해 prompt에 원본 argv 그대로 전달
+    ScheduleWakeup(900s, prompt="/orchestrate <원본 $ARGUMENTS>")
+  else:  # continuous
+    ScheduleWakeup(1800s, prompt="/orchestrate") 또는 종료 (loop-count·예산 따라)
 ```
+
+**주의**: ScheduleWakeup의 `prompt`에 원본 argv를 보존하지 않으면 wake-up 시 mode가 `continuous`로 리셋된다. once/max_n은 반드시 args를 실어 재진입할 것.
 
 ## 안전망 — 사람 알림 후 정지
 
