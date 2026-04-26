@@ -190,7 +190,7 @@ flowchart TD
 
 작업은 단일 유형이 아니라 4가지 카테고리. PM이 task에 유형 태그를 붙이고, build-team의 Phase 0이 이를 보고 팀 구성/SOP를 다르게 라우팅한다.
 
-### 4가지 작업 유형
+### 6가지 작업 유형
 
 | 유형 | 태그 | 목적 | 산출물 |
 |---|---|---|---|
@@ -198,6 +198,8 @@ flowchart TD
 | **Fix** | `#bug-fix` | 버그 수정 | 회귀 테스트 + 패치 + tech-note |
 | **Experiment** | `#experiment` | 가설/성능 검증 (기각될 수도) | PoC 코드 + 벤치/리포트 + ADR |
 | **Refactor** | `#refactor` | 구조 개선 (행동 변화 X) | 코드 변경 + 동치성 증명 |
+| **Infra** | `#infra` | 환경 변수/배포/CI/credential/도메인 | config 파일 + ADR + 운영 문서 |
+| **Docs** | `#docs` | 위키/사양/가이드 | wiki 변경 (코드 변경 X) |
 
 ### Feature 유형 — 표준 흐름
 
@@ -247,16 +249,40 @@ flowchart LR
 - 강제: 동작 변화 0 (기존 테스트 모두 그대로 통과)
 - 금지: 동시 기능 추가, 동시 버그 수정 (분리 PR)
 
+### Infra 유형 — 외부 시스템 + 코드 config
+
+```mermaid
+flowchart LR
+    I1["Researcher"] --> I2["Architect (ADR + secret 정책)"] --> I3["Implementer (.env, config)"] --> I4["Validator (체크리스트)"]
+```
+- 강제 산출물: ADR (secret 관리 정책), `.env.production.example` 또는 등가, 운영 가이드
+- 강제: 실제 credential 값은 commit하지 말 것 (placeholder만)
+- 외부 시스템 credential 발급은 사람 어프루벌 — Planner가 blocking_questions로 분리
+- 혼합 코드+wiki 시: wiki는 main에 별도 commit (worktree에서는 코드만)
+
+### Docs 유형 — wiki 단독
+
+```mermaid
+flowchart LR
+    D1["Researcher"] --> D2["Architect (필요 시)"] --> D3["Implementer (wiki 작성)"] --> D4["Validator"]
+```
+- main worktree에서 직접 실행 (worktree 생성 X)
+- 정보 보존, 산출물 경로 컨벤션 (wiki/CLAUDE.md §8) 준수가 핵심
+
 ### 유형 자동 감지 (PM)
 
 PM이 task 본문에서 다음 키워드로 유형 추정 (Planner가 명시 안 한 경우):
 
 | 키워드 | 추정 유형 |
 |---|---|
-| "버그", "에러", "오류", "fix", "수정" | `#bug-fix` |
-| "검증", "측정", "가설", "벤치", "성능 테스트" | `#experiment` |
+| "버그", "에러", "오류", "fix", "수정", "장애" | `#bug-fix` |
+| "검증", "측정", "가설", "벤치", "성능 테스트", "PoC" | `#experiment` |
 | "리팩터", "정리", "구조 개선", "이름 변경" | `#refactor` |
-| 그 외 | `#feature` |
+| "환경 변수", "credential", "배포", "deployment", "Vercel", "Lambda", "CI/CD", "secret", "도메인" | `#infra` |
+| "문서", "위키", "ADR", "가이드", "설명" (코드 변경 없음) | `#docs` |
+| 그 외 새 기능 추가 | `#feature` |
+
+혼합 task는 **주된 유형 1개**를 선택, 부 유형은 secondary tag로 표기 (예: 주: `#infra`, 부: `#docs`).
 
 추정이 모호하면 PM이 사용자에게 1번 확인 후 박제.
 
@@ -270,6 +296,8 @@ PM이 task 본문에서 다음 키워드로 유형 추정 (Planner가 명시 안
 | Fix | 재현 시간, 회귀 테스트 추가 여부, 동일 버그 재발 방지 |
 | Experiment | 가설 명문화 품질, 측정 신뢰도, ADR 결정 품질 |
 | Refactor | 동치성 (테스트 회귀 0), 분할 단위 적정성 |
+| Infra | secret 누출 0, ADR 명확도, 운영 문서 완성도, 롤백 절차 명시 |
+| Docs | 정보 정확도, 산출물 경로 컨벤션 준수, mermaid 시각화 적정성 |
 
 ## 4. 역할 매핑 (build-team 표준 + 도메인 확장)
 

@@ -18,10 +18,26 @@ model: sonnet
 ## 핵심 책임
 
 1. **작업 큐 관리**: Task Master에서 ready task fetch, 우선순위/의존성 정리
-2. **유형 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` / `#docs` 중 하나 부여
+2. **유형 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` / `#docs` / `#infra` 중 하나 부여
+   - 키워드 매트릭스:
+     - "버그/에러/오류/fix/수정/장애" → `#bug-fix`
+     - "검증/측정/가설/벤치/성능 테스트/PoC" → `#experiment`
+     - "리팩터/정리/구조 개선/이름 변경" → `#refactor`
+     - "환경 변수/credential/배포/deployment/Vercel/Lambda/CI/CD/secret/도메인" → `#infra`
+     - "문서/위키/ADR/설명/가이드" → `#docs`
+     - 그 외 새 기능 추가 → `#feature`
+   - 혼합 task의 경우 **주된 유형 1개**를 고르고 부 유형은 secondary tag로 (예: 주: `#infra`, 부: `#docs`)
 3. **실행 위치 라우팅**:
    - 코드 변경 task → 새 worktree 생성 + 락 테이블 등록
    - **Wiki-only task (`#docs`, status 갱신, ADR, 메타 분석 등)** → **main worktree에서 직접 실행** (worktree 생성 X)
+   - **혼합 코드+wiki task** (예: 새 기능 + ADR 동시 작성):
+     - 코드는 feature worktree에서 작업
+     - wiki 변경은 **별도 wiki-only sub-task로 main에 즉시 큐잉** (PR 머지 후 자동 실행)
+     - build-team 컨텍스트 파일에 "wiki 변경은 main에서 별도 처리" 명시
+   - **#infra task**:
+     - 코드/config 파일 변경 (`.env.example`, `next.config.ts`, CI yml 등) → feature worktree
+     - 변경 적은 경우(문서 위주 + .env 키 추가만) → main 직접 가능
+     - 외부 시스템 credential 발급은 사람 어프루벌 — blocking_questions로 분리
 4. **Worktree 락 관리**: `.agent-state/branch-locks.json`을 단일 원천으로 유지 (코드 task만)
 5. **컨텍스트 패키징**: build-team에 전달할 입력 (task 본문, 실행 위치, branch 명, 유형 태그, 관련 spec/ADR 링크)
 6. **리포트**: 일일 status.md 갱신, 매주 메타 분석 트리거

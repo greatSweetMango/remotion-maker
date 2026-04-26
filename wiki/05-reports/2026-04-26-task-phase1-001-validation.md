@@ -25,16 +25,16 @@ provenance: extracted
 
 ## 2. Syntax 검증 (8개 mermaid 블록)
 
-| # | 섹션 | 라인 | 타입 | Fence | 라벨 escape | Subgraph/Edge | 결과 |
-|---|---|---|---|---|---|---|---|
-| B1 | §2 아키텍처 | 29–59 | `flowchart TD` | ✅ ` ```mermaid `…` ``` ` | 한글/특수문자 모두 큰따옴표 | `subgraph ORCH/BT/ROLES(중첩)/INFRA`, edges 3개 | ✅ |
-| B2 | §3.1 Orchestrator iter | 73–92 | `flowchart TD` + subgraph | ✅ | `&lt;` `&gt;` HTML entity 사용 (S4a) | `subgraph BUILD_TEAM direction TB`, edge chain `S1→…→S7` 경유 `BUILD_TEAM` | ✅ |
-| B3 | §3.5 PM 워크트리 라이프사이클 | 153–170 | `flowchart TD` (조건분기) | ✅ | `#quot;` 엔티티로 큰따옴표 escape (L5/L8) | 다이아몬드 `L3{...}` + 분기 `이미 락`/`락 없음` 라벨 | ✅ |
-| B4 | §3.6 Feature | 204–207 | `flowchart LR` | ✅ | 모든 노드 라벨 큰따옴표 | F1→F2→…→F7 단일 체인 | ✅ |
-| B5 | §3.6 Fix | 213–216 | `flowchart LR` | ✅ | 좌우 괄호 라벨 큰따옴표 | **QA를 X1/X5로 분리** (RS-1 권장 준수) | ✅ |
-| B6 | §3.6 Experiment | 224–227 | `flowchart LR` | ✅ | `(`, `+`, `,` 라벨 큰따옴표 | E1→…→E5 | ✅ |
-| B7 | §3.6 Refactor | 242–245 | `flowchart LR` | ✅ | 큰따옴표 정상 | R1→…→R7 | ✅ |
-| B8 | §5 End-to-End | 298–339 | `flowchart TD` + 4 subgraph | ✅ | `#quot;`, `&lt;`, `&gt;` 정상 escape (BT 라벨, S4a-equivalent) | `subgraph PLAN/BT/PR/GATE`(각각 `direction TB`), 메인 체인 + `LOOP -.->|다음 iter| P2` cycle | ✅ |
+| #   | 섹션                     | 라인      | 타입                          | Fence                    | 라벨 escape                                                  | Subgraph/Edge                                                            | 결과      |           |     |
+| --- | ---------------------- | ------- | --------------------------- | ------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------ | ------- | --------- | --- |
+| B1  | §2 아키텍처                | 29–59   | `flowchart TD`              | ✅ ` ```mermaid `…` ``` ` | 한글/특수문자 모두 큰따옴표                                            | `subgraph ORCH/BT/ROLES(중첩)/INFRA`, edges 3개                             | ✅       |           |     |
+| B2  | §3.1 Orchestrator iter | 73–92   | `flowchart TD` + subgraph   | ✅                        | `&lt;` `&gt;` HTML entity 사용 (S4a)                         | `subgraph BUILD_TEAM direction TB`, edge chain `S1→…→S7` 경유 `BUILD_TEAM` | ✅       |           |     |
+| B3  | §3.5 PM 워크트리 라이프사이클    | 153–170 | `flowchart TD` (조건분기)       | ✅                        | `#quot;` 엔티티로 큰따옴표 escape (L5/L8)                          | 다이아몬드 `L3{...}` + 분기 `이미 락`/`락 없음` 라벨                                    | ✅       |           |     |
+| B4  | §3.6 Feature           | 204–207 | `flowchart LR`              | ✅                        | 모든 노드 라벨 큰따옴표                                              | F1→F2→…→F7 단일 체인                                                         | ✅       |           |     |
+| B5  | §3.6 Fix               | 213–216 | `flowchart LR`              | ✅                        | 좌우 괄호 라벨 큰따옴표                                              | **QA를 X1/X5로 분리** (RS-1 권장 준수)                                           | ✅       |           |     |
+| B6  | §3.6 Experiment        | 224–227 | `flowchart LR`              | ✅                        | `(`, `+`, `,` 라벨 큰따옴표                                      | E1→…→E5                                                                  | ✅       |           |     |
+| B7  | §3.6 Refactor          | 242–245 | `flowchart LR`              | ✅                        | 큰따옴표 정상                                                    | R1→…→R7                                                                  | ✅       |           |     |
+| B8  | §5 End-to-End          | 298–339 | `flowchart TD` + 4 subgraph | ✅                        | `#quot;`, `&lt;`, `&gt;` 정상 escape (BT 라벨, S4a-equivalent) | `subgraph PLAN/BT/PR/GATE`(각각 `direction TB`), 메인 체인 + `LOOP -.->        | 다음 iter | P2` cycle | ✅   |
 
 ### 세부 관찰
 

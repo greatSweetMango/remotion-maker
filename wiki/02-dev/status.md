@@ -34,7 +34,19 @@ status: active
 - ✅ Ralph 프롬프트 v1 박제 (Phase 전환 자동 nudge + shutdown 시퀀스)
 - ✅ 산출물 경로 컨벤션 wiki/CLAUDE.md §8에 박제
 - ✅ PM agent 호출 검증 통과 (TM-1 fetch + 라우팅 결정 정상)
-- 🔜 다음 build-team 실행: PM agent가 자율 디스패치하는 첫 task
+- ✅ SOP 갭 보강: `#infra` `#docs` 유형 추가, 혼합 코드+wiki task 처리 명시
+- ✅ `/orchestrate` 슬래시 커맨드 + [[orchestrator-runbook|Runbook]] 작성
+- ✅ Phase 2 셋업 완료 보고서: [[../05-reports/2026-04-26-phase2-setup-complete|Phase 2 setup complete]]
+
+## 🚀 셋업 완료 — 자율 실행 준비 완료
+
+```bash
+# Claude Code 메인 세션에서:
+/orchestrate
+```
+
+이 한 줄이면 PM → build-team → 회고 → commit → 다음 task 자동 반복.
+정지: `touch .agent-state/STOP`. 자세한 내용: [[orchestrator-runbook|Runbook]] 참고.
 
 ## 최근 세션 (2026-04-25 ~ 2026-04-26)
 
