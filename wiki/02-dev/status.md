@@ -16,7 +16,25 @@ status: active
 - **빌드:** ✅ Next.js 16.2.4 / 16 routes
 - **테스트:** ✅ 19/19 pass (3 suites)
 - **TS 에러:** 0
-- **마지막 메이저 변경:** 2026-04-26 — Studio UX/레이아웃 수정 + Obsidian MCP 위키 연동
+- **마지막 메이저 변경:** 2026-04-26 — 에이전트 컴퍼니 Phase 1 dry-run 성공, Phase 2 진입
+- **에이전트 컴퍼니 단계:** **Phase 2 진입** (PM agent + Task Master SoT 정착)
+
+## 에이전트 컴퍼니 진행
+
+### Phase 1 완료 (dry-run 성공) — 2026-04-26
+- 첫 build-team 실행: `phase1-001` blueprint mermaid 변환
+- 4 teammate (Researcher, Architect, Implementer, Validator) 정상 작동
+- 회고 자동 wiki 저장: [[../05-reports/2026-04-26-task-phase1-001-retro|retro]]
+- 산출물 4건 + 코드 변경 1건, escalation 0회, verdict APPROVE
+- Wiki 소유권 옵션 2 (main 단독) 첫 적용 성공
+- 자동화 우선 정책 검증 (사용자 개입 0건)
+
+### Phase 2 진입 — 2026-04-26
+- ✅ Task Master 환경 확인 (`claude-code` provider, 10 task 기등록)
+- ✅ Ralph 프롬프트 v1 박제 (Phase 전환 자동 nudge + shutdown 시퀀스)
+- ✅ 산출물 경로 컨벤션 wiki/CLAUDE.md §8에 박제
+- ✅ PM agent 호출 검증 통과 (TM-1 fetch + 라우팅 결정 정상)
+- 🔜 다음 build-team 실행: PM agent가 자율 디스패치하는 첫 task
 
 ## 최근 세션 (2026-04-25 ~ 2026-04-26)
 
