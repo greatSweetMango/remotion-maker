@@ -258,14 +258,39 @@ switch (mode):
 if (사용 가능 슬롯 > 0 && ready task 존재):
   → Step 1로 (즉시 다음 iter)
 elif (ready task 0):
-  if (mode in {"once", "max_n"}):
-    # 짧은 ScheduleWakeup 후 재진입 — 모드 유지를 위해 prompt에 원본 argv 그대로 전달
-    ScheduleWakeup(900s, prompt="/orchestrate <원본 $ARGUMENTS>")
-  else:  # continuous
-    ScheduleWakeup(1800s, prompt="/orchestrate") 또는 종료 (loop-count·예산 따라)
+  # idle 자동 재진입 — ScheduleWakeup 도구 호출 (종료 대신)
+  # prompt 인자에 Step 0에서 보존한 원본 $ARGUMENTS 그대로 실어야 mode 유지됨
+  resume_prompt =
+    "/orchestrate"                              if args.length == 0
+    else  "/orchestrate " + args.join(" ")      # 예: "/orchestrate --max=3"
+
+  if (mode == "continuous"):
+    ScheduleWakeup({
+      delaySeconds: 1800,                        # 30분 (cache miss 1회로 장시간 idle 커버)
+      prompt: resume_prompt,                     # 즉 "/orchestrate"
+      reason: "ready task 0 — 30분 후 PM 재요청"
+    })
+  elif (mode in {"once", "max_n"}):
+    ScheduleWakeup({
+      delaySeconds: 900,                         # 15분 (모드 종료 임박, 짧게)
+      prompt: resume_prompt,                     # 원본 argv 보존 필수
+      reason: `[mode=${mode}] ready 0 — 15분 후 재시도 (남은 ${max_count - completed_count}건)`
+    })
+  # forced 모드는 Step 2에서 ready 0 발견 시 즉시 종료(에러)이므로 여기 도달 X
 ```
 
-**주의**: ScheduleWakeup의 `prompt`에 원본 argv를 보존하지 않으면 wake-up 시 mode가 `continuous`로 리셋된다. once/max_n은 반드시 args를 실어 재진입할 것.
+**ScheduleWakeup 호출 규약** (필수 검증 항목):
+- `delaySeconds`: continuous=1800, once/max_n=900. 절대 `300` 사용 금지 (cache TTL 5분 — worst-of-both).
+- `prompt`: 반드시 `/orchestrate` 접두 + Step 0의 원본 argv를 공백 join. **빠뜨리면 wake-up 시 mode가 `continuous`로 리셋**되어 once/max_n 의도 손실.
+  - 예: 원본이 `--max=3 --once` (last-wins → once) → `prompt: "/orchestrate --max=3 --once"`
+  - 예: 원본이 빈 문자열 → `prompt: "/orchestrate"`
+- `reason`: 한 줄로 모드 + 의도 명시 (telemetry / 사용자 노출).
+- 호출 직후 transcript에 `[idle] ScheduleWakeup armed delay=Ns mode=M` 1줄 출력 후 turn 종료.
+
+**종료 vs idle 선택**: ScheduleWakeup이 default. 단 다음은 `exit` (재진입 X):
+- `.agent-state/STOP` 존재 / spend 95% 초과 / loop-count > 100 (Step 7-1에서 이미 처리)
+- `mode == "forced"` (Step 7-2에서 처리)
+- `mode in {"once","max_n"}` 이고 `completed_count >= 목표` (Step 7-2에서 처리)
 
 ## 안전망 — 사람 알림 후 정지
 
