@@ -7,9 +7,9 @@ const PARAMS = {
   backgroundColor: "#070712",     // type: color
   textColor: "#ffffff",           // type: color
   particleCount: 60,              // type: range, min: 10, max: 160
-  gravity: 1.4,                   // type: range, min: 0.0, max: 4.0
-  bounce: 0.78,                   // type: range, min: 0.2, max: 0.95
-  emitSpeed: 18,                  // type: range, min: 4, max: 40, unit: px
+  gravity: 1.8,                   // type: range, min: 0.0, max: 4.0
+  bounce: 0.86,                   // type: range, min: 0.2, max: 0.95
+  emitSpeed: 26,                  // type: range, min: 4, max: 40, unit: px
 } as const;
 
 export const ParticlePhysics = ({
@@ -28,10 +28,11 @@ export const ParticlePhysics = ({
   void textColor;
 
   const count = Math.round(particleCount as number);
-  const g = (gravity as number) * 0.6; // px / frame^2 scale
+  const g = (gravity as number) * 0.85; // px / frame^2 scale — stronger pull
   const b = bounce as number;
   const v0 = emitSpeed as number;
   const floor = height - 80;
+  const REST_VY = 0.6; // below this absolute vy after bounce, treat as resting
 
   // Forward simulation per particle (deterministic, frame-by-frame).
   const particles = Array.from({ length: count }).map((_, i) => {
@@ -42,8 +43,9 @@ export const ParticlePhysics = ({
     };
     const startX = rnd(1) * width;
     const startY = rnd(2) * (height * 0.35);
-    const angle = (rnd(3) - 0.5) * Math.PI * 0.6 - Math.PI * 0.5;
-    const speed = v0 * (0.6 + rnd(4) * 0.8);
+    // Wider fan-out cone: ~±108° around upward, so particles spread laterally too.
+    const angle = (rnd(3) - 0.5) * Math.PI * 1.2 - Math.PI * 0.5;
+    const speed = v0 * (0.7 + rnd(4) * 0.9);
     let vx = Math.cos(angle) * speed;
     let vy = Math.sin(angle) * speed;
     let x = startX;
@@ -57,8 +59,15 @@ export const ParticlePhysics = ({
       y += vy;
       if (y >= floor) {
         y = floor;
-        vy = -vy * b;
-        vx *= 0.92;
+        // Damp horizontal much less so particles slide & scatter instead of piling.
+        vx *= 0.985;
+        // If we'd just micro-bounce, settle (prevents the "all at floor in a line" look
+        // by letting energetic particles keep bouncing while slow ones rest).
+        if (Math.abs(vy) < REST_VY) {
+          vy = 0;
+        } else {
+          vy = -vy * b;
+        }
       }
       if (x < 0) { x = 0; vx = -vx * b; }
       if (x > width) { x = width; vx = -vx * b; }
