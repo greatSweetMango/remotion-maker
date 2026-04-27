@@ -128,6 +128,11 @@ PM 응답에서 추출:
 # 코드 task
 if execution_location == "worktree":
   git worktree add {worktree_path} -b {branch}
+  # TM-56: 워크트리 env 자동 부트스트랩.
+  #   .env.local 복사 + NEXTAUTH_URL 포트 치환 + prisma db push (worktree-local SQLite).
+  #   누락 시 TeamLead가 매번 수동으로 .env 만지다 시간 낭비 (TM-42/43/45 retro 참조).
+  #   dev_port 컨벤션: 30NN (NN = task_id 두자리, 예: TM-56 → 3056).
+  bash scripts/setup-worktree.sh {worktree_path} {dev_port}
   branch-locks.json에 entry 추가 (status: "in_progress")
 
 # wiki-only / docs task
