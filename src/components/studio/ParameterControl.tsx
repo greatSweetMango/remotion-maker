@@ -116,6 +116,10 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
         <IconPickerControl value={(value as string) || DEFAULT_LUCIDE_ICON} onChange={onChange} />
       )}
 
+      {(param.type === 'image' || param.type === 'font') && (
+        <UploadParameterControl param={param} value={value as string} onChange={onChange} />
+      )}
+
       {param.type === 'select' && (
         <Select value={value as string} onValueChange={onChange}>
           <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
@@ -147,6 +151,82 @@ interface LucideIconRenderProps {
 
 function LucideIconRender({ name, size = 18, className }: LucideIconRenderProps) {
   return React.createElement(resolveLucideIcon(name), { size, className });
+}
+
+interface UploadParameterControlProps {
+  param: Parameter;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+interface UploadedAssetSummary {
+  id: string;
+  kind: 'image' | 'font';
+  filename: string;
+  url: string;
+  fontFamily: string | null;
+}
+
+/**
+ * Inline picker for `image` / `font` PARAMS. Lists the user's uploaded assets
+ * (filtered by kind) and lets them pick one — the param value becomes the
+ * public URL (image) or font family name (font). Upload happens in the
+ * sibling `ResourcePanel`; this control is read-only on uploads.
+ */
+function UploadParameterControl({ param, value, onChange }: UploadParameterControlProps) {
+  const [uploads, setUploads] = useState<UploadedAssetSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const kind = param.type === 'image' ? 'image' : 'font';
+
+  React.useEffect(() => {
+    // Subscribe to /api/upload for this kind. We deliberately mark loading
+    // via the async closure (not a sync setState in the effect body) so we
+    // don't trigger the react-hooks/set-state-in-effect lint, while still
+    // showing a loading state on first paint.
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(`/api/upload?kind=${kind}`, { signal: controller.signal });
+        const d = r.ok ? await r.json() : { uploads: [] };
+        if (!cancelled) {
+          setUploads(d.uploads || []);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
+  }, [kind]);
+
+  return (
+    <div className="space-y-1.5">
+      <Select value={value || ''} onValueChange={onChange}>
+        <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-xs">
+          <SelectValue placeholder={loading ? 'Loading…' : `Pick ${kind}…`} />
+        </SelectTrigger>
+        <SelectContent className="bg-slate-800 border-slate-600 max-h-72">
+          {uploads.length === 0 && (
+            <div className="px-3 py-2 text-xs text-slate-500">
+              No {kind}s uploaded yet. Use the Resources panel.
+            </div>
+          )}
+          {uploads.map(u => {
+            const optionValue = kind === 'font' ? (u.fontFamily ?? u.filename) : u.url;
+            return (
+              <SelectItem key={u.id} value={optionValue} className="text-white hover:bg-slate-700 text-xs">
+                {u.filename}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      {value && kind === 'image' && (
+        <div className="mt-1 text-[10px] text-slate-500 truncate font-mono">{value}</div>
+      )}
+    </div>
+  );
 }
 
 function IconPickerControl({ value, onChange }: IconPickerControlProps) {

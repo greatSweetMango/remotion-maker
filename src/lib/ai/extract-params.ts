@@ -34,6 +34,7 @@ export function extractParameters(code: string): Parameter[] {
 
     let group: Parameter['group'] = 'other';
     if (type === 'color') group = 'color';
+    else if (type === 'image' || type === 'font') group = 'media';
     else if (key.toLowerCase().includes('speed') || key.toLowerCase().includes('duration') || key.toLowerCase().includes('delay')) group = 'timing';
     else if (key.toLowerCase().includes('size') || key.toLowerCase().includes('font') || key.toLowerCase().includes('width') || key.toLowerCase().includes('height') || key.toLowerCase().includes('radius')) group = 'size';
     else if (type === 'text') group = 'text';
@@ -42,7 +43,7 @@ export function extractParameters(code: string): Parameter[] {
       ? rawValue.replace(/['"]/g, '').trim()
       : type === 'boolean'
         ? rawValue.trim() === 'true'
-        : type === 'text' || type === 'select' || type === 'icon'
+        : type === 'text' || type === 'select' || type === 'icon' || type === 'image' || type === 'font'
           ? rawValue.replace(/['"]/g, '').trim()
           : parseFloat(rawValue) || 0;
 

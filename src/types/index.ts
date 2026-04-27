@@ -1,11 +1,11 @@
 export type Tier = 'FREE' | 'PRO';
 
-export type ParameterType = 'color' | 'range' | 'text' | 'boolean' | 'select' | 'icon';
+export type ParameterType = 'color' | 'range' | 'text' | 'boolean' | 'select' | 'icon' | 'image' | 'font';
 
 export interface Parameter {
   key: string;
   label: string;
-  group: 'color' | 'size' | 'timing' | 'text' | 'other';
+  group: 'color' | 'size' | 'timing' | 'text' | 'media' | 'other';
   type: ParameterType;
   value: string | number | boolean;
   min?: number;

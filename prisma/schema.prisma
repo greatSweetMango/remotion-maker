@@ -42,21 +42,45 @@ model VerificationToken {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  emailVerified DateTime?
-  name          String?
-  image         String?
-  password      String?
-  tier          Tier          @default(FREE)
-  monthlyUsage  Int           @default(0)
-  editUsage     String        @default("{}")
-  usageResetAt  DateTime      @default(now())
-  assets        Asset[]
-  subscription  Subscription?
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime      @default(now())
+  id             String           @id @default(cuid())
+  email          String           @unique
+  emailVerified  DateTime?
+  name           String?
+  image          String?
+  password       String?
+  tier           Tier             @default(FREE)
+  monthlyUsage   Int              @default(0)
+  editUsage      String           @default("{}")
+  usageResetAt   DateTime         @default(now())
+  assets         Asset[]
+  uploadedAssets UploadedAsset[]
+  subscription   Subscription?
+  accounts       Account[]
+  sessions       Session[]
+  createdAt      DateTime         @default(now())
+}
+
+/// User-uploaded media (images / fonts) that can be referenced from generated
+/// Remotion code via PARAMS of type `image` / `font`. Storage backend is
+/// abstracted (see `src/lib/storage/`) — `url` is the public-readable URL
+/// served by the chosen provider (Vercel Blob, S3, or local placeholder).
+model UploadedAsset {
+  id           String   @id @default(cuid())
+  userId       String
+  kind         String   // 'image' | 'font'
+  filename     String   // original filename (sanitized)
+  mimeType     String
+  sizeBytes    Int
+  url          String   // public URL served by storage provider
+  storageKey   String   // provider-specific object key (for delete)
+  storageProvider String // 'local' | 'vercel-blob' | 's3'
+  // For fonts only — derived family name used in @font-face
+  fontFamily   String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, kind])
 }
 
 model Asset {
