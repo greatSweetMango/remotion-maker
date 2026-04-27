@@ -80,7 +80,7 @@ Orchestrator에게 마지막 메시지로 반환 (JSON):
   "cost_usd_estimate": 0.012,
   "escalations": [],
   "wiki_artifacts": {
-    "adr": {"path": "wiki/01-pm/decisions/0005-...", "content": "..."},
+    "adr": {"path": "wiki/01-pm/decisions/PENDING-TM-X-<slug>.md", "content": "..."},
     "research": {"path": "wiki/03-research/...", "content": "..."},
     "qa": {"path": "wiki/05-reports/...-qa.md", "content": "..."},
     "validation": {"path": "wiki/05-reports/...-validation.md", "content": "..."},
@@ -91,6 +91,30 @@ Orchestrator에게 마지막 메시지로 반환 (JSON):
 ```
 
 `wiki_artifacts.*.content`는 main에 commit할 본문 — Orchestrator가 main 단독 소유 정책에 따라 main worktree에 직접 작성.
+
+### ADR 번호 할당 규칙 — placeholder 사용 필수
+
+**병렬 실행 중인 다른 TeamLead가 같은 NNNN을 동시에 선택할 수 있으므로, TeamLead는 `NNNN`을 직접 부여하지 않는다.** Orchestrator가 main commit 직전 단일 직렬화 지점에서 NNNN을 부여한다 (`.claude/commands/orchestrate.md` Step 5-pre).
+
+**ADR 작성 규칙**:
+1. 파일 path: `wiki/01-pm/decisions/PENDING-<task_id>-<slug>.md`
+   - 예: `wiki/01-pm/decisions/PENDING-TM-36-adr-collision-avoidance.md`
+   - `<task_id>`는 본 task의 식별자 그대로 (`TM-36`).
+   - `<slug>`는 의미 있는 짧은 영문 slug.
+2. ADR 본문 내 self-reference 토큰: `ADR-PENDING-<task_id>`
+   - frontmatter `title`, 본문 제목, "see also", index 추가 안내 등 모든 self-reference 위치.
+   - 예: `# ADR-PENDING-TM-36: ADR 번호 충돌 회피`
+3. 다른 산출물(retro/qa/validation/research)이 본 ADR을 참조할 때도 동일 토큰 사용:
+   - 예: `자세한 결정 배경은 ADR-PENDING-TM-36 참조`
+4. **TeamLead가 사용해서는 안 되는 형식**:
+   - `wiki/01-pm/decisions/0012-foo.md` — Orchestrator가 거부, escalate 처리.
+   - `wiki/01-pm/decisions/NNNN-foo.md` — 위와 동일.
+5. 새 ADR이 없는 task(코드 변경만, ADR 불필요)는 `wiki_artifacts.adr`을 `null`로 둔다.
+
+Orchestrator는 commit 직전 다음을 자동 수행 (TeamLead는 신경 쓸 필요 없음):
+- `PENDING-<task_id>-<slug>.md` → `<NNNN>-<slug>.md` rename
+- 모든 산출물 본문의 `ADR-PENDING-<task_id>` → `ADR-<NNNN>` 일괄 치환
+- ADR 인덱스(`wiki/01-pm/decisions/README.md`) 자동 갱신
 
 ## 자동화 정책
 

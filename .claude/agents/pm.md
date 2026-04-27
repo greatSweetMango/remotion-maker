@@ -156,7 +156,9 @@ generated_at: {ISO8601}
 
 ## 산출물 경로 컨벤션 (wiki/CLAUDE.md §8)
 
-- ADR: `wiki/01-pm/decisions/{NNNN}-{slug}.md` (main 단독 commit)
+- ADR: **`wiki/01-pm/decisions/PENDING-{task_id}-{slug}.md`** (TeamLead는 placeholder만 사용, NNNN은 Orchestrator가 commit 직전 부여 — `.claude/commands/orchestrate.md` Step 5-pre 참조)
+  - ADR 본문 내 self-reference / cross-reference 토큰은 반드시 `ADR-PENDING-{task_id}` 형식. Orchestrator가 일괄 `ADR-{NNNN}`으로 치환.
+  - **금지**: TeamLead가 `0012-foo.md` 같이 NNNN을 직접 부여 → 병렬 task와 충돌 → Orchestrator가 escalate.
 - 회고: `wiki/05-reports/{date}-{task_id}-retro.md` (main 단독 commit)
 - QA / Validation: `wiki/05-reports/{date}-{task_id}-{qa|validation}.md`
 - 코드 변경: `worktrees/{branch}/` 내부 (PR로 main 머지)

@@ -176,10 +176,85 @@ Agent[
 
 각 TeamLead가 반환한 요약 JSON 처리:
 
+#### Step 5-pre: ADR 번호 충돌 회피 (PENDING → NNNN 재할당)
+
+**문제**: 병렬 실행 중인 N개 TeamLead가 동시에 ADR을 작성할 때 같은 `NNNN`을 선택하면, Orchestrator가 main에 일괄 commit할 때 파일명/인덱스 충돌이 발생한다.
+
+**해결**: TeamLead는 NNNN을 직접 부여하지 않고 **placeholder**를 사용. Orchestrator만 main에 단일 책임으로 NNNN을 부여한다 (단일 직렬화 지점).
+
+**TeamLead가 보내야 하는 형식** (`prompts/team-lead.md` Phase F 참조):
+- `wiki_artifacts.adr.path` = `wiki/01-pm/decisions/PENDING-<task_id>-<slug>.md`
+- 본문 내 self-reference 토큰 = `ADR-PENDING-<task_id>` (제목, 인덱스, 다른 산출물의 cross-link 포함 모두 동일 토큰)
+
+**Orchestrator 알고리즘** (wiki commit 직전 단일 배치, 병렬 task 간 충돌 원천 차단):
+
+```
+# 1) 현재 main의 최대 NNNN 스캔 (README/_meta/PENDING- 파일 제외)
+existing = ls wiki/01-pm/decisions/ | grep -E '^[0-9]{4}-.*\.md$' | sort
+max_nnnn = existing의 마지막 4자리 prefix를 정수로 (없으면 0)
+
+# 2) 이번 배치에서 PENDING ADR을 가진 APPROVE summary 수집 + 결정 순서 고정
+#    - 정렬: task_id 오름차순 (TM-3 < TM-17 < TM-19) → 같은 task의 여러 ADR은 path 보조정렬
+pending = sorted(
+  [(s, art) for s in approved_summaries
+              for art in [s.wiki_artifacts.adr]
+              if art and art.path includes "/PENDING-"],
+  key=(s.task_id_numeric, art.path)
+)
+
+# 3) 순차 NNNN 부여 + rename map / token map 구성
+nnnn = max_nnnn
+rename_map = {}             # old_path -> new_path
+token_map  = {}             # "ADR-PENDING-TM-X" -> "ADR-NNNN"
+title_by_nnnn = {}          # NNNN -> ADR title (인덱스 갱신용)
+for (summary, art) in pending:
+  nnnn += 1
+  pad  = String(nnnn).padStart(4, "0")
+  # PENDING-<task_id>-<slug>.md 에서 <slug> 추출
+  #   task_id 자체가 "TM-36" 처럼 hyphen을 포함 → 정규식은 task_id를 알고 lstrip
+  fname = basename(art.path)                                    # PENDING-TM-36-adr-collision-avoidance.md
+  slug  = fname.removePrefix("PENDING-" + summary.task_id + "-")
+                .removeSuffix(".md")                            # adr-collision-avoidance
+  new_path = "wiki/01-pm/decisions/" + pad + "-" + slug + ".md"
+  rename_map[art.path]                          = new_path
+  token_map["ADR-PENDING-" + summary.task_id]   = "ADR-" + pad
+  title_by_nnnn[pad]                            = (art.content frontmatter title) or slug
+  art.path = new_path
+
+# 4) 모든 wiki_artifacts(ADR + retro + qa + validation + research) 본문에 token 일괄 치환
+#    cross-reference (예: 회고 본문이 "see ADR-PENDING-TM-36" 라고 쓴 경우 자동 보정)
+for s in approved_summaries:
+  for art in s.wiki_artifacts.values():
+    if art and art.content:
+      for (token, replacement) in token_map:
+        art.content = art.content.replaceAll(token, replacement)
+      # 파일명 self-reference도 보정 (PENDING-TM-X-slug → NNNN-slug)
+      for (old_path, new_path) in rename_map:
+        art.content = art.content.replaceAll(old_path, new_path)
+        art.content = art.content.replaceAll(basename(old_path), basename(new_path))
+
+# 5) ADR 인덱스(README) 갱신: 새 NNNN 항목을 인덱스 끝에 자동 추가
+#    wiki/01-pm/decisions/README.md "## 인덱스" 섹션 마지막에 줄 append:
+#      `- [[NNNN-slug|ADR-NNNN: <title>]]`
+#    title은 art.content frontmatter title 필드에서 추출 (없으면 slug 그대로)
+#    이미 존재하는 NNNN이면 (이론상 없지만) skip + transcript warn
+```
+
+**불변식**:
+- Step 5-pre 실행 후 `wiki_artifacts` 안에는 더 이상 `PENDING-` 또는 `ADR-PENDING-` 토큰이 남아있지 않다.
+- 같은 iter에서 N개 ADR이 들어오면 `max+1, max+2, ..., max+N`이 보장된다 (정렬 결정성으로 재실행해도 동일 결과).
+- 이전 iter가 commit한 ADR과 동시 iter의 ADR이 같은 NNNN을 가질 수 없다 (commit 직전 매번 ls로 max 재산정).
+
+**한 가지 잔여 위험**: Orchestrator가 ADR을 commit하고 push하기 직전에, 사람(또는 다른 main 작업)이 새 ADR을 main에 직접 push하면 fast-forward 실패. 처리:
+- `git push origin main` 실패 시 → `git pull --rebase origin main` → Step 5-pre의 max_nnnn을 재계산해 본 iter에서 만든 ADR 들을 한 번 더 rename + token rewrite → 재 commit → push.
+- 2회 실패하면 escalate.
+
+치환 후 일반 흐름 진행:
+
 ```
 for summary in team_lead_summaries:
   if summary.verdict == "APPROVE":
-    # wiki artifacts main에 작성
+    # wiki artifacts main에 작성 (Step 5-pre 이후의 정규화된 path/content)
     for artifact in summary.wiki_artifacts:
       Write(artifact.path, artifact.content)
     git add wiki/ .agent-state/branch-locks.json
