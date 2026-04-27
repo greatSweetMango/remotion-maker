@@ -13,7 +13,13 @@
  *      surfaced unchanged (no override).
  */
 
-import { scoreConcreteness, CONCRETENESS_THRESHOLD } from '@/lib/ai/clarify-gate';
+import {
+  scoreConcreteness,
+  CONCRETENESS_THRESHOLD,
+  extractEntityCount,
+  ENTITY_COUNT_SKIP_THRESHOLD,
+  buildEntityCountReinforcement,
+} from '@/lib/ai/clarify-gate';
 
 describe('scoreConcreteness — KO false-positive prompts (TM-41 r1 retro)', () => {
   // The 5-prompt KO sample required by the TM-52 spec.
@@ -151,5 +157,138 @@ describe('generateAsset — TM-52 clarify-override wiring', () => {
     });
     expect(result.type).toBe('clarify'); // surfaced as-is
     expect(mockedChat).toHaveBeenCalledTimes(1);
+  });
+});
+
+// --------------------------------------------------------------------------
+// TM-68 — entity-count gate
+// --------------------------------------------------------------------------
+
+describe('extractEntityCount — TM-68', () => {
+  it.each([
+    ['실시간 주식 시세 그래프 느낌, 빨강/초록 캔들, 8개 막대', 8],
+    ['3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안', 3],
+    ['5 bars chart with neon glow', 5],
+    ['3x3 grid of icons', 9],
+    ['7개 단계 progress', 7],
+    ['12 items rotating', 12],
+    ['10단계 로딩 바', 10],
+  ])('extracts entity count from "%s" → %i', (prompt, expected) => {
+    expect(extractEntityCount(prompt)).toBe(expected);
+  });
+
+  it('returns 0 when no entity counter is present', () => {
+    expect(extractEntityCount('make something cool')).toBe(0);
+    expect(extractEntityCount('애니메이션 만들어줘')).toBe(0);
+  });
+
+  it('ignores duration-only counters (seconds, fps, frames)', () => {
+    // "5초", "30s", "60fps" describe time, not entity count.
+    expect(extractEntityCount('5초 카운트다운')).toBe(0);
+    expect(extractEntityCount('30s intro animation at 60fps')).toBe(0);
+    expect(extractEntityCount('Before 30s vs After 5s, red vs green')).toBe(0);
+  });
+
+  it('takes the maximum when multiple counters appear', () => {
+    expect(extractEntityCount('3개 카드, 8개 막대')).toBe(8);
+  });
+
+  it('handles grid notation NxM as a product', () => {
+    expect(extractEntityCount('5x4 grid')).toBe(20);
+  });
+});
+
+describe('scoreConcreteness — TM-68 forceSkipClarify', () => {
+  it('flags forceSkipClarify when explicit entity count ≥ threshold', () => {
+    const r = scoreConcreteness('실시간 주식 시세 그래프 느낌, 빨강/초록 캔들, 8개 막대');
+    expect(r.entityCount).toBe(8);
+    expect(r.entityCount).toBeGreaterThanOrEqual(ENTITY_COUNT_SKIP_THRESHOLD);
+    expect(r.forceSkipClarify).toBe(true);
+  });
+
+  it('flags forceSkipClarify for "3가지 특징" (ig-02 class)', () => {
+    const r = scoreConcreteness('3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안');
+    expect(r.entityCount).toBe(3);
+    expect(r.forceSkipClarify).toBe(true);
+  });
+
+  it('flags forceSkipClarify when ≥ 3 distinct concrete categories fire (no count)', () => {
+    // ig-03: subject-less but lots of color + count + punctuation → multi-category.
+    const r = scoreConcreteness('Comparison side-by-side: "Before 30s" vs "After 5s", red vs green');
+    expect(r.entityCount).toBe(0); // duration counters excluded
+    expect(r.hits.length).toBeGreaterThanOrEqual(3);
+    expect(r.forceSkipClarify).toBe(true);
+  });
+
+  it('does NOT flag forceSkipClarify for thin prompts', () => {
+    const r = scoreConcreteness('애니메이션 만들어줘');
+    expect(r.forceSkipClarify).toBe(false);
+    expect(r.entityCount).toBe(0);
+  });
+
+  it('does NOT flag forceSkipClarify for entityCount = 1 alone', () => {
+    // "1 item" — only one entity AND no other strong signals → should not skip.
+    const r = scoreConcreteness('1 item');
+    expect(r.entityCount).toBe(1);
+    expect(r.forceSkipClarify).toBe(false);
+  });
+});
+
+describe('buildEntityCountReinforcement — TM-68', () => {
+  it('quotes the entity count back to the model', () => {
+    const r = buildEntityCountReinforcement(8);
+    expect(r).toContain('ENTITY COUNT');
+    expect(r).toContain('TM-68');
+    expect(r).toContain('8');
+    expect(r).toContain('mode="generate"');
+  });
+});
+
+describe('generateAsset — TM-68 entity-count hardened retry', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('does a 3rd hardened retry when forced retry still returns clarify (entity count present)', async () => {
+    // dv-05 prompt: 8개 막대 → entityCount=8 → forceSkipClarify
+    mockedChat.mockResolvedValueOnce(clarifyJson);  // 1st: clarify
+    mockedChat.mockResolvedValueOnce(clarifyJson);  // 2nd (TM-52 forced): still clarify
+    mockedChat.mockResolvedValueOnce(generateJson); // 3rd (TM-68 hardened): finally generates
+    const result = await generateAsset(
+      '실시간 주식 시세 그래프 느낌, 빨강/초록 캔들, 8개 막대',
+      'haiku',
+    );
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(3);
+    // 3rd call's system prompt must contain the TM-68 entity-count override.
+    const third = mockedChat.mock.calls[2][0];
+    expect(third.system).toContain('ENTITY COUNT');
+    expect(third.system).toContain('TM-68');
+    // And it must have quoted the count.
+    expect(third.system).toContain('8');
+  });
+
+  it('does NOT do a 3rd retry when prompt has no explicit entity count', async () => {
+    // "Comparison side-by-side ... red vs green" → forceSkipClarify by category
+    // count, but entityCount=0 (durations excluded). The hardened retry is
+    // gated on entityCount>0 because that's the wording it quotes back.
+    mockedChat.mockResolvedValueOnce(clarifyJson);  // 1st
+    mockedChat.mockResolvedValueOnce(clarifyJson);  // 2nd (TM-52 forced) — still clarify
+    const result = await generateAsset(
+      'Comparison side-by-side: "Before 30s" vs "After 5s", red vs green',
+      'haiku',
+    );
+    // Surfaced as clarify after the TM-52 retry; TM-68 hardened path does not fire.
+    expect(result.type).toBe('clarify');
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns generate immediately if TM-52 forced retry succeeded (no 3rd call)', async () => {
+    mockedChat.mockResolvedValueOnce(clarifyJson);
+    mockedChat.mockResolvedValueOnce(generateJson);
+    const result = await generateAsset(
+      '실시간 주식 시세 그래프 느낌, 빨강/초록 캔들, 8개 막대',
+      'haiku',
+    );
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(2); // no 3rd retry needed
   });
 });

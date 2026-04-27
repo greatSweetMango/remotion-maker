@@ -66,10 +66,84 @@ export interface ConcretenessReport {
   hits: Array<'subject' | 'color' | 'count' | 'style' | 'data' | 'length' | 'punctuation'>;
   /** True iff the prompt contains Hangul. */
   isKorean: boolean;
+  /**
+   * TM-68 — explicit entity count extracted from the prompt. Examples:
+   *   - "8개 막대" → 8
+   *   - "3가지 특징" → 3
+   *   - "5 bars" → 5
+   *   - no count → 0
+   * Time-only counters ("30s", "5초") are excluded; they describe duration,
+   * not entity multiplicity.
+   */
+  entityCount: number;
+  /**
+   * TM-68 — strong-skip flag. When true, the caller should NOT surface
+   * mode=clarify even if the LLM keeps returning it; one extra forced
+   * retry with a hardened directive is warranted. Set when the prompt
+   * carries an explicit entity count ≥ 2 OR ≥ 3 distinct concreteness
+   * categories — both indicate the user has already enumerated enough
+   * structure that asking back-and-forth questions is the wrong UX.
+   */
+  forceSkipClarify: boolean;
 }
 
 /** Threshold above which clarify is treated as a false positive. */
 export const CONCRETENESS_THRESHOLD = 2;
+
+/**
+ * TM-68 — minimum entity count that triggers `forceSkipClarify`.
+ * "3가지 특징" or "8개 막대" → user already enumerated; no need to ask back.
+ */
+export const ENTITY_COUNT_SKIP_THRESHOLD = 2;
+
+/**
+ * TM-68 — entity-count counters. KO unit nouns and EN plurals that count
+ * *things* (not seconds/frames/fps). Order matters only for readability.
+ *
+ * Excluded by design: 초/s/seconds/fps/frame/ms — these are duration units
+ * and don't tell us anything about entity multiplicity.
+ */
+const ENTITY_COUNTER_RE = new RegExp(
+  [
+    // Korean entity counters
+    '\\d+\\s*(?:가지|개|단계|단|회|번|컷|항목|요소|줄|행|열|칸|장|쪽|페이지)',
+    // English entity counters (plural nouns)
+    '\\d+\\s*(?:items?|elements?|bars?|dots?|circles?|squares?|stars?|lines?|columns?|rows?|sections?|panels?|tiles?|steps?|points?|nodes?|cards?|icons?)\\b',
+    // Grid notation NxM — entity count = N*M (handled separately)
+    '\\d+\\s*x\\s*\\d+',
+  ].join('|'),
+  'gi',
+);
+
+/**
+ * TM-68 — extract the maximum explicit entity count in a prompt.
+ *
+ * Returns 0 when no entity counter is found. The intent is to recognize
+ * prompts where the user has already named *how many* things to render
+ * ("3가지 특징", "8개 막대", "5 bars", "3x3 grid"). Such prompts should
+ * never be sent through clarify — the structure is already specified.
+ */
+export function extractEntityCount(prompt: string): number {
+  const text = prompt ?? '';
+  let max = 0;
+  // Reset stateful regex (the `g` flag is shared across calls).
+  ENTITY_COUNTER_RE.lastIndex = 0;
+  for (const m of text.matchAll(ENTITY_COUNTER_RE)) {
+    const segment = m[0];
+    // Grid: NxM → product is the entity count.
+    const grid = segment.match(/^(\d+)\s*x\s*(\d+)$/i);
+    if (grid) {
+      const product = parseInt(grid[1], 10) * parseInt(grid[2], 10);
+      if (product > max) max = product;
+      continue;
+    }
+    const num = segment.match(/^\d+/);
+    if (!num) continue;
+    const n = parseInt(num[0], 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max;
+}
 
 /**
  * Score a prompt for concreteness. Pure, no I/O.
@@ -107,11 +181,20 @@ export function scoreConcreteness(prompt: string): ConcretenessReport {
   // an 8-word EN equivalent.
   if (isKorean && score >= 1) score += 1;
 
+  // TM-68 — entity-count gate. An explicit "N things" enumeration is the
+  // strongest possible specificity signal; the user has literally counted
+  // for us. Independent of language.
+  const entityCount = extractEntityCount(text);
+  const forceSkipClarify =
+    entityCount >= ENTITY_COUNT_SKIP_THRESHOLD || hits.length >= 3;
+
   return {
     score,
     isConcrete: score >= CONCRETENESS_THRESHOLD,
     hits,
     isKorean,
+    entityCount,
+    forceSkipClarify,
   };
 }
 
@@ -132,3 +215,29 @@ mode="clarify" again. If a detail is missing, choose a sensible default
 (e.g. brand-neutral colors, 150 frames @ 30fps, single composition) rather
 than asking.
 `;
+
+/**
+ * TM-68 — hardened clarify override used when the user's prompt carries an
+ * explicit entity count (e.g. "8개 막대", "3가지 특징", "5 bars"). Two
+ * earlier attempts (standard + TM-52 force-generate) BOTH still returned
+ * clarify; this directive is the last-chance override before we surface a
+ * user-facing error. The wording here is intentionally absolute and quotes
+ * the extracted count back to the model.
+ */
+export function buildEntityCountReinforcement(entityCount: number): string {
+  return `
+
+============== CLARIFY OVERRIDE — ENTITY COUNT (TM-68) ==============
+
+The user's prompt contains an EXPLICIT entity count of ${entityCount}.
+This is the strongest possible specificity signal — the user has literally
+told you how many things to render. Returning mode="clarify" is forbidden.
+
+You MUST output mode="generate". Render exactly ${entityCount} of whatever
+the prompt enumerates (bars, items, features, points, …). For any styling
+detail that is genuinely missing, pick a tasteful default — DO NOT ASK.
+
+This is your final attempt. Do not return clarify again under any
+circumstances.
+`;
+}
