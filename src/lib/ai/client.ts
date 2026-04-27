@@ -96,12 +96,24 @@ export async function chatCompleteStream({
 
   if (provider === 'openai') {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // TM-69 — gpt-4o / gpt-4o-mini sometimes return prose or markdown-fenced
+    // bodies even when the system prompt says "respond with JSON". Forcing
+    // `response_format: json_object` makes the model treat the output as a
+    // JSON-only stream. OpenAI requires the literal word "json" to appear in
+    // the conversation when this mode is on; we ensure that by appending a
+    // short reinforcement to the system message (callers' system prompts
+    // already contain "JSON" but this is belt-and-suspenders).
+    // Ref: https://platform.openai.com/docs/guides/json-mode
+    const systemForJson = /\bjson\b/i.test(system)
+      ? system
+      : `${system}\n\nRespond strictly in JSON.`;
     const stream = await client.chat.completions.create({
       model,
       max_tokens: maxTokens,
       stream: true,
+      response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: system },
+        { role: 'system', content: systemForJson },
         ...messages.map((m) => ({
           role: m.role as 'user' | 'assistant',
           content:
