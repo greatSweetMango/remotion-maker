@@ -168,6 +168,37 @@ Heuristic for ambiguity (be VERY strict — only ask when truly needed):
 
 ` + GENERATION_SYSTEM_PROMPT;
 
+/**
+ * TM-51: Reinforcement appended to GENERATION_WITH_CLARIFY_SYSTEM_PROMPT when
+ * the first attempt returned a placeholder/empty body (e.g. gpt-4o stub
+ * `const Component = () => null;` with code_length ≈ 25 chars, no PARAMS,
+ * no JSX). This prompt makes the failure mode explicit and forbids the
+ * exact stubs we observed in TM-41 QA.
+ */
+export const GENERATION_NON_EMPTY_REINFORCEMENT = `
+
+============== ANTI-PLACEHOLDER ENFORCEMENT (RETRY) ==============
+
+The previous attempt returned a placeholder/empty stub. That is INVALID.
+Your code field MUST satisfy ALL of the following:
+
+  1. Define a \`PARAMS\` const with at least one customizable value (color,
+     range, text, boolean, select, or icon). \`const PARAMS = {} as const\` is
+     NOT acceptable on its own.
+  2. The component body MUST contain at least one JSX element using
+     <AbsoluteFill> as the root. A bare \`return null\` body is FORBIDDEN.
+  3. The component MUST be substantive — at minimum 10 lines of working
+     animation logic (interpolate / spring / useCurrentFrame). Stubs like
+     \`const Component = () => null;\` or \`export const GeneratedAsset = () => null;\`
+     are FORBIDDEN.
+  4. The "code" string in the JSON response MUST be at least 200 characters
+     long.
+  5. Re-read the STANDARD GENERATION RULES above before responding.
+
+If the prompt is too vague to produce a real animation, you MUST switch to
+mode="clarify" and ask up to 3 short questions instead of returning a stub.
+`;
+
 export const EDIT_SYSTEM_PROMPT = `You are an expert Remotion animation developer modifying existing code.
 
 Rules:
