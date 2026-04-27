@@ -59,6 +59,17 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // Worker spawning (avoid resource exhaustion via fanout)
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
+
+  // Obvious infinite loops in module scope. The evaluator's wall-clock
+  // timeout is a *post-hoc* check (`Date.now()` after the synchronous
+  // factory call) and therefore cannot interrupt a `for(;;){}` /
+  // `while(true){}` body — by the time we measure, the tab is already
+  // frozen. Reject these statically in the deny list. (TM-48)
+  // Note: this is a heuristic, not a halting-problem solver — only the
+  // canonical syntactic forms are rejected.
+  { pattern: /\bfor\s*\(\s*;\s*;\s*\)/, label: 'Forbidden: for(;;) infinite loop' },
+  { pattern: /\bwhile\s*\(\s*(?:true|1)\s*\)/, label: 'Forbidden: while(true) infinite loop' },
+  { pattern: /\bdo\s*\{[\s\S]*?\}\s*while\s*\(\s*(?:true|1)\s*\)/, label: 'Forbidden: do…while(true) infinite loop' },
 ];
 
 export function validateCode(code: string): ValidationResult {
