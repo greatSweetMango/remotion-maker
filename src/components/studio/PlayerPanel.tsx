@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
-import { evaluateComponent } from '@/lib/remotion/evaluator';
+import { evaluateComponentDetailed } from '@/lib/remotion/evaluator';
+import { EvaluatorErrorBoundary } from './EvaluatorErrorBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Play, Grid3x3, Gauge } from 'lucide-react';
 import type { GeneratedAsset } from '@/types';
@@ -55,10 +56,12 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
     return () => sequenceCtx.registerPlayerRef(null);
   }, [sequenceCtx, asset?.id]);
 
-  const Component = useMemo(() => {
-    if (!asset?.jsCode) return null;
-    return evaluateComponent(asset.jsCode);
+  const evalResult = useMemo(() => {
+    if (!asset?.jsCode) return { component: null, error: null };
+    return evaluateComponentDetailed(asset.jsCode);
   }, [asset?.jsCode]);
+  const Component = evalResult.component;
+  const evaluatorError = evalResult.error;
 
   // Only run the FPS monitor when there's something playing.
   const fpsState = useFpsMonitor({ enabled: Boolean(Component && asset && !isGenerating) });
@@ -185,23 +188,45 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
         ) : Component && asset && effectiveAsset ? (
           <div className="w-full h-full flex items-center justify-center">
             <div style={{ width: '100%', maxWidth: '100%', aspectRatio: `${asset.width}/${asset.height}` }}>
-              <Player
-                ref={playerRef}
-                component={Component as React.ComponentType<Record<string, unknown>>}
-                inputProps={paramValues}
-                durationInFrames={Math.max(
-                  1,
-                  Math.round((asset.durationInFrames / asset.fps) * effectiveAsset.fps),
-                )}
-                fps={effectiveAsset.fps}
-                compositionWidth={effectiveAsset.width}
-                compositionHeight={effectiveAsset.height}
-                style={{ width: '100%', height: '100%' }}
-                autoPlay
-                loop
-                controls
-                clickToPlay
-              />
+              <EvaluatorErrorBoundary resetKey={asset.id}>
+                <Player
+                  ref={playerRef}
+                  component={Component as React.ComponentType<Record<string, unknown>>}
+                  inputProps={paramValues}
+                  durationInFrames={Math.max(
+                    1,
+                    Math.round((asset.durationInFrames / asset.fps) * effectiveAsset.fps),
+                  )}
+                  fps={effectiveAsset.fps}
+                  compositionWidth={effectiveAsset.width}
+                  compositionHeight={effectiveAsset.height}
+                  style={{ width: '100%', height: '100%' }}
+                  autoPlay
+                  loop
+                  controls
+                  clickToPlay
+                />
+              </EvaluatorErrorBoundary>
+            </div>
+          </div>
+        ) : evaluatorError && asset ? (
+          <div
+            data-testid="evaluator-error-panel"
+            className="flex flex-col items-center gap-3 text-center max-w-sm"
+          >
+            <div className="w-16 h-16 rounded-full bg-amber-900/30 flex items-center justify-center">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                <path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-slate-200 font-medium">{evaluatorError.userMessage}</p>
+              {evaluatorError.hint && (
+                <p className="text-slate-500 text-sm mt-1">{evaluatorError.hint}</p>
+              )}
+              <p className="text-slate-600 text-xs mt-2" data-testid="evaluator-error-kind">
+                ({evaluatorError.kind})
+              </p>
             </div>
           </div>
         ) : (
