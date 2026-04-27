@@ -19,7 +19,31 @@ export interface ChatCompleteOptions {
   system: string;
   messages: AIMessage[];
   maxTokens?: number;
+  /**
+   * TM-54 — when set, callers receive a notice the moment the first token
+   * lands. Used by the generate route + bench harness to track TTFB
+   * separately from total wall ms.
+   */
+  onFirstToken?: (msSinceStart: number) => void;
+  /** TM-54 — when set, fired on every text delta for streaming UIs. */
+  onDelta?: (chunk: string, sofar: string) => void;
 }
+
+export interface ChatCompleteResult {
+  text: string;
+  /** Wall ms from request start to the first text token surfacing. */
+  firstTokenMs: number;
+  /** Wall ms from request start to stream completion. */
+  totalMs: number;
+}
+
+/**
+ * TM-54 — central default for chat completion `max_tokens`.
+ * Chosen to comfortably exceed observed p95 generation length (~700 JSON
+ * tokens including envelope) while cutting the latency budget allocated
+ * by upstream model schedulers (ref: `wiki/05-reports/2026-04-27-TM-41-qa.md`).
+ */
+export const DEFAULT_MAX_TOKENS = 2500;
 
 function getProvider(): AIProvider {
   return (process.env.AI_PROVIDER as AIProvider) ?? 'anthropic';
@@ -39,19 +63,43 @@ export function getModels(): { free: string; pro: string } {
   };
 }
 
-export async function chatComplete({
+/**
+ * TM-54 — provider-aware streaming chat completion.
+ *
+ * Streams tokens from the active provider (OpenAI or Anthropic) so callers
+ * can observe time-to-first-byte. Returns the full assembled text alongside
+ * `firstTokenMs` and `totalMs` so latency reporting is uniform across
+ * providers.
+ *
+ * Backwards-compatible: `chatComplete` (string return) is preserved for
+ * existing callers and now delegates to this streaming impl.
+ */
+export async function chatCompleteStream({
   model,
   system,
   messages,
-  maxTokens = 4096,
-}: ChatCompleteOptions): Promise<string> {
+  maxTokens = DEFAULT_MAX_TOKENS,
+  onFirstToken,
+  onDelta,
+}: ChatCompleteOptions): Promise<ChatCompleteResult> {
   const provider = getProvider();
+  const start = Date.now();
+  let firstTokenMs = -1;
+  let text = '';
+
+  const markFirst = () => {
+    if (firstTokenMs < 0) {
+      firstTokenMs = Date.now() - start;
+      onFirstToken?.(firstTokenMs);
+    }
+  };
 
   if (provider === 'openai') {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await client.chat.completions.create({
+    const stream = await client.chat.completions.create({
       model,
       max_tokens: maxTokens,
+      stream: true,
       messages: [
         { role: 'system', content: system },
         ...messages.map((m) => ({
@@ -63,7 +111,20 @@ export async function chatComplete({
         })),
       ],
     });
-    return response.choices[0]?.message?.content ?? '';
+
+    for await (const event of stream) {
+      const chunk = event.choices?.[0]?.delta?.content ?? '';
+      if (!chunk) continue;
+      markFirst();
+      text += chunk;
+      onDelta?.(chunk, text);
+    }
+
+    return {
+      text,
+      firstTokenMs: firstTokenMs < 0 ? Date.now() - start : firstTokenMs,
+      totalMs: Date.now() - start,
+    };
   }
 
   // Anthropic
@@ -82,12 +143,36 @@ export async function chatComplete({
     };
   });
 
-  const message = await client.messages.create({
+  const stream = client.messages.stream({
     model,
     max_tokens: maxTokens,
     system,
     messages: anthropicMessages,
   });
 
-  return message.content[0].type === 'text' ? message.content[0].text : '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      const chunk = event.delta.text;
+      markFirst();
+      text += chunk;
+      onDelta?.(chunk, text);
+    }
+  }
+
+  return {
+    text,
+    firstTokenMs: firstTokenMs < 0 ? Date.now() - start : firstTokenMs,
+    totalMs: Date.now() - start,
+  };
+}
+
+/**
+ * Legacy non-streaming entry point (returns just text). Now delegates to
+ * `chatCompleteStream` so all callers benefit from streaming TTFB without
+ * code changes. Kept as a thin wrapper for backward compatibility with
+ * existing tests that mock `chatComplete`.
+ */
+export async function chatComplete(opts: ChatCompleteOptions): Promise<string> {
+  const result = await chatCompleteStream(opts);
+  return result.text;
 }

@@ -1,4 +1,4 @@
-import { chatComplete, getModels } from './client';
+import { chatComplete, chatCompleteStream, getModels } from './client';
 import {
   GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
   GENERATION_NON_EMPTY_REINFORCEMENT,
@@ -11,6 +11,18 @@ import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuesti
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
   answers?: ClarifyAnswers;
+  /**
+   * TM-54 — fired when the model emits its first token. Lets callers
+   * record TTFB independently of full-asset wall time.
+   */
+  onFirstToken?: (msSinceStart: number) => void;
+  /** TM-54 — fired on every text delta from the LLM stream. */
+  onDelta?: (chunk: string, sofar: string) => void;
+}
+
+export interface GenerateLatency {
+  firstTokenMs: number;
+  totalMs: number;
 }
 
 /**
@@ -164,16 +176,33 @@ async function generateOnce(
   opts: GenerateOptions,
   systemPrompt: string,
 ): Promise<
-  | { kind: 'response'; value: GenerateApiResponse }
+  | { kind: 'response'; value: GenerateApiResponse & { latency?: GenerateLatency } }
   | { kind: 'placeholder'; reasons: string[]; rawCode: string }
 > {
   const userContent = buildUserMessage(prompt, opts.answers);
 
-  const text = await chatComplete({
-    model,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userContent }],
-  });
+  // TM-54 — when the caller wants TTFB observability we go through the
+  // streaming path. Otherwise fall back to `chatComplete` so existing
+  // tests that mock it keep working untouched.
+  let text: string;
+  let latency: GenerateLatency | undefined;
+  if (opts.onFirstToken || opts.onDelta) {
+    const result = await chatCompleteStream({
+      model,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }],
+      onFirstToken: opts.onFirstToken,
+      onDelta: opts.onDelta,
+    });
+    text = result.text;
+    latency = { firstTokenMs: result.firstTokenMs, totalMs: result.totalMs };
+  } else {
+    text = await chatComplete({
+      model,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }],
+    });
+  }
 
   const parsed = extractJson(text);
   if (!parsed || typeof parsed !== 'object') {
@@ -190,7 +219,11 @@ async function generateOnce(
     }
     return {
       kind: 'response',
-      value: { type: 'clarify', questions: questions as ClarifyQuestion[] },
+      value: {
+        type: 'clarify',
+        questions: questions as ClarifyQuestion[],
+        ...(latency ? { latency } : {}),
+      },
     };
   }
 
@@ -225,14 +258,17 @@ async function generateOnce(
     height: (obj.height as number) || 1080,
   };
 
-  return { kind: 'response', value: { type: 'generate', asset } };
+  return {
+    kind: 'response',
+    value: { type: 'generate', asset, ...(latency ? { latency } : {}) },
+  };
 }
 
 export async function generateAsset(
   prompt: string,
   model: string = getModels().free,
   opts: GenerateOptions = {},
-): Promise<GenerateApiResponse> {
+): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
   // First attempt: standard system prompt.
   const first = await generateOnce(
     prompt,
