@@ -1,34 +1,34 @@
 {
   "summary": {
-    "generated_at": "2026-04-27T14:51:33.679Z",
+    "generated_at": "2026-04-27T16:30:11.897Z",
     "ai_provider": "openai",
     "totals": {
       "runs": 60,
-      "pass": 54,
-      "fail": 6,
-      "pass_rate": 0.9,
-      "clarify_count": 1
+      "pass": 55,
+      "fail": 5,
+      "pass_rate": 0.9166666666666666,
+      "clarify_count": 2
     },
     "timings_ms": {
-      "p50": 10096,
-      "p90": 14102,
-      "p95": 16058,
-      "min": 1089,
-      "max": 20203,
-      "avg": 9832.116666666667
+      "p50": 7854,
+      "p90": 12891,
+      "p95": 16094,
+      "min": 2200,
+      "max": 19076,
+      "avg": 8372.033333333333
     },
     "by_tier": {
       "FREE": {
         "runs": 50,
-        "pass": 48,
-        "pass_rate": 0.96,
-        "p50_ms": 10812
+        "pass": 45,
+        "pass_rate": 0.9,
+        "p50_ms": 8429
       },
       "PRO": {
         "runs": 10,
-        "pass": 6,
-        "pass_rate": 0.6,
-        "p50_ms": 4522
+        "pass": 10,
+        "pass_rate": 1,
+        "p50_ms": 6248
       }
     },
     "by_category": {
@@ -39,13 +39,13 @@
       },
       "infographic": {
         "runs": 12,
-        "pass": 12,
-        "pass_rate": 1
+        "pass": 10,
+        "pass_rate": 0.8333333333333334
       },
       "loader": {
         "runs": 12,
-        "pass": 9,
-        "pass_rate": 0.75
+        "pass": 12,
+        "pass_rate": 1
       },
       "text-anim": {
         "runs": 12,
@@ -67,102 +67,49 @@
         "model": "gpt-4o-mini",
         "ok": false,
         "type": "clarify",
-        "ms": 3984,
+        "ms": 2200,
         "error": "AI returned clarify mode (no asset)"
       },
       {
-        "id": "ld-07",
-        "category": "loader",
-        "prompt": "Loading bar with percentage text \"Loading 42%\", dark theme",
+        "id": "ig-02",
+        "category": "infographic",
+        "prompt": "3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안 — 가로 배치 페이드인",
         "tier": "FREE",
         "model": "gpt-4o-mini",
         "ok": false,
-        "ms": 15301,
+        "ms": 8696,
+        "error": "Unexpected token when processing JSX children."
+      },
+      {
+        "id": "ig-03",
+        "category": "infographic",
+        "prompt": "Comparison side-by-side: \"Before 30s\" vs \"After 5s\", red vs green",
+        "tier": "FREE",
+        "model": "gpt-4o-mini",
+        "ok": false,
+        "type": "clarify",
+        "ms": 2393,
+        "error": "AI returned clarify mode (no asset)"
+      },
+      {
+        "id": "ta-09",
+        "category": "text-anim",
+        "prompt": "Numbers 3, 2, 1, GO! countdown with each number scaling up and fading out",
+        "tier": "FREE",
+        "model": "gpt-4o-mini",
+        "ok": false,
+        "ms": 7952,
         "error": "AI did not return valid JSON"
       },
       {
-        "id": "ld-01",
-        "category": "loader",
-        "prompt": "Circular spinner loader, 8 dots rotating, primary blue color",
-        "tier": "PRO",
-        "model": "gpt-4o",
-        "ok": false,
-        "type": "generate",
-        "ms": 1089,
-        "has_params_const": false,
-        "params_count": 0,
-        "validate_ok": true,
-        "validate_errors": [],
-        "has_jsCode": true,
-        "duration_in_frames": 150,
-        "fps": 30,
-        "width": 1920,
-        "height": 1080,
-        "title": "Circular Spinner Loader",
-        "code_length": 25
-      },
-      {
-        "id": "ld-02",
-        "category": "loader",
-        "prompt": "진행률 바 0%에서 100%까지, 초록색, 둥근 모서리",
-        "tier": "PRO",
-        "model": "gpt-4o",
-        "ok": false,
-        "type": "generate",
-        "ms": 1307,
-        "has_params_const": false,
-        "params_count": 0,
-        "validate_ok": true,
-        "validate_errors": [],
-        "has_jsCode": true,
-        "duration_in_frames": 150,
-        "fps": 30,
-        "width": 1920,
-        "height": 1080,
-        "title": "Progress Bar Animation",
-        "code_length": 25
-      },
-      {
-        "id": "ta-01",
-        "category": "text-anim",
-        "prompt": "Comic book style POW! text exploding into view, yellow with black outline",
-        "tier": "PRO",
-        "model": "gpt-4o",
-        "ok": false,
-        "type": "generate",
-        "ms": 1424,
-        "has_params_const": false,
-        "params_count": 0,
-        "validate_ok": true,
-        "validate_errors": [],
-        "has_jsCode": true,
-        "duration_in_frames": 150,
-        "fps": 30,
-        "width": 1920,
-        "height": 1080,
-        "title": "Comic Book Style POW! Text",
-        "code_length": 25
-      },
-      {
-        "id": "tr-01",
+        "id": "tr-10",
         "category": "transition",
-        "prompt": "Slide transition from left to right, two colored panels (purple to teal)",
-        "tier": "PRO",
-        "model": "gpt-4o",
+        "prompt": "Morph transition from circle to square, single accent color (#FF6B6B)",
+        "tier": "FREE",
+        "model": "gpt-4o-mini",
         "ok": false,
-        "type": "generate",
-        "ms": 1346,
-        "has_params_const": false,
-        "params_count": 0,
-        "validate_ok": true,
-        "validate_errors": [],
-        "has_jsCode": true,
-        "duration_in_frames": 150,
-        "fps": 30,
-        "width": 1920,
-        "height": 1080,
-        "title": "Left to Right Slide Transition",
-        "code_length": 25
+        "ms": 5469,
+        "error": "Unexpected token, expected \";\" (5:89)"
       }
     ]
   },
@@ -175,9 +122,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 9479,
+      "ms": 8423,
       "has_params_const": true,
-      "params_count": 5,
+      "params_count": 4,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -186,7 +133,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Animated Counter",
-      "code_length": 1003
+      "code_length": 997
     },
     {
       "id": "dv-02",
@@ -196,9 +143,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 9886,
+      "ms": 5576,
       "has_params_const": true,
-      "params_count": 2,
+      "params_count": 3,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -207,7 +154,7 @@
       "width": 1920,
       "height": 1080,
       "title": "월별 매출 막대그래프",
-      "code_length": 1016
+      "code_length": 910
     },
     {
       "id": "dv-03",
@@ -217,9 +164,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 13812,
+      "ms": 11165,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -228,7 +175,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Pie Chart with 4 Slices",
-      "code_length": 1565
+      "code_length": 2011
     },
     {
       "id": "dv-04",
@@ -238,9 +185,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 13174,
+      "ms": 12949,
       "has_params_const": true,
-      "params_count": 5,
+      "params_count": 7,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -248,8 +195,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Line Graph of Growth",
-      "code_length": 1487
+      "title": "Line Graph with Growth",
+      "code_length": 1738
     },
     {
       "id": "dv-05",
@@ -259,7 +206,7 @@
       "model": "gpt-4o-mini",
       "ok": false,
       "type": "clarify",
-      "ms": 3984,
+      "ms": 2200,
       "error": "AI returned clarify mode (no asset)"
     },
     {
@@ -270,7 +217,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 13847,
+      "ms": 16657,
       "has_params_const": true,
       "params_count": 7,
       "validate_ok": true,
@@ -280,8 +227,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Animated Percentage Ring Filling",
-      "code_length": 1608
+      "title": "Animated Percentage Ring",
+      "code_length": 2009
     },
     {
       "id": "dv-07",
@@ -291,9 +238,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 7961,
+      "ms": 9494,
       "has_params_const": true,
-      "params_count": 4,
+      "params_count": 6,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -302,7 +249,7 @@
       "width": 1920,
       "height": 1080,
       "title": "인구 증가 카운터 애니메이션",
-      "code_length": 979
+      "code_length": 1174
     },
     {
       "id": "dv-08",
@@ -312,9 +259,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 11979,
+      "ms": 19076,
       "has_params_const": true,
-      "params_count": 5,
+      "params_count": 7,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -322,8 +269,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Horizontal Bar Race Chart",
-      "code_length": 1703
+      "title": "Horizontal Bar Race - 5 Brands",
+      "code_length": 1931
     },
     {
       "id": "dv-09",
@@ -333,7 +280,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 13678,
+      "ms": 7854,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -344,7 +291,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Animated KPI Dashboard Tile",
-      "code_length": 1721
+      "code_length": 1468
     },
     {
       "id": "dv-10",
@@ -354,91 +301,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 12458,
-      "has_params_const": true,
-      "params_count": 5,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "Animated Donut Chart",
-      "code_length": 1739
-    },
-    {
-      "id": "ig-01",
-      "category": "infographic",
-      "prompt": "Step indicator 1-2-3-4 with checkmarks animating in, green accent",
-      "tier": "FREE",
-      "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 11889,
-      "has_params_const": true,
-      "params_count": 3,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "Step Indicator with Checkmarks",
-      "code_length": 1755
-    },
-    {
-      "id": "ig-02",
-      "category": "infographic",
-      "prompt": "3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안 — 가로 배치 페이드인",
-      "tier": "FREE",
-      "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 10865,
-      "has_params_const": true,
-      "params_count": 5,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "특징 아이콘 및 텍스트 애니메이션",
-      "code_length": 1322
-    },
-    {
-      "id": "ig-03",
-      "category": "infographic",
-      "prompt": "Comparison side-by-side: \"Before 30s\" vs \"After 5s\", red vs green",
-      "tier": "FREE",
-      "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 13831,
-      "has_params_const": true,
-      "params_count": 8,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "Comparison Side-by-Side Animation",
-      "code_length": 1674
-    },
-    {
-      "id": "ig-04",
-      "category": "infographic",
-      "prompt": "Timeline 2020→2021→2022→2023, dots connected by line, sequential reveal",
-      "tier": "FREE",
-      "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 14379,
+      "ms": 16094,
       "has_params_const": true,
       "params_count": 6,
       "validate_ok": true,
@@ -448,8 +311,71 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
+      "title": "Donut Chart Animation",
+      "code_length": 1856
+    },
+    {
+      "id": "ig-01",
+      "category": "infographic",
+      "prompt": "Step indicator 1-2-3-4 with checkmarks animating in, green accent",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "ms": 10783,
+      "has_params_const": true,
+      "params_count": 8,
+      "validate_ok": true,
+      "validate_errors": [],
+      "has_jsCode": true,
+      "duration_in_frames": 150,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "title": "Step Indicator with Checkmarks",
+      "code_length": 2109
+    },
+    {
+      "id": "ig-02",
+      "category": "infographic",
+      "prompt": "3가지 특징 아이콘+텍스트: 빠른 속도, 안정성, 보안 — 가로 배치 페이드인",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": false,
+      "ms": 8696,
+      "error": "Unexpected token when processing JSX children."
+    },
+    {
+      "id": "ig-03",
+      "category": "infographic",
+      "prompt": "Comparison side-by-side: \"Before 30s\" vs \"After 5s\", red vs green",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": false,
+      "type": "clarify",
+      "ms": 2393,
+      "error": "AI returned clarify mode (no asset)"
+    },
+    {
+      "id": "ig-04",
+      "category": "infographic",
+      "prompt": "Timeline 2020→2021→2022→2023, dots connected by line, sequential reveal",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "ms": 8032,
+      "has_params_const": true,
+      "params_count": 5,
+      "validate_ok": true,
+      "validate_errors": [],
+      "has_jsCode": true,
+      "duration_in_frames": 150,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
       "title": "Sequential Timeline with Dots",
-      "code_length": 2114
+      "code_length": 1431
     },
     {
       "id": "ig-05",
@@ -459,7 +385,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10946,
+      "ms": 10088,
       "has_params_const": true,
       "params_count": 4,
       "validate_ok": true,
@@ -469,8 +395,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Pyramid Diagram with Vision, Strategy, and Execution",
-      "code_length": 1338
+      "title": "3단계 피라미드 다이어그램",
+      "code_length": 1679
     },
     {
       "id": "ig-06",
@@ -480,7 +406,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8935,
+      "ms": 10080,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -490,8 +416,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Stat Callout 10x Faster",
-      "code_length": 1487
+      "title": "Stat Callout: 10x Faster",
+      "code_length": 1264
     },
     {
       "id": "ig-07",
@@ -501,9 +427,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 14102,
+      "ms": 12891,
       "has_params_const": true,
-      "params_count": 8,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -511,8 +437,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Sequential Process Flow",
-      "code_length": 1752
+      "title": "Process Flow Diagram",
+      "code_length": 2240
     },
     {
       "id": "ig-08",
@@ -522,7 +448,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 11955,
+      "ms": 7568,
       "has_params_const": true,
       "params_count": 2,
       "validate_ok": true,
@@ -533,7 +459,7 @@
       "width": 1920,
       "height": 1080,
       "title": "아이콘 그리드 애니메이션",
-      "code_length": 1079
+      "code_length": 1163
     },
     {
       "id": "ig-09",
@@ -543,7 +469,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 19139,
+      "ms": 12830,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -553,8 +479,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Quote Card with Avatar and Rating Animation",
-      "code_length": 2041
+      "title": "Quote Card with Avatar and Star Rating",
+      "code_length": 2252
     },
     {
       "id": "ig-10",
@@ -564,9 +490,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 20203,
+      "ms": 9316,
       "has_params_const": true,
-      "params_count": 7,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -574,8 +500,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Map Pin Dropping Animation",
-      "code_length": 2108
+      "title": "Map Pin Drop Animation",
+      "code_length": 1818
     },
     {
       "id": "ld-01",
@@ -585,9 +511,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10359,
+      "ms": 7197,
       "has_params_const": true,
-      "params_count": 4,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -595,8 +521,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Circular Spinner Loader",
-      "code_length": 1408
+      "title": "Circular Spinner Loader with 8 Dots",
+      "code_length": 1467
     },
     {
       "id": "ld-02",
@@ -606,9 +532,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10973,
+      "ms": 9425,
       "has_params_const": true,
-      "params_count": 4,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -616,8 +542,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Circular Progress Bar from 0% to 100%",
-      "code_length": 1504
+      "title": "Progress Bar Animation",
+      "code_length": 1771
     },
     {
       "id": "ld-03",
@@ -627,7 +553,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10300,
+      "ms": 8934,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -638,7 +564,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Bouncing Dots Loader",
-      "code_length": 1562
+      "code_length": 1535
     },
     {
       "id": "ld-04",
@@ -648,7 +574,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 16058,
+      "ms": 7702,
       "has_params_const": true,
       "params_count": 5,
       "validate_ok": true,
@@ -659,7 +585,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Skeleton Shimmer Loading Effect",
-      "code_length": 1706
+      "code_length": 1451
     },
     {
       "id": "ld-05",
@@ -669,7 +595,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 6784,
+      "ms": 8429,
       "has_params_const": true,
       "params_count": 4,
       "validate_ok": true,
@@ -680,7 +606,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Pulsing Heart Loader",
-      "code_length": 892
+      "code_length": 1368
     },
     {
       "id": "ld-06",
@@ -690,9 +616,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8922,
+      "ms": 6685,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -700,8 +626,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Infinite Rotating Ring Spinner",
-      "code_length": 1255
+      "title": "무한 회전하는 링 스피너",
+      "code_length": 1389
     },
     {
       "id": "ld-07",
@@ -709,9 +635,20 @@
       "prompt": "Loading bar with percentage text \"Loading 42%\", dark theme",
       "tier": "FREE",
       "model": "gpt-4o-mini",
-      "ok": false,
-      "ms": 15301,
-      "error": "AI did not return valid JSON"
+      "ok": true,
+      "type": "generate",
+      "ms": 8457,
+      "has_params_const": true,
+      "params_count": 4,
+      "validate_ok": true,
+      "validate_errors": [],
+      "has_jsCode": true,
+      "duration_in_frames": 150,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "title": "Loading Bar with Percentage",
+      "code_length": 1404
     },
     {
       "id": "ld-08",
@@ -721,7 +658,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10812,
+      "ms": 8640,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -732,7 +669,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Hourglass Flip Loader",
-      "code_length": 1386
+      "code_length": 1680
     },
     {
       "id": "ld-09",
@@ -742,7 +679,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10302,
+      "ms": 6404,
       "has_params_const": true,
       "params_count": 3,
       "validate_ok": true,
@@ -752,8 +689,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Sequential Fade Loader with 4 Rectangles",
-      "code_length": 1394
+      "title": "Sequential Fade Loader with Four Rectangles",
+      "code_length": 1132
     },
     {
       "id": "ld-10",
@@ -763,9 +700,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 11614,
+      "ms": 8612,
       "has_params_const": true,
-      "params_count": 7,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -774,7 +711,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Animated Wave Loader",
-      "code_length": 1636
+      "code_length": 1467
     },
     {
       "id": "ta-01",
@@ -784,7 +721,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 11225,
+      "ms": 12933,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -794,8 +731,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Comic Book Style POW! Text",
-      "code_length": 1557
+      "title": "Pow Explosion Text Animation",
+      "code_length": 1466
     },
     {
       "id": "ta-02",
@@ -805,9 +742,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 7724,
+      "ms": 9911,
       "has_params_const": true,
-      "params_count": 8,
+      "params_count": 6,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -815,8 +752,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Hello World Typing Effect",
-      "code_length": 1068
+      "title": "Typing Effect Hello World",
+      "code_length": 1296
     },
     {
       "id": "ta-03",
@@ -826,7 +763,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10096,
+      "ms": 7596,
       "has_params_const": true,
       "params_count": 6,
       "validate_ok": true,
@@ -837,7 +774,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Bouncing SALE Text",
-      "code_length": 1436
+      "code_length": 1272
     },
     {
       "id": "ta-04",
@@ -847,9 +784,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 7956,
+      "ms": 6683,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 4,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -857,8 +794,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Word-by-word Reveal Animation",
-      "code_length": 1422
+      "title": "Word-by-Word Reveal Animation",
+      "code_length": 1226
     },
     {
       "id": "ta-05",
@@ -868,9 +805,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 9738,
+      "ms": 6872,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 7,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -878,8 +815,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Rotating New Text Animation",
-      "code_length": 1350
+      "title": "Rotating NEW Text with Gold Gradient",
+      "code_length": 1326
     },
     {
       "id": "ta-06",
@@ -889,7 +826,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8916,
+      "ms": 8590,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -899,8 +836,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Glitchy Cyberpunk Title Animation",
-      "code_length": 1438
+      "title": "Glitchy Cyberpunk Title with RGB Shift",
+      "code_length": 1326
     },
     {
       "id": "ta-07",
@@ -910,7 +847,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8454,
+      "ms": 7250,
       "has_params_const": true,
       "params_count": 6,
       "validate_ok": true,
@@ -921,7 +858,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Fading Quote Animation",
-      "code_length": 1263
+      "code_length": 1323
     },
     {
       "id": "ta-08",
@@ -931,28 +868,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8072,
-      "has_params_const": true,
-      "params_count": 5,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "슬라이드 인 브랜드 로고",
-      "code_length": 1203
-    },
-    {
-      "id": "ta-09",
-      "category": "text-anim",
-      "prompt": "Numbers 3, 2, 1, GO! countdown with each number scaling up and fading out",
-      "tier": "FREE",
-      "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 9674,
+      "ms": 7011,
       "has_params_const": true,
       "params_count": 8,
       "validate_ok": true,
@@ -962,8 +878,18 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Countdown Animation",
-      "code_length": 1445
+      "title": "Sliding Brand Logo",
+      "code_length": 1360
+    },
+    {
+      "id": "ta-09",
+      "category": "text-anim",
+      "prompt": "Numbers 3, 2, 1, GO! countdown with each number scaling up and fading out",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": false,
+      "ms": 7952,
+      "error": "AI did not return valid JSON"
     },
     {
       "id": "ta-10",
@@ -973,9 +899,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 9126,
+      "ms": 9237,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -984,7 +910,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Handwritten Signature Animation",
-      "code_length": 1285
+      "code_length": 1397
     },
     {
       "id": "tr-01",
@@ -994,9 +920,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8038,
+      "ms": 7333,
       "has_params_const": true,
-      "params_count": 3,
+      "params_count": 2,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1005,7 +931,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Slide Transition from Left to Right",
-      "code_length": 1061
+      "code_length": 901
     },
     {
       "id": "tr-02",
@@ -1015,9 +941,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 6952,
+      "ms": 7578,
       "has_params_const": true,
-      "params_count": 1,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1025,8 +951,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Fade In Fade Out Animation",
-      "code_length": 822
+      "title": "Fade In and Out Animation",
+      "code_length": 1295
     },
     {
       "id": "tr-03",
@@ -1036,7 +962,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 9156,
+      "ms": 5836,
       "has_params_const": true,
       "params_count": 1,
       "validate_ok": true,
@@ -1046,8 +972,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Zoom-in Transition with Circular Mask",
-      "code_length": 1060
+      "title": "Zoom-In Transition on Circular Mask",
+      "code_length": 939
     },
     {
       "id": "tr-04",
@@ -1057,7 +983,7 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 12011,
+      "ms": 7518,
       "has_params_const": true,
       "params_count": 3,
       "validate_ok": true,
@@ -1068,7 +994,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Diagonal Wipe Transition",
-      "code_length": 1307
+      "code_length": 1124
     },
     {
       "id": "tr-05",
@@ -1078,9 +1004,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 8692,
+      "ms": 5907,
       "has_params_const": true,
-      "params_count": 2,
+      "params_count": 3,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1088,8 +1014,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Color Transition Circle",
-      "code_length": 833
+      "title": "Circular Color Transition",
+      "code_length": 974
     },
     {
       "id": "tr-06",
@@ -1099,9 +1025,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 10692,
+      "ms": 6245,
       "has_params_const": true,
-      "params_count": 1,
+      "params_count": 3,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1109,8 +1035,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Iris-Out Transition with Red Background",
-      "code_length": 834
+      "title": "Iris-out Transition",
+      "code_length": 1001
     },
     {
       "id": "tr-07",
@@ -1120,9 +1046,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 11427,
+      "ms": 7284,
       "has_params_const": true,
-      "params_count": 8,
+      "params_count": 7,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1131,7 +1057,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Page Flip Transition",
-      "code_length": 1344
+      "code_length": 1534
     },
     {
       "id": "tr-08",
@@ -1141,18 +1067,18 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 12038,
+      "ms": 9044,
       "has_params_const": true,
-      "params_count": 4,
+      "params_count": 2,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
-      "duration_in_frames": 24,
+      "duration_in_frames": 150,
       "fps": 30,
       "width": 1920,
       "height": 1080,
       "title": "Glitchy Cut Transition with RGB Split",
-      "code_length": 942
+      "code_length": 1665
     },
     {
       "id": "tr-09",
@@ -1162,9 +1088,9 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "ms": 12690,
+      "ms": 12159,
       "has_params_const": true,
-      "params_count": 3,
+      "params_count": 4,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1173,7 +1099,7 @@
       "width": 1920,
       "height": 1080,
       "title": "블라인드 효과 전환",
-      "code_length": 1398
+      "code_length": 1189
     },
     {
       "id": "tr-10",
@@ -1181,20 +1107,9 @@
       "prompt": "Morph transition from circle to square, single accent color (#FF6B6B)",
       "tier": "FREE",
       "model": "gpt-4o-mini",
-      "ok": true,
-      "type": "generate",
-      "ms": 9769,
-      "has_params_const": true,
-      "params_count": 1,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "Morph Transition Circle to Square",
-      "code_length": 931
+      "ok": false,
+      "ms": 5469,
+      "error": "Unexpected token, expected \";\" (5:89)"
     },
     {
       "id": "dv-01",
@@ -1204,9 +1119,9 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 5940,
+      "ms": 5131,
       "has_params_const": true,
-      "params_count": 8,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1215,7 +1130,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Spring Effect Counter Animation",
-      "code_length": 1526
+      "code_length": 1190
     },
     {
       "id": "dv-02",
@@ -1225,9 +1140,9 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 5991,
+      "ms": 7889,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 8,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1236,7 +1151,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Monthly Sales Bar Chart",
-      "code_length": 1747
+      "code_length": 2297
     },
     {
       "id": "ig-01",
@@ -1246,9 +1161,9 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 6851,
+      "ms": 6960,
       "has_params_const": true,
-      "params_count": 6,
+      "params_count": 5,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1257,7 +1172,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Step Indicator with Checkmarks",
-      "code_length": 1887
+      "code_length": 1705
     },
     {
       "id": "ig-02",
@@ -1267,7 +1182,28 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 7508,
+      "ms": 5772,
+      "has_params_const": true,
+      "params_count": 4,
+      "validate_ok": true,
+      "validate_errors": [],
+      "has_jsCode": true,
+      "duration_in_frames": 150,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "title": "Three Features with Icons and Text - Horizontal Fade-In",
+      "code_length": 1417
+    },
+    {
+      "id": "ld-01",
+      "category": "loader",
+      "prompt": "Circular spinner loader, 8 dots rotating, primary blue color",
+      "tier": "PRO",
+      "model": "gpt-4o",
+      "ok": true,
+      "type": "generate",
+      "ms": 7322,
       "has_params_const": true,
       "params_count": 5,
       "validate_ok": true,
@@ -1277,29 +1213,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Icon and Text Features with Fade-In",
-      "code_length": 1807
-    },
-    {
-      "id": "ld-01",
-      "category": "loader",
-      "prompt": "Circular spinner loader, 8 dots rotating, primary blue color",
-      "tier": "PRO",
-      "model": "gpt-4o",
-      "ok": false,
-      "type": "generate",
-      "ms": 1089,
-      "has_params_const": false,
-      "params_count": 0,
-      "validate_ok": true,
-      "validate_errors": [],
-      "has_jsCode": true,
-      "duration_in_frames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080,
-      "title": "Circular Spinner Loader",
-      "code_length": 25
+      "title": "Circular Spinner Loader with 8 Rotating Dots",
+      "code_length": 1630
     },
     {
       "id": "ld-02",
@@ -1307,11 +1222,11 @@
       "prompt": "진행률 바 0%에서 100%까지, 초록색, 둥근 모서리",
       "tier": "PRO",
       "model": "gpt-4o",
-      "ok": false,
+      "ok": true,
       "type": "generate",
-      "ms": 1307,
-      "has_params_const": false,
-      "params_count": 0,
+      "ms": 5314,
+      "has_params_const": true,
+      "params_count": 4,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1320,7 +1235,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Progress Bar Animation",
-      "code_length": 25
+      "code_length": 1343
     },
     {
       "id": "ta-01",
@@ -1328,11 +1243,11 @@
       "prompt": "Comic book style POW! text exploding into view, yellow with black outline",
       "tier": "PRO",
       "model": "gpt-4o",
-      "ok": false,
+      "ok": true,
       "type": "generate",
-      "ms": 1424,
-      "has_params_const": false,
-      "params_count": 0,
+      "ms": 6248,
+      "has_params_const": true,
+      "params_count": 7,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1341,7 +1256,7 @@
       "width": 1920,
       "height": 1080,
       "title": "Comic Book Style POW! Text",
-      "code_length": 25
+      "code_length": 1672
     },
     {
       "id": "ta-02",
@@ -1351,7 +1266,7 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 4522,
+      "ms": 6500,
       "has_params_const": true,
       "params_count": 5,
       "validate_ok": true,
@@ -1361,8 +1276,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Typewriter Text Effect",
-      "code_length": 1104
+      "title": "Hello World Typing Effect",
+      "code_length": 1037
     },
     {
       "id": "tr-01",
@@ -1370,11 +1285,11 @@
       "prompt": "Slide transition from left to right, two colored panels (purple to teal)",
       "tier": "PRO",
       "model": "gpt-4o",
-      "ok": false,
+      "ok": true,
       "type": "generate",
-      "ms": 1346,
-      "has_params_const": false,
-      "params_count": 0,
+      "ms": 5529,
+      "has_params_const": true,
+      "params_count": 3,
       "validate_ok": true,
       "validate_errors": [],
       "has_jsCode": true,
@@ -1382,8 +1297,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Left to Right Slide Transition",
-      "code_length": 25
+      "title": "Slide Transition Panels",
+      "code_length": 1145
     },
     {
       "id": "tr-02",
@@ -1393,7 +1308,7 @@
       "model": "gpt-4o",
       "ok": true,
       "type": "generate",
-      "ms": 3576,
+      "ms": 4599,
       "has_params_const": true,
       "params_count": 3,
       "validate_ok": true,
@@ -1403,8 +1318,8 @@
       "fps": 30,
       "width": 1920,
       "height": 1080,
-      "title": "Fade In and Out Animation",
-      "code_length": 1018
+      "title": "Fade In Fade Out Animation",
+      "code_length": 991
     }
   ]
 }
