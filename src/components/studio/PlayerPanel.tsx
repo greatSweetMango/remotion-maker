@@ -30,6 +30,17 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
   const playerRef = useRef<PlayerRef>(null);
   const sequenceCtx = useActiveSequenceOptional();
 
+  // TM-46 r2: detect the `?frame=` query so we suppress autoPlay when set.
+  // Mount-only — capture flow expects deterministic frame, not playback.
+  const seekFrame = typeof window !== 'undefined'
+    ? (() => {
+        const v = new URLSearchParams(window.location.search).get('frame');
+        if (v === null) return null;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+      })()
+    : null;
+
   // Auto-downsample is on by default; user can force original via toggle.
   const [autoDownsample, setAutoDownsample] = useState(true);
 
@@ -65,6 +76,34 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
 
   // Only run the FPS monitor when there's something playing.
   const fpsState = useFpsMonitor({ enabled: Boolean(Component && asset && !isGenerating) });
+
+  // TM-46 r2: support `?frame=N` query for visual judge capture.
+  // When present (and Player has loaded), pause and seek to that frame so
+  // automated screenshots reflect a deterministic timeline position. Stable
+  // across asset.id changes — re-applies whenever the asset reloads.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!asset || !Component) return;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('frame');
+    if (raw === null) return;
+    const target = parseInt(raw, 10);
+    if (!Number.isFinite(target) || target < 0) return;
+    // The Player needs a tick before seekTo is reliable on first mount.
+    const t = setTimeout(() => {
+      const p = playerRef.current;
+      if (!p) return;
+      try {
+        p.pause();
+        const dur = asset.durationInFrames ?? 0;
+        const clamped = Math.max(0, Math.min(target, Math.max(0, dur - 1)));
+        p.seekTo(clamped);
+      } catch {
+        // Ignore — Player not ready or unmounted.
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [asset, Component]);
 
   // Compute the effective composition dims. Decision flow:
   //   1. user disabled auto → original dims always.
@@ -201,10 +240,10 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
                   compositionWidth={effectiveAsset.width}
                   compositionHeight={effectiveAsset.height}
                   style={{ width: '100%', height: '100%' }}
-                  autoPlay
-                  loop
+                  autoPlay={seekFrame === null}
+                  loop={seekFrame === null}
                   controls
-                  clickToPlay
+                  clickToPlay={seekFrame === null}
                 />
               </EvaluatorErrorBoundary>
             </div>

@@ -18,7 +18,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
+
+// TM-46 r2: load .env.local from worktree root so ANTHROPIC_API_KEY propagates
+// even when the parent shell sandbox strips API keys from child processes.
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env.local') });
 import {
   TM46_PROMPTS,
   TM46_SMOKE_PROMPTS,
