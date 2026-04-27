@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { editAsset } from '@/lib/ai/edit';
 import { getModels } from '@/lib/ai/client';
 import { checkEditLimit } from '@/lib/usage';
+import { validatePrompt } from '@/lib/validation/prompt';
 
 export const runtime = 'nodejs';
 
@@ -16,6 +17,15 @@ export async function POST(req: Request) {
   const { assetId, prompt, currentCode } = await req.json();
   if (!assetId || !prompt || !currentCode) {
     return NextResponse.json({ error: 'assetId, prompt, and currentCode required' }, { status: 400 });
+  }
+
+  // TM-58 prompt length cap. Apply BEFORE editAsset call to avoid token-cost amplification.
+  const promptError = validatePrompt(prompt);
+  if (promptError) {
+    return NextResponse.json(
+      { error: promptError.message, code: promptError.code, ...(promptError.meta ?? {}) },
+      { status: promptError.status },
+    );
   }
 
   const isTemplate = assetId.startsWith('template-');
