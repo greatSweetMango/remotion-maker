@@ -1,5 +1,8 @@
 import { chatComplete, getModels } from './client';
-import { GENERATION_WITH_CLARIFY_SYSTEM_PROMPT } from './prompts';
+import {
+  GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+  GENERATION_NON_EMPTY_REINFORCEMENT,
+} from './prompts';
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
@@ -8,6 +11,50 @@ import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuesti
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
   answers?: ClarifyAnswers;
+}
+
+/**
+ * TM-51 placeholder/empty-body guard.
+ *
+ * QA found that gpt-4o (PRO tier) sometimes returned a 25-char stub
+ * `const Component = () => null;` — passes sandbox validation but renders
+ * a blank screen. We post-validate by structure rather than length alone.
+ *
+ * Returns a list of human-readable reasons; empty list means the code is
+ * acceptable. Caller decides whether to retry or surface an error.
+ *
+ * Heuristics (any one match → reject):
+ *   - Code shorter than MIN_CODE_LENGTH (200 chars by observation)
+ *   - No `const PARAMS` definition
+ *   - No JSX-like content (no `<` followed by capital letter or AbsoluteFill)
+ *   - Body resolves to `() => null` / `() => null;`
+ */
+export const PLACEHOLDER_MIN_CODE_LENGTH = 200;
+
+export function detectPlaceholderCode(code: string): string[] {
+  const reasons: string[] = [];
+  const trimmed = (code ?? '').trim();
+
+  if (trimmed.length < PLACEHOLDER_MIN_CODE_LENGTH) {
+    reasons.push(`code too short (${trimmed.length} < ${PLACEHOLDER_MIN_CODE_LENGTH} chars)`);
+  }
+  // PARAMS export is required by ADR-0002.
+  if (!/\bconst\s+PARAMS\s*=/.test(trimmed)) {
+    reasons.push('missing `const PARAMS = ...` declaration');
+  }
+  // Must have substantive JSX. Any `<Capital` or `<Absolute` tag counts.
+  // Avoid matching just `<` in comparisons (e.g. `frame < 30`).
+  if (!/<[A-Z][A-Za-z0-9]*[\s/>]/.test(trimmed) && !/<AbsoluteFill\b/.test(trimmed)) {
+    reasons.push('no JSX element found (component must render something)');
+  }
+  // Reject explicit `() => null` arrow body for the component (the canonical
+  // stub from TM-41 QA). We allow `=> null` elsewhere as long as overall code
+  // is substantive and other checks pass — but the canonical pattern is
+  // always rejected.
+  if (/=>\s*null\s*[;\n)}]/.test(trimmed) && trimmed.length < 400) {
+    reasons.push('component body is `() => null` placeholder');
+  }
+  return reasons;
 }
 
 /**
@@ -105,16 +152,26 @@ function buildUserMessage(prompt: string, answers?: ClarifyAnswers): string {
   return `${prompt}\n\n[USER ANSWERS]\n${formatted}`;
 }
 
-export async function generateAsset(
+/**
+ * Single LLM call + extract+validate. Returns either a structured response
+ * (`{ kind: 'response', value }`) or a soft failure (`{ kind: 'placeholder', reasons }`)
+ * that the caller may retry. Hard failures (no JSON, security violation,
+ * missing questions) are thrown.
+ */
+async function generateOnce(
   prompt: string,
-  model: string = getModels().free,
-  opts: GenerateOptions = {},
-): Promise<GenerateApiResponse> {
+  model: string,
+  opts: GenerateOptions,
+  systemPrompt: string,
+): Promise<
+  | { kind: 'response'; value: GenerateApiResponse }
+  | { kind: 'placeholder'; reasons: string[]; rawCode: string }
+> {
   const userContent = buildUserMessage(prompt, opts.answers);
 
   const text = await chatComplete({
     model,
-    system: GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: [{ role: 'user', content: userContent }],
   });
 
@@ -131,7 +188,10 @@ export async function generateAsset(
     if (!Array.isArray(questions) || questions.length === 0) {
       throw new Error('AI clarify response missing questions');
     }
-    return { type: 'clarify', questions: questions as ClarifyQuestion[] };
+    return {
+      kind: 'response',
+      value: { type: 'clarify', questions: questions as ClarifyQuestion[] },
+    };
   }
 
   // mode === 'generate' (or omitted — default to generate path for backward compat)
@@ -141,6 +201,12 @@ export async function generateAsset(
   const validation = validateCode(code);
   if (!validation.valid) {
     throw new Error(`Generated code failed security check: ${validation.errors.join(', ')}`);
+  }
+
+  // TM-51: post-validate for placeholder/empty-body stubs (gpt-4o failure mode).
+  const placeholderReasons = detectPlaceholderCode(code);
+  if (placeholderReasons.length > 0) {
+    return { kind: 'placeholder', reasons: placeholderReasons, rawCode: code };
   }
 
   const sanitized = sanitizeCode(code);
@@ -159,5 +225,38 @@ export async function generateAsset(
     height: (obj.height as number) || 1080,
   };
 
-  return { type: 'generate', asset };
+  return { kind: 'response', value: { type: 'generate', asset } };
+}
+
+export async function generateAsset(
+  prompt: string,
+  model: string = getModels().free,
+  opts: GenerateOptions = {},
+): Promise<GenerateApiResponse> {
+  // First attempt: standard system prompt.
+  const first = await generateOnce(
+    prompt,
+    model,
+    opts,
+    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+  );
+  if (first.kind === 'response') return first.value;
+
+  // TM-51: placeholder detected — retry once with reinforced system prompt.
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[generateAsset] placeholder detected, retrying once:',
+      first.reasons.join('; '),
+    );
+  }
+  const reinforced =
+    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + GENERATION_NON_EMPTY_REINFORCEMENT;
+  const second = await generateOnce(prompt, model, opts, reinforced);
+  if (second.kind === 'response') return second.value;
+
+  // Two strikes: surface a user-facing error rather than render a blank screen.
+  throw new Error(
+    `AI returned a placeholder/empty component twice (${second.reasons.join('; ')}). ` +
+      'Please rephrase your prompt with more detail and try again.',
+  );
 }
