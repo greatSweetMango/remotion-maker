@@ -1,10 +1,11 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { Player } from '@remotion/player';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Player, type PlayerRef } from '@remotion/player';
 import { evaluateComponent } from '@/lib/remotion/evaluator';
 import { Badge } from '@/components/ui/badge';
 import { Play, Grid3x3 } from 'lucide-react';
 import type { GeneratedAsset } from '@/types';
+import { useActiveSequenceOptional } from '@/hooks/useActiveSequence';
 
 interface PlayerPanelProps {
   asset: GeneratedAsset | null;
@@ -21,6 +22,15 @@ const BACKGROUNDS = [
 
 export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelProps) {
   const [bg, setBg] = useState('#0f0f0f');
+  const playerRef = useRef<PlayerRef>(null);
+  const sequenceCtx = useActiveSequenceOptional();
+
+  // Register the player ref with the active-sequence context (if any) once it mounts.
+  useEffect(() => {
+    if (!sequenceCtx) return;
+    sequenceCtx.registerPlayerRef(playerRef.current);
+    return () => sequenceCtx.registerPlayerRef(null);
+  }, [sequenceCtx, asset?.id]);
 
   const Component = useMemo(() => {
     if (!asset?.jsCode) return null;
@@ -75,6 +85,7 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
           <div className="w-full h-full flex items-center justify-center">
             <div style={{ width: '100%', maxWidth: '100%', aspectRatio: `${asset.width}/${asset.height}` }}>
               <Player
+                ref={playerRef}
                 component={Component as React.ComponentType<Record<string, unknown>>}
                 inputProps={paramValues}
                 durationInFrames={asset.durationInFrames}

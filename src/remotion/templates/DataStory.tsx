@@ -3,19 +3,19 @@ import { useCurrentFrame, useVideoConfig, spring, interpolate, AbsoluteFill, Seq
 // Full composition: 45s data story
 // Sequences: intro(0-180) → stat1(180-570) → stat2(570-960) → outro(960-1350)
 const PARAMS = {
-  storyTitle: "By the numbers",         // type: text
-  storySubtitle: "2026 in review",      // type: text
-  stat1Value: "2.4M",                   // type: text
-  stat1Label: "videos generated",       // type: text
-  stat1Insight: "Up 312% year over year", // type: text
-  stat2Value: "47s",                    // type: text
-  stat2Label: "average creation time",  // type: text
-  stat2Insight: "Down from 12 minutes", // type: text
-  closingMessage: "And we are just getting started", // type: text
-  primaryColor: "#22d3ee",              // type: color
-  accentColor: "#f472b6",               // type: color
-  backgroundColor: "#0b1020",           // type: color
-  textColor: "#ffffff",                 // type: color
+  storyTitle: "By the numbers",         // type: text, sequence: intro
+  storySubtitle: "2026 in review",      // type: text, sequence: intro
+  stat1Value: "2.4M",                   // type: text, sequence: stat-1
+  stat1Label: "videos generated",       // type: text, sequence: stat-1
+  stat1Insight: "Up 312% year over year", // type: text, sequence: stat-1
+  stat2Value: "47s",                    // type: text, sequence: stat-2
+  stat2Label: "average creation time",  // type: text, sequence: stat-2
+  stat2Insight: "Down from 12 minutes", // type: text, sequence: stat-2
+  closingMessage: "And we are just getting started", // type: text, sequence: outro
+  primaryColor: "#22d3ee",              // type: color, sequence: global
+  accentColor: "#f472b6",               // type: color, sequence: global
+  backgroundColor: "#0b1020",           // type: color, sequence: global
+  textColor: "#ffffff",                 // type: color, sequence: global
 } as const;
 
 export const DataStory = ({
