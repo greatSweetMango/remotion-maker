@@ -2,6 +2,7 @@ import { chatComplete, chatCompleteStream, getModels } from './client';
 import {
   GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
   GENERATION_NON_EMPTY_REINFORCEMENT,
+  buildTranspileRetryReinforcement,
 } from './prompts';
 import { scoreConcreteness, FORCE_GENERATE_REINFORCEMENT } from './clarify-gate';
 import { extractParameters } from './extract-params';
@@ -179,6 +180,7 @@ async function generateOnce(
 ): Promise<
   | { kind: 'response'; value: GenerateApiResponse & { latency?: GenerateLatency } }
   | { kind: 'placeholder'; reasons: string[]; rawCode: string }
+  | { kind: 'transpile_error'; rawCode: string; errorMessage: string }
 > {
   const userContent = buildUserMessage(prompt, opts.answers);
 
@@ -244,7 +246,15 @@ async function generateOnce(
   }
 
   const sanitized = sanitizeCode(code);
-  const jsCode = await transpileTSX(sanitized);
+  // TM-67: detect transpile (sucrase) failures and surface them as a soft
+  // failure so the caller can retry with a syntax-correctness reinforcement.
+  let jsCode: string;
+  try {
+    jsCode = await transpileTSX(sanitized);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return { kind: 'transpile_error', rawCode: code, errorMessage };
+  }
   const parameters = extractParameters(code);
 
   const asset: GeneratedAsset = {
@@ -302,6 +312,14 @@ export async function generateAsset(
         GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + FORCE_GENERATE_REINFORCEMENT,
       );
       if (forced.kind === 'response') return forced.value;
+      // TM-67: forced retry transpile failure — surface error rather than
+      // falling through to placeholder retry (type narrowing requirement).
+      if (forced.kind === 'transpile_error') {
+        throw new Error(
+          `AI forced-generate retry produced TSX that failed to transpile (${forced.errorMessage}). ` +
+            'Please rephrase your prompt and try again.',
+        );
+      }
       // Forced retry returned a placeholder — fall through to placeholder
       // handling below using `forced` as the new "first" attempt.
       return generateAssetPlaceholderRetry(prompt, model, opts, forced);
@@ -310,6 +328,33 @@ export async function generateAsset(
 
   if (first.kind === 'response') return first.value;
 
+  // TM-67: transpile failure — retry once with a syntax-correctness reinforcement.
+  if (first.kind === 'transpile_error') {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[generateAsset] transpile failure, retrying once:',
+        first.errorMessage,
+      );
+    }
+    const transpileReinforced =
+      GENERATION_WITH_CLARIFY_SYSTEM_PROMPT +
+      buildTranspileRetryReinforcement(first.errorMessage);
+    const second = await generateOnce(prompt, model, opts, transpileReinforced);
+    if (second.kind === 'response') return second.value;
+    if (second.kind === 'transpile_error') {
+      throw new Error(
+        `AI produced TSX that failed to transpile twice (last error: ${second.errorMessage}). ` +
+          'Please rephrase your prompt or simplify the request and try again.',
+      );
+    }
+    // Second attempt was a placeholder — surface as the standard placeholder error.
+    throw new Error(
+      `AI returned a placeholder/empty component on retry after transpile failure (${second.reasons.join('; ')}). ` +
+        'Please rephrase your prompt with more detail and try again.',
+    );
+  }
+
+  // TM-51: placeholder detected — retry once with reinforced system prompt.
   return generateAssetPlaceholderRetry(prompt, model, opts, first);
 }
 
@@ -333,6 +378,12 @@ async function generateAssetPlaceholderRetry(
     GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + GENERATION_NON_EMPTY_REINFORCEMENT;
   const second = await generateOnce(prompt, model, opts, reinforced);
   if (second.kind === 'response') return second.value;
+  if (second.kind === 'transpile_error') {
+    throw new Error(
+      `AI placeholder retry produced TSX that failed to transpile (${second.errorMessage}). ` +
+        'Please rephrase your prompt and try again.',
+    );
+  }
 
   // Two strikes: surface a user-facing error rather than render a blank screen.
   throw new Error(

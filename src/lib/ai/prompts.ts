@@ -208,6 +208,47 @@ If the prompt is too vague to produce a real animation, you MUST switch to
 mode="clarify" and ask up to 3 short questions instead of returning a stub.
 `;
 
+/**
+ * TM-67: Reinforcement appended when the first attempt produced TSX/JS that
+ * failed to transpile (sucrase parse error). The previous code reached
+ * `transpileTSX` but threw — usually due to mismatched brackets, missing
+ * semicolons, malformed JSX (e.g. unclosed children, raw text in JSX without
+ * a wrapper), or stray template-literal escaping. This prompt makes the
+ * syntax bar explicit and asks the model to re-emit valid TSX.
+ *
+ * The exact transpile error message is interpolated at call time so the
+ * model can target the specific failure (sucrase typically reports
+ * `Unexpected token ... (line:col)`).
+ */
+export function buildTranspileRetryReinforcement(transpileErrorMessage: string): string {
+  return `
+
+============== SYNTAX VALIDITY ENFORCEMENT (RETRY) ==============
+
+The previous attempt produced code that FAILED TO PARSE as TSX. The build
+toolchain (sucrase) reported:
+
+  ${transpileErrorMessage}
+
+Your next attempt MUST produce TSX that parses without error. Specifically:
+
+  1. Every JSX tag must be balanced. Self-close tags that take no children
+     (\`<Img />\`, \`<br />\`). Match every \`<Foo>\` with \`</Foo>\`.
+  2. JSX expressions inside curly braces must be valid JS expressions, not
+     statements. \`{const x = 1}\` is INVALID — use \`{(() => { const x = 1; return x; })()}\`
+     or hoist the binding above the JSX.
+  3. Every statement ends with \`;\`. Every block \`{...}\` is balanced.
+  4. Strings inside JSX text or attributes do NOT use raw \`<\` / \`>\` —
+     escape them as \`&lt;\` / \`&gt;\` or wrap inside \`{"..."}\`.
+  5. Use ONLY standard TSX. No experimental syntax (decorators, pipeline
+     operator). No \`import\` / \`export\` for runtime modules — Remotion /
+     React / Lucide are injected as globals.
+  6. Re-read the STANDARD GENERATION RULES above before responding.
+
+Mentally lint the code character-by-character before emitting the JSON.
+`;
+}
+
 export const EDIT_SYSTEM_PROMPT = `You are an expert Remotion animation developer modifying existing code.
 
 Rules:

@@ -208,3 +208,87 @@ describe('generateAsset retry on placeholder (TM-51)', () => {
     expect(mockedChat).toHaveBeenCalledTimes(2);
   });
 });
+
+// TM-67: transpile-failure retry. When the LLM emits TSX that sucrase cannot
+// parse (e.g. ig-02 missing JSX child close, tr-10 stray semicolon), retry
+// once with a syntax-correctness reinforcement. Two strikes → user-facing error.
+describe('generateAsset retry on transpile failure (TM-67)', () => {
+  beforeEach(() => {
+    mockedChat.mockReset();
+    const { transpileTSX } = jest.requireMock('@/lib/remotion/transpiler');
+    (transpileTSX as jest.Mock).mockReset();
+    // Default: transpile succeeds (so non-transpile tests still work).
+    (transpileTSX as jest.Mock).mockImplementation(async (s: string) => `/*js*/${s}`);
+  });
+
+  const goodGenerateJson = stubGenerateJson;
+
+  it('retries once when first transpile fails, succeeds on second', async () => {
+    const { transpileTSX } = jest.requireMock('@/lib/remotion/transpiler');
+    // First call: transpile throws (sucrase-style error). Second: passes.
+    (transpileTSX as jest.Mock)
+      .mockImplementationOnce(async () => {
+        throw new Error('Unexpected token, expected ";" (5:89)');
+      })
+      .mockImplementationOnce(async (s: string) => `/*js*/${s}`);
+
+    mockedChat.mockResolvedValueOnce(goodGenerateJson);
+    mockedChat.mockResolvedValueOnce(goodGenerateJson);
+
+    const result = await generateAsset('A slide transition', 'gpt-4o-mini');
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+    expect(result.type).toBe('generate');
+
+    // Second call should use the syntax-correctness reinforcement.
+    const secondCall = mockedChat.mock.calls[1][0];
+    expect(secondCall.system).toContain('SYNTAX VALIDITY ENFORCEMENT');
+    // The transpile error message should be surfaced inside the prompt so the
+    // model can target the specific failure.
+    expect(secondCall.system).toContain('Unexpected token');
+  });
+
+  it('throws after two consecutive transpile failures', async () => {
+    const { transpileTSX } = jest.requireMock('@/lib/remotion/transpiler');
+    (transpileTSX as jest.Mock)
+      .mockImplementationOnce(async () => {
+        throw new Error('Unexpected token when processing JSX children (3:42)');
+      })
+      .mockImplementationOnce(async () => {
+        throw new Error('Unexpected token, expected ">" (4:11)');
+      });
+
+    mockedChat.mockResolvedValueOnce(goodGenerateJson);
+    mockedChat.mockResolvedValueOnce(goodGenerateJson);
+
+    await expect(generateAsset('Comic POW text', 'gpt-4o-mini')).rejects.toThrow(
+      /transpile|failed to transpile/i,
+    );
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry when first response is already a placeholder (TM-51 path takes over)', async () => {
+    // Transpile is never reached for placeholder responses.
+    const { transpileTSX } = jest.requireMock('@/lib/remotion/transpiler');
+    const placeholderJson = JSON.stringify({
+      mode: 'generate',
+      title: 'Stub',
+      code: 'const Component = () => null;',
+      durationInFrames: 150,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    });
+    mockedChat.mockResolvedValueOnce(placeholderJson);
+    mockedChat.mockResolvedValueOnce(stubGenerateJson);
+
+    const result = await generateAsset('A loader', 'gpt-4o-mini');
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+    // TM-51 reinforcement, not TM-67.
+    const secondCall = mockedChat.mock.calls[1][0];
+    expect(secondCall.system).toContain('ANTI-PLACEHOLDER ENFORCEMENT');
+    expect(secondCall.system).not.toContain('SYNTAX VALIDITY ENFORCEMENT');
+    // Transpile only invoked on the second (successful) response.
+    expect((transpileTSX as jest.Mock).mock.calls.length).toBe(1);
+  });
+});
