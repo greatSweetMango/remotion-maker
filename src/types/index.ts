@@ -1,6 +1,6 @@
 export type Tier = 'FREE' | 'PRO';
 
-export type ParameterType = 'color' | 'range' | 'text' | 'boolean' | 'select';
+export type ParameterType = 'color' | 'range' | 'text' | 'boolean' | 'select' | 'icon';
 
 export interface Parameter {
   key: string;

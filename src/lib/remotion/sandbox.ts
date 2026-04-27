@@ -38,6 +38,9 @@ export function sanitizeCode(code: string): string {
   return code
     .replace(/^import\s+.*?from\s+['"]remotion['"];?\s*$/gm, '')
     .replace(/^import\s+.*?from\s+['"]react['"];?\s*$/gm, '')
+    // lucide-react is provided as a `lucide` global by the evaluator. Strip
+    // any stray import the model might emit so the sandbox doesn't reject it.
+    .replace(/^import\s+.*?from\s+['"]lucide-react['"];?\s*$/gm, '')
     .replace(/^import\s+type\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
     .replace(/^export\s+default\s+/gm, 'const DefaultExport = ')
     .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')

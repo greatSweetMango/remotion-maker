@@ -42,7 +42,7 @@ export function extractParameters(code: string): Parameter[] {
       ? rawValue.replace(/['"]/g, '').trim()
       : type === 'boolean'
         ? rawValue.trim() === 'true'
-        : type === 'text' || type === 'select'
+        : type === 'text' || type === 'select' || type === 'icon'
           ? rawValue.replace(/['"]/g, '').trim()
           : parseFloat(rawValue) || 0;
 
