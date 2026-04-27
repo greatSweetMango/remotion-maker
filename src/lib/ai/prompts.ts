@@ -161,6 +161,14 @@ Heuristic for ambiguity (be VERY strict — only ask when truly needed):
       "원형 스피너 8개 점, 파란색"
       "Slide transition from left to right, two colored panels"
       "타이핑 효과 Hello World, 모노스페이스"
+      "실시간 주식 시세 그래프 느낌"   // KO: subject + data + style → generate
+      "예쁜 매출 차트"                 // KO: subject + data → generate
+      "쩌는 로고 인트로"               // KO: subject + adjective → generate
+      "심플한 로딩 스피너"             // KO: style + subject → generate
+      "네온 사이버펑크 카운트다운"     // KO: style + subject → generate
+  - Korean prompts: be EXTRA permissive. Hangul conveys ~3x the meaning per
+    character of English; a 5-word Korean prompt with a named subject and a
+    style/color/data signal is concrete enough — generate, do not clarify.
   - When in doubt, prefer "generate" with reasonable defaults over asking.
   - If the user prompt contains a [USER ANSWERS] block, ALWAYS pick "generate".
 
