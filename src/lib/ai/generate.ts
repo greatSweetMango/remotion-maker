@@ -4,6 +4,7 @@ import {
   GENERATION_NON_EMPTY_REINFORCEMENT,
   buildTranspileRetryReinforcement,
 } from './prompts';
+import { scoreConcreteness, FORCE_GENERATE_REINFORCEMENT } from './clarify-gate';
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
@@ -286,6 +287,45 @@ export async function generateAsset(
     opts,
     GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
   );
+
+  // TM-52 — clarify over-trigger guard. If the LLM picked clarify but the
+  // prompt is concrete enough (esp. Korean specific prompts that the model
+  // misjudges as vague), retry once with a force-generate directive instead
+  // of bouncing the user into a clarify dialog they didn't need.
+  if (
+    first.kind === 'response' &&
+    first.value.type === 'clarify' &&
+    !opts.answers // never override when caller already supplied answers
+  ) {
+    const report = scoreConcreteness(prompt);
+    if (report.isConcrete) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] clarify over-trigger detected; forcing generate.',
+          { score: report.score, hits: report.hits, isKorean: report.isKorean },
+        );
+      }
+      const forced = await generateOnce(
+        prompt,
+        model,
+        opts,
+        GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + FORCE_GENERATE_REINFORCEMENT,
+      );
+      if (forced.kind === 'response') return forced.value;
+      // TM-67: forced retry transpile failure — surface error rather than
+      // falling through to placeholder retry (type narrowing requirement).
+      if (forced.kind === 'transpile_error') {
+        throw new Error(
+          `AI forced-generate retry produced TSX that failed to transpile (${forced.errorMessage}). ` +
+            'Please rephrase your prompt and try again.',
+        );
+      }
+      // Forced retry returned a placeholder — fall through to placeholder
+      // handling below using `forced` as the new "first" attempt.
+      return generateAssetPlaceholderRetry(prompt, model, opts, forced);
+    }
+  }
+
   if (first.kind === 'response') return first.value;
 
   // TM-67: transpile failure — retry once with a syntax-correctness reinforcement.
@@ -315,6 +355,19 @@ export async function generateAsset(
   }
 
   // TM-51: placeholder detected — retry once with reinforced system prompt.
+  return generateAssetPlaceholderRetry(prompt, model, opts, first);
+}
+
+/**
+ * TM-51 placeholder retry path — extracted so the TM-52 forced-generate path
+ * can reuse it when its own forced retry also returns a placeholder.
+ */
+async function generateAssetPlaceholderRetry(
+  prompt: string,
+  model: string,
+  opts: GenerateOptions,
+  first: { kind: 'placeholder'; reasons: string[]; rawCode: string },
+): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
   if (process.env.NODE_ENV !== 'production') {
     console.warn(
       '[generateAsset] placeholder detected, retrying once:',

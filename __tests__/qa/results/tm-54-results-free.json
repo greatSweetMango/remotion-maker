@@ -1,20 +1,20 @@
 {
   "summary": {
-    "generated_at": "2026-04-27T15:44:42.162Z",
+    "generated_at": "2026-04-27T16:30:59.586Z",
     "ai_provider": "openai",
     "tier": "FREE",
     "model": "gpt-4o-mini",
     "n": 10,
     "pass": 9,
     "first_token_ms": {
-      "p50": 877,
-      "p90": 1541,
-      "p95": 1541
+      "p50": 568,
+      "p90": 646,
+      "p95": 646
     },
     "total_ms": {
-      "p50": 8308,
-      "p90": 19917,
-      "p95": 19917
+      "p50": 7277,
+      "p90": 11582,
+      "p95": 11582
     }
   },
   "runs": [
@@ -25,8 +25,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 976,
-      "totalMs": 7552
+      "firstTokenMs": 568,
+      "totalMs": 7422
     },
     {
       "id": "tm54-02",
@@ -35,8 +35,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 1541,
-      "totalMs": 19917
+      "firstTokenMs": 646,
+      "totalMs": 11582
     },
     {
       "id": "tm54-03",
@@ -45,8 +45,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 971,
-      "totalMs": 6703
+      "firstTokenMs": 568,
+      "totalMs": 7225
     },
     {
       "id": "tm54-04",
@@ -55,8 +55,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 877,
-      "totalMs": 7623
+      "firstTokenMs": 580,
+      "totalMs": 5707
     },
     {
       "id": "tm54-05",
@@ -65,8 +65,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 696,
-      "totalMs": 9591
+      "firstTokenMs": 595,
+      "totalMs": 7277
     },
     {
       "id": "tm54-06",
@@ -75,8 +75,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 496,
-      "totalMs": 13509
+      "firstTokenMs": 490,
+      "totalMs": 8652
     },
     {
       "id": "tm54-07",
@@ -85,8 +85,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 670,
-      "totalMs": 9121
+      "firstTokenMs": 554,
+      "totalMs": 7682
     },
     {
       "id": "tm54-08",
@@ -95,8 +95,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 1126,
-      "totalMs": 5402
+      "firstTokenMs": 511,
+      "totalMs": 6135
     },
     {
       "id": "tm54-09",
@@ -105,8 +105,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 812,
-      "totalMs": 8308
+      "firstTokenMs": 512,
+      "totalMs": 7028
     },
     {
       "id": "tm54-10",
@@ -115,8 +115,8 @@
       "model": "gpt-4o-mini",
       "ok": false,
       "type": "clarify",
-      "firstTokenMs": 674,
-      "totalMs": 2898
+      "firstTokenMs": 515,
+      "totalMs": 1853
     }
   ]
 }

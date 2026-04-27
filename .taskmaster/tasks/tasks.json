@@ -1681,6 +1681,65 @@
         ],
         "priority": "low",
         "subtasks": []
+      },
+      {
+        "id": 66,
+        "title": "AI-BUG-TRANSPILE-FREE-r2",
+        "description": "TM-41 r2: gpt-4o-mini returns syntactically invalid TSX in 2/50 FREE runs (ig-02 'Unexpected token when processing JSX children', tr-10 'Unexpected token, expected ; at 5:89'). Generate path produces code that fails transpileTSX. Need (a) post-generate retry on transpile error, or (b) stricter system prompt on JSX self-closing/semicolons.",
+        "details": "발견자: TM-41 r2. 재현: AI_PROVIDER=openai TM41=1 npx jest __tests__/qa/tm-41-e2e.test.ts. results: __tests__/qa/results/tm-41-results.json failures[1,4]. requires_env: OPENAI_API_KEY",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          41
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "metadata": {
+          "triggers_requalify": [
+            "TM-41"
+          ],
+          "qa_iteration": 2
+        }
+      },
+      {
+        "id": 67,
+        "title": "AI-BUG-CLARIFY-OVER-TRIGGER-r2",
+        "description": "TM-41 r2: 2/50 FREE prompts trigger clarify mode despite specifics: dv-05 (한국어 candle chart), ig-03 (Before/After comparison). TM-52 r1 fix did not fully resolve. Need to tighten clarify heuristic — possibly check prompt contains 2+ concrete entities/colors before clarifying.",
+        "details": "발견자: TM-41 r2. 재현: TM41=1 jest tm-41-e2e. failures dv-05/ig-03. 부모 fix: TM-52 r1.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          41,
+          52
+        ],
+        "priority": "medium",
+        "subtasks": [],
+        "metadata": {
+          "triggers_requalify": [
+            "TM-41"
+          ],
+          "qa_iteration": 2
+        }
+      },
+      {
+        "id": 68,
+        "title": "AI-BUG-INVALID-JSON-FREE-r2",
+        "description": "TM-41 r2: ta-09 ('Numbers 3,2,1,GO! countdown') gpt-4o-mini returned non-JSON. TM-53 r1 partial; need extractJson hardening or schema-enforced response_format.",
+        "details": "발견자: TM-41 r2. 재현: TM41=1 jest tm-41-e2e. failure ta-09. 부모 fix: TM-53.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          41,
+          53
+        ],
+        "priority": "medium",
+        "subtasks": [],
+        "metadata": {
+          "triggers_requalify": [
+            "TM-41"
+          ],
+          "qa_iteration": 2
+        }
       }
     ],
     "metadata": {
@@ -1693,7 +1752,7 @@
       ],
       "created": "2026-04-27T15:31:17.711Z",
       "description": "Tasks for master context",
-      "updated": "2026-04-27T15:32:18.403Z"
+      "updated": "2026-04-27T16:31:43.823Z"
     }
   }
 }
