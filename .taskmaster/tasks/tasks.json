@@ -1740,6 +1740,136 @@
           ],
           "qa_iteration": 2
         }
+      },
+      {
+        "id": 69,
+        "title": "AI-IMPROVE-prompt-dv-02",
+        "description": "월별 매출 막대그래프 보라색 — judge 15/100. layout/typography/fidelity 모두 미달. 단순 막대그래프 패턴 강화 + 색상 토큰 (purple) 정확 매핑.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"data-viz\",\"r3_score\":15}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 70,
+        "title": "AI-IMPROVE-prompt-dv-03",
+        "description": "Pie chart 4 slices 40/30/20/10 pastel — judge 23/100. 비율 정확 분할 + 텍스트 레이블/legend 추가.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"data-viz\",\"r3_score\":23}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 71,
+        "title": "AI-IMPROVE-prompt-dv-08",
+        "description": "Horizontal bar race 5 brands orange — judge 60/100. motion 다이나믹 강화 + 가독성.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"data-viz\",\"r3_score\":60}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 72,
+        "title": "AI-IMPROVE-prompt-ta-01",
+        "description": "Comic POW! yellow/black — judge 68/100. 폭발/잔상 효과 + dynamic motion.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"text-anim\",\"r3_score\":68}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 73,
+        "title": "AI-IMPROVE-prompt-tr-02",
+        "description": "페이드 검정→흰색 1.5초 — judge 43/100. 색상 보간 정확 구현.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"transition\",\"r3_score\":43}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 74,
+        "title": "AI-IMPROVE-prompt-tr-03",
+        "description": "Zoom-in circular mask pink — judge 53/100. 실제 zoom + circular reveal 구현.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"transition\",\"r3_score\":53}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 75,
+        "title": "AI-IMPROVE-prompt-tr-05",
+        "description": "원 화면 채움 yellow→blue — judge 68/100. 원이 viewport 가득 차도록 scale 조정.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"transition\",\"r3_score\":68}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 76,
+        "title": "AI-IMPROVE-prompt-tr-08",
+        "description": "Glitch RGB split cut 0.4s — judge 48/100. RGB 분리/glitch 강화.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"transition\",\"r3_score\":48}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 77,
+        "title": "AI-IMPROVE-prompt-dv-01",
+        "description": "Animated counter 0→100 spring blue — generate 500 'AI did not return valid JSON'. extractJson 실패. TM-69 (response_format=json_object) 적용 후 재테스트.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"data-viz\",\"r3_score\":null,\"failure_mode\":\"generate_json_parse\"}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 78,
+        "title": "AI-IMPROVE-prompt-dv-10",
+        "description": "도넛 차트 60/40 파란 — generate 500 'AI did not return valid JSON'. 동일 extractJson 실패. TM-69 의존.",
+        "details": "metadata: {\"triggers_requalify\":[\"46\"],\"qa_iteration\":1,\"category\":\"data-viz\",\"r3_score\":null,\"failure_mode\":\"generate_json_parse\"}",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          46
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -1752,7 +1882,7 @@
       ],
       "created": "2026-04-27T15:31:17.711Z",
       "description": "Tasks for master context",
-      "updated": "2026-04-27T16:31:43.823Z"
+      "updated": "2026-04-27T16:50:01.642Z"
     }
   }
 }
