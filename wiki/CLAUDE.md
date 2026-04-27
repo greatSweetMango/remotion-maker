@@ -123,7 +123,7 @@ build-team의 각 역할이 산출물을 저장하는 표준 경로. Phase 1 dry
 | 역할 | 저장 위치 | 명명 규칙 |
 |---|---|---|
 | **Researcher** | `wiki/03-research/` | `<topic-slug>.md` (재사용 가능, 주제 중심) |
-| **Architect** | `wiki/01-pm/decisions/` | `<NNNN>-<slug>.md` (ADR, 4자리 zero-pad) |
+| **Architect** | `wiki/01-pm/decisions/` | TeamLead/teammate가 작성 시: `PENDING-<task_id>-<slug>.md` (NNNN은 Orchestrator가 commit 직전 부여 — `.claude/commands/orchestrate.md` Step 5-pre). 사람이 직접 작성 시(에이전트 외부): `<NNNN>-<slug>.md` (4자리 zero-pad, 직전 max+1). 본문 self-ref 토큰: `ADR-PENDING-<task_id>` |
 | **Developer** (plan) | 컨텍스트 파일 또는 `wiki/02-dev/tasks/` | task별 plan |
 | **Implementer** | 대상 파일 자체 (코드 또는 wiki) | — |
 | **QA** | `wiki/05-reports/` | `<YYYY-MM-DD>-<task_id>-qa.md` |
