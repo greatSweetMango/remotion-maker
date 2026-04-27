@@ -1,17 +1,21 @@
 /**
- * TM-46 — Visual LLM-as-judge.
+ * TM-46 — Visual LLM-as-judge (TM-66: OpenAI gpt-4o multimodal).
  *
  * 입력: 30 프롬프트 × 3 프레임 PNG (총 90 screenshots).
  *   각 PNG path: __tests__/benchmarks/results/tm-46/screenshots/<id>-<frame>.png
  *
- * 처리: 프롬프트 단위로 3 프레임을 묶어 Claude Opus 4.7 에 multimodal 1회 요청.
+ * 처리: 프롬프트 단위로 3 프레임을 묶어 OpenAI gpt-4o 에 multimodal 1회 요청.
  *      4축 (layout/typography/motion/fidelity) × 3 프레임 = 12 점수 + comment.
  *
  * 출력: __tests__/benchmarks/results/tm-46/scores.json
  *      각 프롬프트 평균 + <70 케이스 follow-up task spawn 권장 목록.
  *
+ * TM-66 마이그레이션: ANTHROPIC_API_KEY 가비 로 인한 escalate. judge 를
+ * OpenAI gpt-4o (멀티모달 + JSON mode) 로 전환. 4축 루브릭/스키마는 동일.
+ * 비용 비교: Opus 4.7 ~ $0.06/req → gpt-4o ~ $0.05/req.
+ *
  * 사용:
- *   ANTHROPIC_API_KEY=... npx tsx __tests__/benchmarks/tm-46-judge.ts \
+ *   OPENAI_API_KEY=... npx tsx __tests__/benchmarks/tm-46-judge.ts \
  *     --screenshots-dir __tests__/benchmarks/results/tm-46/screenshots \
  *     [--smoke]
  */
@@ -19,9 +23,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-// TM-46 r2: load .env.local from worktree root so ANTHROPIC_API_KEY propagates
+// TM-66: load .env.local from worktree root so OPENAI_API_KEY propagates
 // even when the parent shell sandbox strips API keys from child processes.
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env.local') });
 import {
@@ -31,7 +35,7 @@ import {
 } from './tm-46-prompts';
 import type { BenchmarkPrompt } from './params-extraction.benchmark';
 
-const JUDGE_MODEL = process.env.JUDGE_MODEL ?? 'claude-opus-4-7-20260101';
+const JUDGE_MODEL = process.env.JUDGE_MODEL ?? 'gpt-4o';
 
 const SYSTEM_PROMPT = `너는 Remotion 으로 만든 모션 그래픽 산출물을 채점하는 시각 디자인 전문가다.
 입력은 한 프롬프트에 대한 3개 프레임(1초/중간/끝)이고, 각 프레임을 4축 1-10점으로 채점한다.
@@ -94,8 +98,8 @@ function toBase64(p: string): string {
   return fs.readFileSync(p).toString('base64');
 }
 
-async function judgePrompt(
-  client: Anthropic,
+export async function judgePrompt(
+  client: OpenAI,
   prompt: BenchmarkPrompt,
   screenshotsDir: string,
 ): Promise<PromptScore | null> {
@@ -109,30 +113,36 @@ async function judgePrompt(
     images.push({ frame, b64: toBase64(p) });
   }
 
-  const userContent: Anthropic.Messages.ContentBlockParam[] = [
+  // OpenAI multimodal: image_url with data: URL. interleave text/image to label frames.
+  const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
     {
       type: 'text',
       text: `프롬프트(원문): "${prompt.prompt}"
 카테고리: ${prompt.category}
 첨부: 3 프레임 (60=1초, 90=중간, 180=끝). 위 루브릭에 따라 JSON 으로만 답해라.`,
     },
-    ...images.flatMap<Anthropic.Messages.ContentBlockParam>(({ frame, b64 }) => [
-      { type: 'text', text: `Frame ${frame}:` },
-      {
-        type: 'image',
-        source: { type: 'base64', media_type: 'image/png', data: b64 },
-      },
-    ]),
+    ...images.flatMap<OpenAI.Chat.Completions.ChatCompletionContentPart>(
+      ({ frame, b64 }) => [
+        { type: 'text' as const, text: `Frame ${frame}:` },
+        {
+          type: 'image_url' as const,
+          image_url: { url: `data:image/png;base64,${b64}` },
+        },
+      ],
+    ),
   ];
 
-  const message = await client.messages.create({
+  const completion = await client.chat.completions.create({
     model: JUDGE_MODEL,
-    max_tokens: 600,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userContent }],
+    max_tokens: 400,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
+    ],
   });
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+  const text = completion.choices[0]?.message?.content ?? '';
   const jsonStart = text.indexOf('{');
   const jsonEnd = text.lastIndexOf('}');
   if (jsonStart < 0 || jsonEnd < 0) {
@@ -180,14 +190,14 @@ async function main() {
       ? args[dirIdx + 1]
       : path.join(__dirname, 'results', 'tm-46', 'screenshots');
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY required');
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY required');
   }
   if (!fs.existsSync(screenshotsDir)) {
     throw new Error(`screenshots dir missing: ${screenshotsDir}`);
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const prompts = smoke ? TM46_SMOKE_PROMPTS : TM46_PROMPTS;
   console.log(`[tm-46-judge] mode=${smoke ? 'smoke' : 'full'} n=${prompts.length} model=${JUDGE_MODEL}`);
 
