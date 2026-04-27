@@ -275,6 +275,24 @@ for summary in team_lead_summaries:
 
     completed_count++   # 모드 종료 조건 평가용 (once/max_n)
 
+    # === Step 5-post: QA 재검증 트리거 처리 ===
+    # 머지된 task가 fix 성격이고 metadata에 triggers_requalify 가 박혀있으면
+    # 부모 QA task들을 pending 으로 되돌려 다음 iter 에서 재실행되게 함.
+    triggers = read_task_metadata(task_id, "triggers_requalify") || []
+    for parent_qa_id in triggers:
+      parent = mcp__task-master-ai__get_task(id=parent_qa_id)
+      if parent.status == "done":
+        # qa_iteration 증가 (없으면 2부터)
+        next_iter = (parent.metadata.qa_iteration || 1) + 1
+        update_task_metadata(parent_qa_id, {qa_iteration: next_iter})
+        mcp__task-master-ai__set_task_status(id=parent_qa_id, status="pending")
+        transcript: `[requalify] ${parent_qa_id} → pending (r${next_iter}) (fix=${task_id})`
+      # 이미 pending/in-progress 면 noop (다음 iter 자연 재실행)
+
+    # spawned_tasks (이 task 가 새로 만든 bug task 들) 도 transcript 만 출력 — PM 이 다음 iter 에서 fetch
+    for st in (summary.spawned_tasks || []):
+      transcript: `[spawned] ${st.id} ${st.title} (requalify→${st.triggers_requalify})`
+
   elif summary.verdict == "REQUEST_CHANGES":
     # 1 round 재실행 (loop guard 2회까지) — TeamLead가 자체 처리하지 못한 경우만 도달
     blocking_questions 기록, status: "review"
@@ -305,6 +323,25 @@ wiki/02-dev/status.md 오늘 요약 갱신:
 test -f .agent-state/STOP && exit
 spend 95% 초과 && exit (경고 출력)
 loop-count > 100 && exit (사람 호출)
+
+# OpenAI 야간 QA 예산 캡 — TM-41~48 라이브 호출 누적
+openai_spend = read .agent-state/spend.json .openai_total_usd (default 0)
+if openai_spend >= 18.00:
+  write .agent-state/STOP (reason: "openai $18 cap reached")
+  transcript: `[budget] OpenAI cap hit ($${openai_spend}/$20) — STOP written`
+  exit
+
+# 같은 task N 회차 fix 누적 실패 가드 (Ralph 무한 루프 방지)
+# qa_iteration >= 5 인 부모 QA task 가 또 pending 으로 회귀하면 escalate
+for t in tasks where t.metadata.qa_iteration >= 5 and t.status == "pending":
+  mcp__task-master-ai__set_task_status(id=t.id, status="blocked")
+  transcript: `[escalate] ${t.id} qa_iteration=${t.metadata.qa_iteration} — blocked, 사람 호출`
+
+# AI QA 종료 조건 — 최종 보고서 작성됨 → STOP
+if test -f wiki/05-reports/2026-04-27-ai-qa-final.md:
+  write .agent-state/STOP (reason: "AI QA final report exists")
+  transcript: "[ai-qa] final report detected — STOP written, exit"
+  exit
 
 # 7-2) 모드별 종료 조건
 switch (mode):
