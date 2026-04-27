@@ -40,6 +40,58 @@ describe('validateCode', () => {
     const code = `require('fs')`;
     expect(validateCode(code).valid).toBe(false);
   });
+
+  // TM-34 — extended deny list
+  it('blocks new Function', () => {
+    expect(validateCode(`const f = new Function('return 1');`).valid).toBe(false);
+  });
+
+  it('blocks setTimeout-with-string', () => {
+    expect(validateCode(`setTimeout("alert(1)", 0);`).valid).toBe(false);
+  });
+
+  it('blocks WebSocket', () => {
+    expect(validateCode(`const ws = new WebSocket('wss://e.com');`).valid).toBe(false);
+  });
+
+  it('blocks navigator.sendBeacon', () => {
+    expect(validateCode(`navigator.sendBeacon('/x', d);`).valid).toBe(false);
+  });
+
+  it('blocks indexedDB', () => {
+    expect(validateCode(`indexedDB.open('x');`).valid).toBe(false);
+  });
+
+  it('blocks __proto__ assignment', () => {
+    expect(validateCode(`obj.__proto__ = bad;`).valid).toBe(false);
+  });
+
+  it('blocks __defineGetter__', () => {
+    expect(validateCode(`o.__defineGetter__('x', f);`).valid).toBe(false);
+  });
+
+  it('blocks with statement', () => {
+    expect(validateCode(`with (obj) { x = 1; }`).valid).toBe(false);
+  });
+
+  it('blocks Worker spawn', () => {
+    expect(validateCode(`new Worker('w.js')`).valid).toBe(false);
+    expect(validateCode(`new SharedWorker('w.js')`).valid).toBe(false);
+  });
+
+  it('blocks location.assign', () => {
+    expect(validateCode(`location.assign('/evil');`).valid).toBe(false);
+  });
+
+  it('blocks EventSource', () => {
+    expect(validateCode(`new EventSource('/sse');`).valid).toBe(false);
+  });
+
+  it('does not double-report the same forbidden token', () => {
+    const code = `eval('1'); eval('2'); eval('3');`;
+    const errors = validateCode(code).errors;
+    expect(errors.filter(e => e === 'Forbidden: eval')).toHaveLength(1);
+  });
 });
 
 describe('sanitizeCode', () => {
