@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,15 +11,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap } from 'lucide-react';
 
-export default function LoginPage() {
+/**
+ * Restrict callbackUrl to same-origin relative paths to prevent open-redirect.
+ * Accepts "/foo", "/foo?bar=1"; rejects "//evil", "http://...", "javascript:".
+ */
+function safeCallbackUrl(raw: string | null | undefined, fallback = '/studio') {
+  if (!raw) return fallback;
+  if (!raw.startsWith('/')) return fallback;
+  if (raw.startsWith('//')) return fallback;
+  return raw;
+}
+
+// Inner component reads searchParams, so it must live under a Suspense
+// boundary per Next.js 16 prerender rules.
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams?.get('callbackUrl'));
   const [loading, setLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ email: '', password: '', name: '' });
 
   async function handleGoogleSignIn() {
     setLoading(true);
-    await signIn('google', { callbackUrl: '/studio' });
+    await signIn('google', { callbackUrl });
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -33,7 +48,7 @@ export default function LoginPage() {
       toast.error('Invalid credentials');
       setLoading(false);
     } else {
-      router.push('/studio');
+      router.push(callbackUrl);
     }
   }
 
@@ -54,7 +69,7 @@ export default function LoginPage() {
     await signIn('credentials', {
       email: registerData.email,
       password: registerData.password,
-      callbackUrl: '/studio',
+      callbackUrl,
     });
   }
 
@@ -180,5 +195,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
