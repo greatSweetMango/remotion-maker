@@ -238,7 +238,25 @@ export function AssetGrid({ initialAssets, initialPagination, tier }: AssetGridP
             data-testid="asset-grid"
           >
             {assets.map((a) => (
-              <AssetCard key={a.id} asset={a} tier={tier} />
+              <AssetCard
+                key={a.id}
+                asset={a}
+                tier={tier}
+                onDeleted={(id) => {
+                  setRemoteData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          assets: prev.assets.filter((x) => x.id !== id),
+                          pagination: {
+                            ...prev.pagination,
+                            total: Math.max(0, prev.pagination.total - 1),
+                          },
+                        }
+                      : prev,
+                  );
+                }}
+              />
             ))}
           </div>
 

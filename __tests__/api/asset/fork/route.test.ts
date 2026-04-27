@@ -12,6 +12,7 @@ jest.mock('@/lib/db/prisma', () => ({
   prisma: {
     asset: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
     },
   },
@@ -26,6 +27,7 @@ type SessionShape = ReturnType<typeof auth> extends Promise<infer R> ? R : never
 const mockedPrismaAsset = (prisma as unknown as {
   asset: {
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     create: jest.Mock;
   };
 }).asset;
@@ -97,14 +99,14 @@ describe('POST /api/asset/fork — fork mechanics', () => {
   });
 
   it('returns 404 when source slug not found', async () => {
-    mockedPrismaAsset.findUnique.mockResolvedValue(null);
+    mockedPrismaAsset.findFirst.mockResolvedValue(null);
     const res = await POST(buildReq({ slug: 'missing' }));
     expect(res.status).toBe(404);
     expect(mockedPrismaAsset.create).not.toHaveBeenCalled();
   });
 
   it('copies all content fields and sets new ownership + lineage', async () => {
-    mockedPrismaAsset.findUnique.mockResolvedValue(sourceFixture);
+    mockedPrismaAsset.findFirst.mockResolvedValue(sourceFixture);
     mockedPrismaAsset.create.mockResolvedValue({
       id: 'new-1',
       title: 'Cool Animation (forked)',
@@ -131,7 +133,7 @@ describe('POST /api/asset/fork — fork mechanics', () => {
   });
 
   it('does not double-suffix " (forked)" when source title already ends with it', async () => {
-    mockedPrismaAsset.findUnique.mockResolvedValue({
+    mockedPrismaAsset.findFirst.mockResolvedValue({
       ...sourceFixture,
       title: 'Cool Animation (forked)',
     });
@@ -146,15 +148,15 @@ describe('POST /api/asset/fork — fork mechanics', () => {
     expect(data.title).toBe('Cool Animation (forked)');
   });
 
-  it('looks up source by publicSlug only', async () => {
-    mockedPrismaAsset.findUnique.mockResolvedValue(sourceFixture);
+  it('looks up source by publicSlug only and excludes soft-deleted assets', async () => {
+    mockedPrismaAsset.findFirst.mockResolvedValue(sourceFixture);
     mockedPrismaAsset.create.mockResolvedValue({
       id: 'new-3',
       title: 'x',
       sourceAssetId: 'src-asset-1',
     });
     await POST(buildReq({ slug: 'public-slug-xyz' }));
-    const findArgs = mockedPrismaAsset.findUnique.mock.calls[0][0];
-    expect(findArgs.where).toEqual({ publicSlug: 'public-slug-xyz' });
+    const findArgs = mockedPrismaAsset.findFirst.mock.calls[0][0];
+    expect(findArgs.where).toEqual({ publicSlug: 'public-slug-xyz', deletedAt: null });
   });
 });

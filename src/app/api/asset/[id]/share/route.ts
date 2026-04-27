@@ -25,10 +25,10 @@ export async function POST(
   const { id } = await ctx.params;
   const asset = await prisma.asset.findUnique({
     where: { id },
-    select: { id: true, userId: true, publicSlug: true, sharedAt: true },
+    select: { id: true, userId: true, publicSlug: true, sharedAt: true, deletedAt: true },
   });
 
-  if (!asset) {
+  if (!asset || asset.deletedAt) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   if (asset.userId !== session.user.id) {

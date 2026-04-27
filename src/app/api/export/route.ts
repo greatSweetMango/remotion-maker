@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   }
 
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
-  if (!asset || asset.userId !== user.id) {
+  if (!asset || asset.userId !== user.id || asset.deletedAt) {
     return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
   }
 

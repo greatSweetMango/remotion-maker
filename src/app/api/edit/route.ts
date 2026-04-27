@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     prisma.user.findUnique({ where: { id: session.user.id } }),
     isTemplate
       ? Promise.resolve(null)
-      : prisma.asset.findUnique({ where: { id: assetId, userId: session.user.id } }),
+      : prisma.asset.findFirst({ where: { id: assetId, userId: session.user.id, deletedAt: null } }),
   ]);
 
   if (!user) {
