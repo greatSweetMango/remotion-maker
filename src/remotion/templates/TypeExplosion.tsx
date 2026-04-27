@@ -29,14 +29,20 @@ export const TypeExplosion = ({
   const chars = (text as string).split('');
   const force = explosionForce as number;
 
-  // Phases (frames):
-  //  0..40   : assemble in (initial)
-  //  40..70  : steady
-  //  70..130 : explode out
-  // 130..170 : fly back / reassemble
-  // 170+     : breathe
-  const explodeStart = Math.floor(durationInFrames * 0.35);
-  const reassembleStart = Math.floor(durationInFrames * 0.65);
+  // Phase plan (fractions of durationInFrames):
+  //  0.00 .. 0.15 : assemble in (per-char spring stagger)
+  //  0.15 .. 0.30 : steady (initial headline)
+  //  0.30 .. 0.50 : explode out  (explodeStart .. explodeEnd)
+  //  0.55 .. 0.80 : reassemble back to headline (visible fly-back motion)
+  //  0.80 .. 1.00 : steady + subtle breathe (final headline)
+  //
+  // The earlier curve squeezed reassembly into the last ~10% of the timeline
+  // so the visual audit (TM-43) only ever saw the explosion phase. The fix
+  // moves explode earlier, gives reassembly its own ~25% window with a slow
+  // spring so the fly-back is clearly visible, and ends on a held headline.
+  const explodeStart = Math.floor(durationInFrames * 0.30);
+  const explodeEnd = Math.floor(durationInFrames * 0.50);
+  const reassembleStart = Math.floor(durationInFrames * 0.55);
 
   const palette = [primaryColor, secondaryColor, accentColor, textColor];
 
@@ -64,23 +70,30 @@ export const TypeExplosion = ({
             config: { damping: 12, stiffness: 160, mass: 1 },
           });
 
-          // Direction vector for explosion
+          // Direction vector for explosion. Distance is bounded so chars
+          // stay roughly on screen at default force (1920x1080 canvas).
           const angle = rnd(1) * Math.PI * 2;
-          const dist = (220 + rnd(2) * 480) * force;
+          const dist = (180 + rnd(2) * 360) * force;
           const spinDir = rnd(3) > 0.5 ? 1 : -1;
           const spinAmt = (180 + rnd(4) * 540) * spinDir;
 
           const explodeProgress = interpolate(
             frame,
-            [explodeStart, explodeStart + 40],
+            [explodeStart, explodeEnd],
             [0, 1],
             { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
           );
+          // Reassembly: fast enough that the return-to-headline is clearly
+          // visible within the reassembly window, with mild per-char stagger.
           const reassemble = spring({
             fps,
-            frame: frame - reassembleStart - i * 1.2,
-            config: { damping: 14, stiffness: 110, mass: 1 },
+            frame: frame - reassembleStart - i * 2,
+            // Lower stiffness + slightly higher mass = visibly slower
+            // fly-back so the reassembly motion reads on screen instead of
+            // snapping. Tuned so the spring reaches ~1 around durationInFrames * 0.8.
+            config: { damping: 22, stiffness: 60, mass: 1.2 },
           });
+          // explodeNow drives outward motion; (1 - reassemble) pulls it home.
           const explodeNow = explodeProgress * (1 - reassemble);
 
           const entryY = interpolate(enter, [0, 1], [-180, 0]);
