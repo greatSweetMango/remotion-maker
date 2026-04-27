@@ -1,4 +1,4 @@
-import { chatComplete, getModels } from './client';
+import { chatComplete, chatCompleteStream, getModels } from './client';
 import { GENERATION_WITH_CLARIFY_SYSTEM_PROMPT } from './prompts';
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
@@ -8,6 +8,18 @@ import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuesti
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
   answers?: ClarifyAnswers;
+  /**
+   * TM-54 — fired when the model emits its first token. Lets callers
+   * record TTFB independently of full-asset wall time.
+   */
+  onFirstToken?: (msSinceStart: number) => void;
+  /** TM-54 — fired on every text delta from the LLM stream. */
+  onDelta?: (chunk: string, sofar: string) => void;
+}
+
+export interface GenerateLatency {
+  firstTokenMs: number;
+  totalMs: number;
 }
 
 /**
@@ -109,14 +121,31 @@ export async function generateAsset(
   prompt: string,
   model: string = getModels().free,
   opts: GenerateOptions = {},
-): Promise<GenerateApiResponse> {
+): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
   const userContent = buildUserMessage(prompt, opts.answers);
 
-  const text = await chatComplete({
-    model,
-    system: GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userContent }],
-  });
+  // TM-54 — when the caller wants TTFB observability we go through the
+  // streaming path. Otherwise fall back to `chatComplete` so existing
+  // tests that mock it keep working untouched.
+  let text: string;
+  let latency: GenerateLatency | undefined;
+  if (opts.onFirstToken || opts.onDelta) {
+    const result = await chatCompleteStream({
+      model,
+      system: GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
+      onFirstToken: opts.onFirstToken,
+      onDelta: opts.onDelta,
+    });
+    text = result.text;
+    latency = { firstTokenMs: result.firstTokenMs, totalMs: result.totalMs };
+  } else {
+    text = await chatComplete({
+      model,
+      system: GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
+    });
+  }
 
   const parsed = extractJson(text);
   if (!parsed || typeof parsed !== 'object') {
@@ -131,7 +160,7 @@ export async function generateAsset(
     if (!Array.isArray(questions) || questions.length === 0) {
       throw new Error('AI clarify response missing questions');
     }
-    return { type: 'clarify', questions: questions as ClarifyQuestion[] };
+    return { type: 'clarify', questions: questions as ClarifyQuestion[], ...(latency ? { latency } : {}) };
   }
 
   // mode === 'generate' (or omitted — default to generate path for backward compat)
@@ -159,5 +188,5 @@ export async function generateAsset(
     height: (obj.height as number) || 1080,
   };
 
-  return { type: 'generate', asset };
+  return { type: 'generate', asset, ...(latency ? { latency } : {}) };
 }

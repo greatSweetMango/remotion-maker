@@ -42,7 +42,21 @@ export async function POST(req: Request) {
   console.log(`[generate] tier=${user.tier} model=${model} usage=${user.monthlyUsage}`);
 
   try {
-    const result = await generateAsset(prompt, model, { answers });
+    const generateStart = Date.now();
+    let firstTokenMs = -1;
+    const result = await generateAsset(prompt, model, {
+      answers,
+      onFirstToken: (ms) => {
+        firstTokenMs = ms;
+        // TM-54 — first-byte observability for the route. Helps correlate
+        // server-side TTFB with client-perceived latency (acceptance: p50 ≤ 5s).
+        console.log(`[generate] firstTokenMs=${ms} model=${model} tier=${user.tier}`);
+      },
+    });
+    const totalMs = Date.now() - generateStart;
+    console.log(
+      `[generate] done totalMs=${totalMs} firstTokenMs=${firstTokenMs} type=${result.type}`,
+    );
 
     // Clarify-only response: do NOT consume monthly quota.
     if (result.type === 'clarify') {

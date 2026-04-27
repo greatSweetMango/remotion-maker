@@ -1,0 +1,122 @@
+{
+  "summary": {
+    "generated_at": "2026-04-27T15:44:42.162Z",
+    "ai_provider": "openai",
+    "tier": "FREE",
+    "model": "gpt-4o-mini",
+    "n": 10,
+    "pass": 9,
+    "first_token_ms": {
+      "p50": 877,
+      "p90": 1541,
+      "p95": 1541
+    },
+    "total_ms": {
+      "p50": 8308,
+      "p90": 19917,
+      "p95": 19917
+    }
+  },
+  "runs": [
+    {
+      "id": "tm54-01",
+      "prompt": "Animated counter from 0 to 100 with spring effect",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 976,
+      "totalMs": 7552
+    },
+    {
+      "id": "tm54-02",
+      "prompt": "Bar chart of monthly sales jan~jun, blue bars, axis labels",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 1541,
+      "totalMs": 19917
+    },
+    {
+      "id": "tm54-03",
+      "prompt": "\"Hello World\" 타이핑 효과, 모노스페이스 폰트",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 971,
+      "totalMs": 6703
+    },
+    {
+      "id": "tm54-04",
+      "prompt": "Slide transition from left to right between two solid colored panels",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 877,
+      "totalMs": 7623
+    },
+    {
+      "id": "tm54-05",
+      "prompt": "Circular spinner with 8 dots, blue, 1.5s loop",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 696,
+      "totalMs": 9591
+    },
+    {
+      "id": "tm54-06",
+      "prompt": "도넛 차트 — 6:3:1 비율, 보라색 톤, 가운데 퍼센트 라벨",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 496,
+      "totalMs": 13509
+    },
+    {
+      "id": "tm54-07",
+      "prompt": "Comic book style \"POW!\" text bursting in with rotation",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 670,
+      "totalMs": 9121
+    },
+    {
+      "id": "tm54-08",
+      "prompt": "Fade to black and back, 1s each direction",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 1126,
+      "totalMs": 5402
+    },
+    {
+      "id": "tm54-09",
+      "prompt": "Vertical progress loader 0~100% with gradient fill",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 812,
+      "totalMs": 8308
+    },
+    {
+      "id": "tm54-10",
+      "prompt": "인포그래픽 — 3개 단계, 아이콘 + 짧은 설명, 페이드인",
+      "tier": "FREE",
+      "model": "gpt-4o-mini",
+      "ok": false,
+      "type": "clarify",
+      "firstTokenMs": 674,
+      "totalMs": 2898
+    }
+  ]
+}
