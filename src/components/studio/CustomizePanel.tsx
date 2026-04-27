@@ -6,7 +6,8 @@ import { SequenceTimeline } from './SequenceTimeline';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Palette, Ruler, Clock, Type, Settings2 } from 'lucide-react';
+import { Palette, Ruler, Clock, Type, Settings2, Image as ImageIcon } from 'lucide-react';
+import { ResourcePanel } from './ResourcePanel';
 import type { Parameter, Tier } from '@/types';
 import Link from 'next/link';
 import { useActiveSequenceOptional } from '@/hooks/useActiveSequence';
@@ -24,10 +25,11 @@ const GROUP_META = {
   size:   { label: 'Size',      Icon: Ruler },
   timing: { label: 'Timing',    Icon: Clock },
   text:   { label: 'Text',      Icon: Type },
+  media:  { label: 'Media',     Icon: ImageIcon },
   other:  { label: 'Settings',  Icon: Settings2 },
 } as const;
 
-const GROUP_ORDER: Parameter['group'][] = ['color', 'size', 'timing', 'text', 'other'];
+const GROUP_ORDER: Parameter['group'][] = ['color', 'size', 'timing', 'text', 'media', 'other'];
 const FREE_PARAM_LIMIT = 3;
 
 export function CustomizePanel({ parameters, paramValues, onParamChange, tier }: CustomizePanelProps) {
@@ -74,6 +76,16 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
       <SequenceTimelineSlot />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        <details className="group" open={visibleParams.some(p => p.type === 'image' || p.type === 'font')}>
+          <summary className="cursor-pointer list-none flex items-center gap-2 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300">
+            <ImageIcon className="h-3.5 w-3.5" />
+            Resources
+            <span className="ml-auto text-[10px] text-slate-600 group-open:rotate-180 transition-transform">▾</span>
+          </summary>
+          <ResourcePanel tier={tier} />
+          <Separator className="mt-4 bg-slate-700/50" />
+        </details>
+
         <ThemePalettes
           parameters={parameters}
           onApply={updates => {
