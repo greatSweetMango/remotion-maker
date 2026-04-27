@@ -1,6 +1,7 @@
 'use client';
 import { useReducer, useCallback } from 'react';
 import type {
+  AssetVersion,
   GeneratedAsset,
   StudioState,
   StudioAction,
@@ -35,6 +36,7 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
           parameters: action.payload.parameters,
           prompt: '(initial)',
           createdAt: new Date().toISOString(),
+          parentId: null,
         }],
         currentVersionIndex: 0,
         isGenerating: false,
@@ -48,9 +50,19 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         paramValues: { ...state.paramValues, [action.payload.key]: action.payload.value },
       };
     case 'ADD_VERSION': {
-      const newVersions = [...state.versions, action.payload];
+      // Parent = whatever version is currently active. If the user just
+      // restored an older version, this naturally produces a branch.
+      const currentVersion = state.versions[state.currentVersionIndex];
+      const versionWithParent: AssetVersion = {
+        ...action.payload,
+        parentId:
+          action.payload.parentId !== undefined
+            ? action.payload.parentId
+            : currentVersion?.id ?? null,
+      };
+      const newVersions = [...state.versions, versionWithParent];
       const paramValues: Record<string, string | number | boolean> = {};
-      for (const p of action.payload.parameters) {
+      for (const p of versionWithParent.parameters) {
         paramValues[p.key] = p.value;
       }
       return {
@@ -131,6 +143,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
               parameters: initialAsset.parameters,
               prompt: '(loaded)',
               createdAt: new Date().toISOString(),
+              parentId: null,
             },
           ],
           currentVersionIndex: 0,

@@ -41,6 +41,14 @@ export interface AssetVersion {
   parameters: Parameter[];
   prompt: string;
   createdAt: string;
+  /**
+   * id of the version this one was forked from. `null` for the root version.
+   * When the user restores an older version and then edits, the new version's
+   * `parentId` points at the restored one — producing a branch in the tree.
+   * Older versions persisted before TM-24 may omit this field; UI treats
+   * missing `parentId` as "linear chain to previous index".
+   */
+  parentId?: string | null;
 }
 
 export interface StudioState {
