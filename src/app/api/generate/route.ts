@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { generateAsset } from '@/lib/ai/generate';
 import { getModels } from '@/lib/ai/client';
 import { checkGenerationLimit } from '@/lib/usage';
+import { validatePrompt } from '@/lib/validation/prompt';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,18 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Validate input shape BEFORE any DB / quota work. TM-58 length cap.
+  const body = await req.json();
+  const { prompt, answers } = body as { prompt?: string; answers?: Record<string, string> };
+  const promptError = validatePrompt(prompt);
+  if (promptError || typeof prompt !== 'string') {
+    const err = promptError ?? { message: 'Prompt required', code: 'PROMPT_REQUIRED' as const, status: 400 as const };
+    return NextResponse.json(
+      { error: err.message, code: err.code, ...((promptError?.meta) ?? {}) },
+      { status: err.status },
+    );
   }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
@@ -29,12 +42,6 @@ export async function POST(req: Request) {
   const limitCheck = checkGenerationLimit({ tier: user.tier, monthlyUsage: user.monthlyUsage });
   if (!limitCheck.allowed) {
     return NextResponse.json({ error: limitCheck.reason }, { status: 429 });
-  }
-
-  const body = await req.json();
-  const { prompt, answers } = body as { prompt?: string; answers?: Record<string, string> };
-  if (!prompt?.trim()) {
-    return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
   }
 
   const models = getModels();
