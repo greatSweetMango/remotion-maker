@@ -163,6 +163,36 @@ export async function getTemplates(): Promise<Template[]> {
       width: 1920,
       height: 1080,
     }),
+    loadTemplate('ProductIntro.tsx', {
+      id: 'product-intro',
+      title: 'Product Intro (60s)',
+      description: 'Full 60s product showcase: intro → 3 features → CTA. Add voice-over and ship to YouTube.',
+      category: 'composition',
+      durationInFrames: 1800,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('DataStory.tsx', {
+      id: 'data-story',
+      title: 'Data Story (45s)',
+      description: 'Hero stat reveals with insight callouts — perfect for year-in-review or KPI narratives.',
+      category: 'composition',
+      durationInFrames: 1350,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
+    loadTemplate('HighlightReel.tsx', {
+      id: 'highlight-reel',
+      title: 'Highlight Reel (30s)',
+      description: 'Punchy 30s recap with three numbered highlights. Drop in voice and post.',
+      category: 'composition',
+      durationInFrames: 900,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+    }),
   ]);
 
   return _templates;

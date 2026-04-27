@@ -17,6 +17,7 @@ const CATEGORY_GRADIENT: Record<string, string> = {
   chart: 'from-blue-900/60 to-slate-900',
   background: 'from-emerald-900/60 to-slate-900',
   logo: 'from-amber-900/60 to-slate-900',
+  composition: 'from-fuchsia-900/60 to-slate-900',
 };
 
 function TemplateThumb({ template, onSelect }: { template: Template; onSelect: () => void }) {

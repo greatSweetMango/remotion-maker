@@ -92,7 +92,7 @@ export interface Template {
   id: string;
   title: string;
   description: string;
-  category: 'counter' | 'text' | 'chart' | 'background' | 'logo';
+  category: 'counter' | 'text' | 'chart' | 'background' | 'logo' | 'composition';
   previewGif?: string;
   code: string;
   jsCode: string;
