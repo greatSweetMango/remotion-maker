@@ -79,13 +79,13 @@ describe('evaluateComponent — caching', () => {
   });
 });
 
-describe('evaluateComponent — 25 template regression', () => {
+describe('evaluateComponent — 30 template regression', () => {
   // The full template set must round-trip through the evaluator without
   // returning null. This is the canary for refactor regressions.
   it('all built-in templates evaluate to a non-null component', async () => {
     clearEvaluatorCache();
     const templates = await getTemplates();
-    expect(templates.length).toBe(25);
+    expect(templates.length).toBe(30);
 
     const failures: string[] = [];
     for (const tpl of templates) {
