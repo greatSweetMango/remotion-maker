@@ -11,6 +11,7 @@ import { ActiveSequenceProvider, useActiveSequence } from '@/hooks/useActiveSequ
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, Settings2, Download, LayoutGrid } from 'lucide-react';
+import { ShareButton } from '@/components/share/ShareButton';
 import type { GeneratedAsset, Template, Tier } from '@/types';
 import Link from 'next/link';
 
@@ -79,6 +80,9 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                   <LayoutGrid className="h-3.5 w-3.5" />
                   Templates
                 </Button>
+              )}
+              {state.asset.id && (
+                <ShareButton assetId={state.asset.id} size="sm" className="h-7 text-xs" />
               )}
             </>
           )}

@@ -70,6 +70,8 @@ model Asset {
   fps              Int            @default(30)
   width            Int            @default(1920)
   height           Int            @default(1080)
+  publicSlug       String?        @unique
+  sharedAt         DateTime?
   versions         AssetVersion[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
