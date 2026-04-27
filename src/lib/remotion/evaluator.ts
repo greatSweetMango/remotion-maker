@@ -1,5 +1,6 @@
 'use client';
 import * as RemotionLib from 'remotion';
+import * as LucideLib from 'lucide-react';
 import React from 'react';
 
 type RemotionComponent = React.ComponentType<Record<string, unknown>>;
@@ -29,10 +30,10 @@ export function evaluateComponent(jsCode: string): RemotionComponent | null {
   if (componentCache.has(jsCode)) return componentCache.get(jsCode)!;
 
   try {
-    // eslint-disable-next-line no-new-func
     const factory = new Function(
       'React',
       'remotion',
+      'lucide',
       `
       "use strict";
       const {
@@ -46,7 +47,7 @@ export function evaluateComponent(jsCode: string): RemotionComponent | null {
       `
     );
 
-    const Component = factory(React, RemotionLib);
+    const Component = factory(React, RemotionLib, LucideLib);
     if (typeof Component !== 'function') return null;
 
     const Wrapped: RemotionComponent = (props) => React.createElement(Component, props);

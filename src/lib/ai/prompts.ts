@@ -20,6 +20,7 @@ const PARAMS = {
   fontSize: 80,                // type: range, min: 20, max: 200, unit: px
   visible: true,               // type: boolean
   animStyle: "bounce",         // type: select, options: bounce|spring|linear
+  icon: "Star",                // type: icon  (PascalCase Lucide name; picker shows ~50 popular icons)
 } as const;
 \`\`\`
 
@@ -46,6 +47,26 @@ AVAILABLE REMOTION GLOBALS (already injected, no imports needed):
 - interpolate, interpolateColors, spring
 - AbsoluteFill, Sequence, Audio, Img, Video, OffthreadVideo
 - Easing
+
+ICONS — Lucide library (already injected as a \`lucide\` global, no imports needed):
+- When the design needs an icon (decorative or symbolic), pull it from \`lucide\`.
+- Usage pattern (NEVER write \`import ... from 'lucide-react'\` — it will be stripped):
+  \`\`\`tsx
+  const { Heart, Star, Trophy } = lucide;
+  // ...inside JSX:
+  <Heart size={64} color={primaryColor} />
+  \`\`\`
+- For user-customizable icons, expose them via PARAMS with \`// type: icon\`
+  and resolve at render time:
+  \`\`\`tsx
+  const Icon = lucide[icon] ?? lucide.Star;
+  return <Icon size={iconSize} color={primaryColor} />;
+  \`\`\`
+- Icon names are PascalCase (Heart, Star, Trophy, Sparkles, Rocket, Flame,
+  Crown, ThumbsUp, MessageCircle, ShoppingCart, ChartBar, etc.).
+- Lucide v1 renames: Home → House, Unlock → LockOpen, BarChart3 → ChartBar,
+  PieChart → ChartPie. Use the new names.
+- Prefer Lucide over emoji or inline SVG when a suitable icon exists.
 
 ANIMATION QUALITY STANDARDS:
 - Use spring() for bouncy/natural motion
