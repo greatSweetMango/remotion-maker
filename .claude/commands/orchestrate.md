@@ -176,11 +176,16 @@ Agent[
 
 각 TeamLead가 반환한 요약 JSON 처리:
 
-#### Step 5-pre: ADR 번호 충돌 회피 (PENDING → NNNN 재할당)
+#### Step 5-pre: ADR 번호 충돌 회피 (TeamLead 책임으로 이전 — 2026-04-27 변경)
 
-**문제**: 병렬 실행 중인 N개 TeamLead가 동시에 ADR을 작성할 때 같은 `NNNN`을 선택하면, Orchestrator가 main에 일괄 commit할 때 파일명/인덱스 충돌이 발생한다.
+**구버전(폐기)**: Orchestrator 가 main 에 직접 push 하던 시절, TeamLead 는 PENDING placeholder 만 작성하고 Orchestrator 가 commit 직전 NNNN 을 부여했다.
 
-**해결**: TeamLead는 NNNN을 직접 부여하지 않고 **placeholder**를 사용. Orchestrator만 main에 단일 책임으로 NNNN을 부여한다 (단일 직렬화 지점).
+**현버전**: 모든 변경(코드 + wiki + ADR)이 worktree → PR → 머지 흐름을 거치므로 Orchestrator 가 main 을 직접 만질 수 없다. ADR NNNN 부여 책임을 **TeamLead Phase D(PR 생성 직전)** 로 이전한다.
+
+- TeamLead 가 PR 생성 직전 `git fetch origin main && ls origin/main:wiki/01-pm/decisions/` 로 현재 max NNNN 확인 → `max+1` 부여 → PENDING placeholder 를 NNNN-slug 로 rename + 본문 토큰 일괄 치환 → 같은 PR 에 포함하여 push.
+- 병렬 race 시 두 PR 이 동일 NNNN 을 가질 수 있다. 첫 번째 PR 머지 후 두 번째 PR 은 자연스럽게 rebase conflict (같은 파일명) 발생 → TeamLead 또는 Orchestrator 의 머지 재시도 루프(아래 잔여 위험 처리)에서 두 번째 PR 을 다음 NNNN 으로 자동 rename 후 force push 재시도.
+
+**Orchestrator 측 잔여 책임**: 머지 직전 PR 의 ADR 파일명이 main 의 현재 max+1 와 어긋나면 자동 fixup 재시도 (아래 알고리즘은 머지 시점에 적용):
 
 **TeamLead가 보내야 하는 형식** (`prompts/team-lead.md` Phase F 참조):
 - `wiki_artifacts.adr.path` = `wiki/01-pm/decisions/PENDING-<task_id>-<slug>.md`
@@ -254,26 +259,41 @@ for s in approved_summaries:
 ```
 for summary in team_lead_summaries:
   if summary.verdict == "APPROVE":
-    # wiki artifacts main에 작성 (Step 5-pre 이후의 정규화된 path/content)
-    for artifact in summary.wiki_artifacts:
-      Write(artifact.path, artifact.content)
-    git add wiki/ .agent-state/branch-locks.json
-    git commit -m "docs(wiki): {task_id} 산출물 박제 ..."
-    git push
-
-    # PR 머지 (코드 task)
-    if summary.pr_url:
-      gh pr merge {pr_number} --squash --delete-branch
-
-    # 락 해제 + worktree 정리
-    branch-locks.json에서 entry 삭제
-    git worktree remove {worktree_path}
+    # ❌ Orchestrator 는 main 에 직접 commit/push 하지 않는다 (hook 으로 차단됨).
+    # ✅ wiki 산출물은 TeamLead 가 자기 worktree 에서 wiki/ 경로에 직접 Write,
+    #    코드 + wiki 가 함께 들어있는 단일 PR 을 생성한다 (team-lead.md Phase D 참조).
+    # Orchestrator 는 PR 머지만 수행 → 머지 시점에 코드 + wiki 가 함께 main 진입.
+    assert summary.pr_url, `${summary.task_id}: PR URL 누락 — TeamLead 가 PR 생성 안 함, escalate`
+    pr_number = parseInt(basename(summary.pr_url))
+    gh pr merge {pr_number} --squash --delete-branch
     git pull --ff-only origin main  # 머지 결과 가져오기
+
+    # 락 해제 + worktree 정리 (.agent-state/branch-locks.json 은 .gitignore 처리)
+    branch-locks.json 에서 entry 삭제 (로컬 파일, push 불필요)
+    git worktree remove {worktree_path}
 
     # Task Master 상태 갱신
     mcp__task-master-ai__set_task_status(id={task_id}, status="done")
 
     completed_count++   # 모드 종료 조건 평가용 (once/max_n)
+
+    # === Step 5-post: QA 재검증 트리거 처리 ===
+    # 머지된 task가 fix 성격이고 metadata에 triggers_requalify 가 박혀있으면
+    # 부모 QA task들을 pending 으로 되돌려 다음 iter 에서 재실행되게 함.
+    triggers = read_task_metadata(task_id, "triggers_requalify") || []
+    for parent_qa_id in triggers:
+      parent = mcp__task-master-ai__get_task(id=parent_qa_id)
+      if parent.status == "done":
+        # qa_iteration 증가 (없으면 2부터)
+        next_iter = (parent.metadata.qa_iteration || 1) + 1
+        update_task_metadata(parent_qa_id, {qa_iteration: next_iter})
+        mcp__task-master-ai__set_task_status(id=parent_qa_id, status="pending")
+        transcript: `[requalify] ${parent_qa_id} → pending (r${next_iter}) (fix=${task_id})`
+      # 이미 pending/in-progress 면 noop (다음 iter 자연 재실행)
+
+    # spawned_tasks (이 task 가 새로 만든 bug task 들) 도 transcript 만 출력 — PM 이 다음 iter 에서 fetch
+    for st in (summary.spawned_tasks || []):
+      transcript: `[spawned] ${st.id} ${st.title} (requalify→${st.triggers_requalify})`
 
   elif summary.verdict == "REQUEST_CHANGES":
     # 1 round 재실행 (loop guard 2회까지) — TeamLead가 자체 처리하지 못한 경우만 도달
@@ -305,6 +325,25 @@ wiki/02-dev/status.md 오늘 요약 갱신:
 test -f .agent-state/STOP && exit
 spend 95% 초과 && exit (경고 출력)
 loop-count > 100 && exit (사람 호출)
+
+# OpenAI 야간 QA 예산 캡 — TM-41~48 라이브 호출 누적
+openai_spend = read .agent-state/spend.json .openai_total_usd (default 0)
+if openai_spend >= 18.00:
+  write .agent-state/STOP (reason: "openai $18 cap reached")
+  transcript: `[budget] OpenAI cap hit ($${openai_spend}/$20) — STOP written`
+  exit
+
+# 같은 task N 회차 fix 누적 실패 가드 (Ralph 무한 루프 방지)
+# qa_iteration >= 5 인 부모 QA task 가 또 pending 으로 회귀하면 escalate
+for t in tasks where t.metadata.qa_iteration >= 5 and t.status == "pending":
+  mcp__task-master-ai__set_task_status(id=t.id, status="blocked")
+  transcript: `[escalate] ${t.id} qa_iteration=${t.metadata.qa_iteration} — blocked, 사람 호출`
+
+# AI QA 종료 조건 — 최종 보고서 작성됨 → STOP
+if test -f wiki/05-reports/2026-04-27-ai-qa-final.md:
+  write .agent-state/STOP (reason: "AI QA final report exists")
+  transcript: "[ai-qa] final report detected — STOP written, exit"
+  exit
 
 # 7-2) 모드별 종료 조건
 switch (mode):
