@@ -28,6 +28,7 @@ const SANDBOX_CSP = [
 ].join('; ');
 
 const config: NextConfig = {
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   serverExternalPackages: ['@remotion/renderer', '@remotion/bundler', 'sucrase'],
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
