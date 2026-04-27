@@ -11,6 +11,7 @@ import {
   INSTANT_SPEED_PRESETS,
   DEFAULT_INSTANT_SPEED,
 } from '@/lib/instant-variant';
+import { FilterBar, type Category } from '@/components/gallery/FilterBar';
 
 interface TemplatePickerProps {
   templates: Template[];
@@ -209,20 +210,39 @@ function TemplateThumb({ template, onSelect }: { template: Template; onSelect: (
 }
 
 export function TemplatePicker({ templates, onSelect }: TemplatePickerProps) {
+  const [activeCategory, setActiveCategory] = useState<Category>('all');
+
+  const filtered = useMemo(
+    () =>
+      activeCategory === 'all'
+        ? templates
+        : templates.filter(t => t.category === activeCategory),
+    [templates, activeCategory],
+  );
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0f172a', overflow: 'hidden', minWidth: 0 }}>
       <div className="px-5 pt-5 pb-3 flex-shrink-0">
         <h2 className="text-white font-semibold text-sm mb-0.5">Choose a template</h2>
         <p className="text-slate-500 text-xs">Hover to tweak color and speed instantly · click to open</p>
       </div>
+      <div className="px-5 pb-3 flex-shrink-0">
+        <FilterBar active={activeCategory} onChange={setActiveCategory} />
+      </div>
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 16px 16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, minWidth: 0 }}>
-          {templates.map(t => (
-            <div key={t.id} style={{ minWidth: 0, overflow: 'hidden' }}>
-              <TemplateThumb template={t} onSelect={() => onSelect(t)} />
-            </div>
-          ))}
-        </div>
+        {filtered.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, minWidth: 0 }}>
+            {filtered.map(t => (
+              <div key={t.id} style={{ minWidth: 0, overflow: 'hidden' }}>
+                <TemplateThumb template={t} onSelect={() => onSelect(t)} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-slate-500 text-sm">
+            No templates in this category yet
+          </div>
+        )}
       </div>
     </div>
   );
