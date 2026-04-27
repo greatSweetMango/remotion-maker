@@ -16,9 +16,40 @@
  * thus count as 2; we accept this slight over-counting because it tightens
  * the cost ceiling rather than loosening it. We do NOT trim before measuring
  * so trailing whitespace abuse is also bounded.
+ *
+ * TM-57 — also strip zero-width / invisible-format characters before the
+ * emptiness check, since `String.prototype.trim()` does not remove them.
+ * A prompt consisting only of zero-width characters previously slipped
+ * through validation (TM-45 fuzz case A4) and reached the LLM as effectively
+ * empty input. See `ZERO_WIDTH_RE` below.
  */
 
 export const MAX_PROMPT_LENGTH = 2000;
+
+/**
+ * Zero-width / invisible-format characters that JS `.trim()` does NOT strip.
+ *
+ * Built from explicit `\u` escapes so this source file stays grep-friendly
+ * and reviewable — no literal invisible characters in the repo.
+ *
+ * Coverage:
+ *  - U+200B  ZERO WIDTH SPACE
+ *  - U+200C  ZERO WIDTH NON-JOINER
+ *  - U+200D  ZERO WIDTH JOINER
+ *  - U+2060  WORD JOINER
+ *  - U+FEFF  ZERO WIDTH NO-BREAK SPACE / BOM
+ */
+const ZERO_WIDTH_RE = /[\u200B-\u200D\u2060\uFEFF]/g;
+
+/**
+ * Strip zero-width / invisible-format characters from a prompt.
+ * Exported for callers that want to forward the cleaned prompt to the LLM
+ * (callers currently still send the raw prompt; this is provided for future
+ * use and so the constant has a single canonical home).
+ */
+export function stripZeroWidth(input: string): string {
+  return input.replace(ZERO_WIDTH_RE, '');
+}
 
 export type PromptValidationError = {
   code: 'PROMPT_TOO_LONG' | 'PROMPT_REQUIRED';
@@ -31,11 +62,22 @@ export type PromptValidationError = {
 /**
  * Validate a user-supplied prompt.
  * Returns null on success, or a structured error on failure.
+ *
+ * Empty-check semantics (TM-57):
+ *   - Strip zero-width characters first, THEN `.trim()`, THEN check length.
+ *   - A prompt containing only zero-width / whitespace characters is rejected
+ *     as PROMPT_REQUIRED.
+ *
+ * Length-cap semantics:
+ *   - Compares the ORIGINAL (unstripped, untrimmed) `.length` against
+ *     MAX_PROMPT_LENGTH so a fuzzer cannot pad a near-cap prompt with
+ *     invisible characters to bypass the cap, and trailing whitespace abuse
+ *     is also bounded.
  */
 export function validatePrompt(prompt: unknown): PromptValidationError | null;
 export function validatePrompt(prompt: string | undefined): PromptValidationError | null;
 export function validatePrompt(prompt: unknown): PromptValidationError | null {
-  if (typeof prompt !== 'string' || prompt.trim().length === 0) {
+  if (typeof prompt !== 'string' || stripZeroWidth(prompt).trim().length === 0) {
     return {
       code: 'PROMPT_REQUIRED',
       message: 'Prompt required',
