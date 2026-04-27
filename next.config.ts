@@ -18,7 +18,10 @@ const SANDBOX_CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "media-src 'self' blob: https:",
+  // `data:` is required for Remotion's audio probe, which decodes silent
+  // base64 WAV stubs into <audio> elements during preview. Without it the
+  // browser logs "Refused to load media: data:audio/..." (TM-50).
+  "media-src 'self' data: blob: https:",
   "connect-src 'self' https://*.remotion.dev https://*.googleapis.com",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
