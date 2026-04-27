@@ -12,6 +12,7 @@ import {
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
+import { classifyRefusal, AiRefusalError } from './refusal';
 import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
 
 export interface GenerateOptions {
@@ -213,6 +214,14 @@ async function generateOnce(
 
   const parsed = extractJson(text);
   if (!parsed || typeof parsed !== 'object') {
+    // TM-59 — when the LLM refuses an adversarial / unsafe prompt it tends
+    // to emit prose ("I'm sorry, I can't help with that.") instead of the
+    // requested JSON. Reflect the actual cause to the user rather than the
+    // misleading "AI did not return valid JSON".
+    const classification = classifyRefusal(text);
+    if (classification.category !== 'unknown') {
+      throw new AiRefusalError(classification);
+    }
     throw new Error('AI did not return valid JSON');
   }
 
