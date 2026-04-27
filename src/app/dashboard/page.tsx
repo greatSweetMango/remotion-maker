@@ -6,9 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Zap, Plus, Sparkles, Download, Clock } from 'lucide-react';
+import { Zap, Plus, Sparkles, Download } from 'lucide-react';
 import { TIER_LIMITS } from '@/lib/usage';
+import { AssetGrid } from '@/components/dashboard/AssetGrid';
 import type { Tier } from '@/types';
+
+const PAGE_SIZE = 24;
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,17 +19,20 @@ export default async function DashboardPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: {
-      assets: {
-        orderBy: { updatedAt: 'desc' },
-        take: 20,
-        include: { _count: { select: { versions: true } } },
-      },
-      subscription: true,
-    },
+    include: { subscription: true },
   });
 
   if (!user) redirect('/login');
+
+  const [totalAssets, initialAssets] = await Promise.all([
+    prisma.asset.count({ where: { userId: user.id } }),
+    prisma.asset.findMany({
+      where: { userId: user.id },
+      orderBy: { updatedAt: 'desc' },
+      take: PAGE_SIZE,
+      include: { _count: { select: { versions: true } } },
+    }),
+  ]);
 
   const tier = user.tier as Tier;
   const limit = TIER_LIMITS[tier].monthlyGenerations;
@@ -34,6 +40,22 @@ export default async function DashboardPage() {
 
   const resetDate = new Date(user.usageResetAt);
   const nextReset = new Date(resetDate.getFullYear(), resetDate.getMonth() + 1, 1);
+
+  const initialPagination = {
+    page: 1,
+    pageSize: PAGE_SIZE,
+    total: totalAssets,
+    totalPages: Math.max(1, Math.ceil(totalAssets / PAGE_SIZE)),
+  };
+
+  // Convert Date → string for client component serialization stability.
+  const serializedAssets = initialAssets.map((a) => ({
+    id: a.id,
+    title: a.title,
+    createdAt: a.createdAt.toISOString(),
+    updatedAt: a.updatedAt.toISOString(),
+    _count: a._count,
+  }));
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -94,7 +116,7 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{user.assets.length}</div>
+              <div className="text-2xl font-bold text-white">{totalAssets}</div>
               <p className="text-xs text-slate-500 mt-1.5">animations created</p>
             </CardContent>
           </Card>
@@ -125,42 +147,11 @@ export default async function DashboardPage() {
 
         <div>
           <h2 className="text-lg font-semibold text-white mb-4">Your Animations</h2>
-
-          {user.assets.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-slate-700 rounded-xl">
-              <Sparkles className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 mb-4">No animations yet</p>
-              <Button asChild className="bg-violet-600 hover:bg-violet-700">
-                <Link href="/studio">Create your first animation</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {user.assets.map(asset => (
-                <Link
-                  key={asset.id}
-                  href={`/studio?asset=${asset.id}`}
-                  className="group bg-slate-800/50 rounded-xl border border-slate-700 hover:border-violet-500 transition-all p-4"
-                >
-                  <div className="aspect-video bg-slate-900 rounded-lg mb-3 flex items-center justify-center">
-                    <Sparkles className="h-8 w-8 text-slate-600 group-hover:text-violet-400 transition-colors" />
-                  </div>
-                  <h3 className="text-white text-sm font-medium truncate">{asset.title}</h3>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(asset.updatedAt).toLocaleDateString()}
-                    </span>
-                    {asset._count.versions > 1 && (
-                      <Badge variant="outline" className="text-[10px] border-slate-600 text-slate-400 py-0">
-                        v{asset._count.versions}
-                      </Badge>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <AssetGrid
+            initialAssets={serializedAssets}
+            initialPagination={initialPagination}
+            tier={tier}
+          />
         </div>
       </div>
     </div>
