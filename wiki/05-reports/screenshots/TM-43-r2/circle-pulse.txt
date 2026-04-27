@@ -1,0 +1,11 @@
+# TM-43-r2 CSP revalidation snapshot
+template_id: circle-pulse
+url: /studio?template=circle-pulse
+http_status: 307
+verdict: OK
+
+## Response headers
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://*.remotion.dev https://*.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+X-Frame-Options: DENY
