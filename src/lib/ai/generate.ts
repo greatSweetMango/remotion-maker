@@ -4,7 +4,11 @@ import {
   GENERATION_NON_EMPTY_REINFORCEMENT,
   buildTranspileRetryReinforcement,
 } from './prompts';
-import { scoreConcreteness, FORCE_GENERATE_REINFORCEMENT } from './clarify-gate';
+import {
+  scoreConcreteness,
+  FORCE_GENERATE_REINFORCEMENT,
+  buildEntityCountReinforcement,
+} from './clarify-gate';
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
@@ -311,7 +315,43 @@ export async function generateAsset(
         opts,
         GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + FORCE_GENERATE_REINFORCEMENT,
       );
-      if (forced.kind === 'response') return forced.value;
+      if (forced.kind === 'response') {
+        // TM-68 — the LLM may obey on flow-control yet still emit clarify.
+        // When the prompt carries an explicit entity count, that's
+        // unacceptable: do one final hardened retry quoting the count back.
+        if (
+          forced.value.type === 'clarify' &&
+          report.forceSkipClarify &&
+          report.entityCount > 0
+        ) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(
+              '[generateAsset] entity-count override (TM-68): forced retry still returned clarify',
+              { entityCount: report.entityCount, hits: report.hits },
+            );
+          }
+          const hardened = await generateOnce(
+            prompt,
+            model,
+            opts,
+            GENERATION_WITH_CLARIFY_SYSTEM_PROMPT +
+              FORCE_GENERATE_REINFORCEMENT +
+              buildEntityCountReinforcement(report.entityCount),
+          );
+          if (hardened.kind === 'response') {
+            // Surface whatever this is — generate or (last-resort) clarify.
+            return hardened.value;
+          }
+          if (hardened.kind === 'transpile_error') {
+            throw new Error(
+              `AI entity-count retry produced TSX that failed to transpile (${hardened.errorMessage}). ` +
+                'Please rephrase your prompt and try again.',
+            );
+          }
+          return generateAssetPlaceholderRetry(prompt, model, opts, hardened);
+        }
+        return forced.value;
+      }
       // TM-67: forced retry transpile failure — surface error rather than
       // falling through to placeholder retry (type narrowing requirement).
       if (forced.kind === 'transpile_error') {
