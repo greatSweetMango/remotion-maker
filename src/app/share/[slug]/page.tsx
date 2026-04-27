@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Zap } from 'lucide-react';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
 import { SharePlayer } from '@/components/share/SharePlayer';
+import { ForkButton } from '@/components/share/ForkButton';
 import type { Parameter, Tier } from '@/types';
 import type { Metadata } from 'next';
 
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function SharePage({ params }: PageProps) {
   const { slug } = await params;
-  const asset = await loadShared(slug);
+  const [asset, session] = await Promise.all([loadShared(slug), auth()]);
   if (!asset) notFound();
 
   let parameters: Parameter[] = [];
@@ -62,6 +64,7 @@ export default async function SharePage({ params }: PageProps) {
 
   const tier = (asset.user?.tier as Tier | undefined) ?? 'FREE';
   const watermark = tier !== 'PRO';
+  const isAuthenticated = Boolean(session?.user?.id);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -91,17 +94,24 @@ export default async function SharePage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="text-center">
-          <p className="text-sm text-slate-400 mb-2">
-            Want to make your own?
+        <div className="text-center flex flex-col items-center gap-3">
+          <p className="text-sm text-slate-400">
+            Like it? Make it yours.
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium"
-          >
-            <Zap className="h-4 w-4" />
-            Try EasyMake
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <ForkButton
+              slug={slug}
+              isAuthenticated={isAuthenticated}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            />
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-slate-700 hover:bg-slate-800 text-slate-200 text-sm font-medium"
+            >
+              <Zap className="h-4 w-4" />
+              Try EasyMake
+            </Link>
+          </div>
         </div>
       </main>
     </div>
