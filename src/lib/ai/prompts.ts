@@ -89,7 +89,8 @@ CRITICAL JSON SERIALIZATION RULES (failure here breaks the whole pipeline):
 - NEVER use backticks (\`) to wrap the code value — backticks are not valid JSON.
 - Inside the "code" string, escape every newline as \\n, every double quote as \\", and every backslash as \\\\.
 - Do NOT wrap the JSON in markdown code fences (no \`\`\`json ... \`\`\` around the response).
-- The response body must be exactly one JSON object and nothing else (no leading prose).`;
+- The response body must be exactly one JSON object and nothing else (no leading prose).
+- Respond strictly in JSON. The entire response is parsed by JSON.parse — any non-JSON characters break the pipeline.`;
 
 /**
  * GEN-06 clarifying questions — single LLM call decides clarify vs generate.

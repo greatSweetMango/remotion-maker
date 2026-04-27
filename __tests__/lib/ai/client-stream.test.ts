@@ -102,6 +102,81 @@ describe('chatCompleteStream', () => {
     expect(result.firstTokenMs).toBeGreaterThanOrEqual(0);
   });
 
+  // TM-69 — OpenAI must be called with response_format=json_object, and the
+  // streamed payload must round-trip through JSON.parse for downstream
+  // consumers (generate / edit pipelines). A non-JSON body is treated as an
+  // error by callers — we assert that posture here at the seam.
+  describe('TM-69 OpenAI JSON response_format', () => {
+    it('passes response_format=json_object to OpenAI', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      process.env.OPENAI_API_KEY = 'sk-test';
+      openaiCreate.mockResolvedValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'sys mentioning JSON output',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      expect(openaiCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ response_format: { type: 'json_object' } }),
+      );
+    });
+
+    it('reinforces system prompt when "json" keyword is missing', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      process.env.OPENAI_API_KEY = 'sk-test';
+      openaiCreate.mockResolvedValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'You are a helpful assistant.',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      const callArgs = openaiCreate.mock.calls[0][0];
+      const sysMessage = callArgs.messages.find(
+        (m: { role: string }) => m.role === 'system',
+      );
+      expect(sysMessage.content).toMatch(/json/i);
+    });
+
+    it('parses a valid JSON streamed body end-to-end', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      openaiCreate.mockResolvedValue(
+        asAsync([
+          { choices: [{ delta: { content: '{"title":"x"' } }] },
+          { choices: [{ delta: { content: ',"durationInFrames":150}' } }] },
+        ]),
+      );
+      const result = await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'respond JSON',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      expect(() => JSON.parse(result.text)).not.toThrow();
+      expect(JSON.parse(result.text)).toEqual({
+        title: 'x',
+        durationInFrames: 150,
+      });
+    });
+
+    it('non-JSON streamed body is rejected by JSON.parse (caller surfaces error)', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      openaiCreate.mockResolvedValue(
+        asAsync([
+          { choices: [{ delta: { content: 'Sorry, I cannot help with that.' } }] },
+        ]),
+      );
+      const result = await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'respond JSON',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      expect(() => JSON.parse(result.text)).toThrow();
+    });
+  });
+
   it('returns sane firstTokenMs even when no tokens were emitted', async () => {
     process.env.AI_PROVIDER = 'openai';
     openaiCreate.mockResolvedValue(asAsync([]));
