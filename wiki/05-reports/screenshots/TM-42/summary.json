@@ -1,0 +1,66 @@
+{
+  "startedAt": "2026-04-27T14:50:45.602Z",
+  "finishedAt": "2026-04-27T14:51:32.049Z",
+  "provider": "openai",
+  "cacheStrategy": "N/A (OpenAI Chat Completions does not expose explicit cache_control; ADR-0003 currently inactive in this provider mode)",
+  "totals": {
+    "sets": 2,
+    "completedSets": 2,
+    "failedGenerate": 0,
+    "editAttempts": 6,
+    "editOk": 6
+  },
+  "paramsPreservation": {
+    "paramsLossZeroRate": 1,
+    "unintendedChangeZeroRate": 1,
+    "totalLostKeys": 0,
+    "totalUnintendedChanges": 0
+  },
+  "latency": {
+    "generate": {
+      "n": 2,
+      "avgMs": 4878,
+      "p50Ms": 5019,
+      "p95Ms": 5019,
+      "minMs": 4736,
+      "maxMs": 5019
+    },
+    "edit_color": {
+      "n": 2,
+      "avgMs": 4857,
+      "p50Ms": 5030,
+      "p95Ms": 5030,
+      "minMs": 4683,
+      "maxMs": 5030
+    },
+    "edit_scene": {
+      "n": 2,
+      "avgMs": 7062,
+      "p50Ms": 8162,
+      "p95Ms": 8162,
+      "minMs": 5961,
+      "maxMs": 8162
+    },
+    "edit_speed": {
+      "n": 2,
+      "avgMs": 6423,
+      "p50Ms": 6451,
+      "p95Ms": 6451,
+      "minMs": 6395,
+      "maxMs": 6451
+    },
+    "edit_overall": {
+      "n": 6,
+      "avgMs": 6114,
+      "p50Ms": 6395,
+      "p95Ms": 8162,
+      "minMs": 4683,
+      "maxMs": 8162
+    }
+  },
+  "acceptance": {
+    "cacheHitRateGte80": "N/A (OpenAI provider)",
+    "paramsLossZero": true,
+    "unintendedChangeZero": true
+  }
+}
