@@ -1,0 +1,381 @@
+{
+  "startedAt": "2026-04-27T14:51:39.600Z",
+  "provider": "openai",
+  "results": [
+    {
+      "setId": "set-01",
+      "seed": "Animated counter from 0 to 100 with spring effect, blue color",
+      "generate": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 6250,
+        "error": null
+      },
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 4901,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#0000FF\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "preservedCount": 4,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1205,
+          "codeBytesAfter": 1205
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5658,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [
+              "fadeOutDuration"
+            ],
+            "changedCount": 0,
+            "changed": [],
+            "preservedCount": 5,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1205,
+          "codeBytesAfter": 1803
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5834,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "preservedCount": 5,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1803,
+          "codeBytesAfter": 1803
+        }
+      ]
+    },
+    {
+      "setId": "set-02",
+      "seed": "빨간 카운터 0~100, 3초",
+      "generate": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 4121,
+        "error": null
+      },
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 3724,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#FF0000\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "preservedCount": 4,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1045,
+          "codeBytesAfter": 1044
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6222,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [
+              "fadeDuration",
+              "endText"
+            ],
+            "changedCount": 0,
+            "changed": [],
+            "preservedCount": 5,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1044,
+          "codeBytesAfter": 1716
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7245,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "preservedCount": 6,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1716,
+          "codeBytesAfter": 1754
+        }
+      ]
+    },
+    {
+      "setId": "set-03",
+      "seed": "Comic book POW! text exploding outward",
+      "generate": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 4927,
+        "error": null
+      },
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5477,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#FFD700\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "preservedCount": 4,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1337,
+          "codeBytesAfter": 1337
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7319,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [
+              "endTitle",
+              "fadeOutDuration"
+            ],
+            "changedCount": 0,
+            "changed": [],
+            "preservedCount": 5,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1337,
+          "codeBytesAfter": 2075
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7398,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1",
+                "after": "1.5"
+              }
+            ],
+            "preservedCount": 6,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 2075,
+          "codeBytesAfter": 2087
+        }
+      ]
+    },
+    {
+      "setId": "set-04",
+      "seed": "Slide transition from left to right, two colored panels",
+      "generate": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 6290,
+        "error": null
+      },
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 4805,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#FF5733\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "preservedCount": 2,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1620,
+          "codeBytesAfter": 1594
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9590,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [
+              "newSceneDuration",
+              "endTitle"
+            ],
+            "changedCount": 0,
+            "changed": [],
+            "preservedCount": 3,
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeBytesBefore": 1594,
+          "codeBytesAfter": 2662
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8523,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "addedKeys": [],
+            "changedCount": 2,
+            "changed": [
+              {
+                "key": "transitionDuration",
+                "before": "2",
+                "after": "1.3333"
+              },
+              {
+                "key": "newSceneDuration",
+                "before": "2",
+                "after": "1.3333"
+              }
+            ],
+            "preservedCount": 3,
+            "unintendedCount": 2,
+            "unintendedChanges": [
+              {
+                "key": "transitionDuration",
+                "before": "2",
+                "after": "1.3333"
+              },
+              {
+                "key": "newSceneDuration",
+                "before": "2",
+                "after": "1.3333"
+              }
+            ]
+          },
+          "codeBytesBefore": 2662,
+          "codeBytesAfter": 2648
+        }
+      ]
+    }
+  ]
+}
