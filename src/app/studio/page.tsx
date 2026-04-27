@@ -33,8 +33,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       };
     }
   } else if (params.asset) {
-    const asset = await prisma.asset.findUnique({
-      where: { id: params.asset, userId: session.user.id },
+    const asset = await prisma.asset.findFirst({
+      where: { id: params.asset, userId: session.user.id, deletedAt: null },
     });
     if (asset) {
       initialAsset = {

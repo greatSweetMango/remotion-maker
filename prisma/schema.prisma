@@ -96,6 +96,10 @@ model Asset {
   height           Int            @default(1080)
   publicSlug       String?        @unique
   sharedAt         DateTime?
+  // Soft delete — when set, the asset is in the user's trash and excluded from
+  // normal listings. Hard delete happens on explicit "Delete forever" or via
+  // lazy cleanup of items older than 30 days on next /trash fetch (TM-18).
+  deletedAt        DateTime?
   // Fork lineage — when an Asset is created via "Use as starting point" from
   // a public /share/<slug> link, this points back to the original Asset.id.
   // Optional self-relation; null for organically-created assets.
@@ -108,6 +112,7 @@ model Asset {
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sourceAssetId])
+  @@index([userId, deletedAt])
 }
 
 model AssetVersion {

@@ -17,8 +17,8 @@ interface PageProps {
 }
 
 async function loadShared(slug: string) {
-  return prisma.asset.findUnique({
-    where: { publicSlug: slug },
+  return prisma.asset.findFirst({
+    where: { publicSlug: slug, deletedAt: null },
     select: {
       id: true,
       title: true,

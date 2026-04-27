@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Zap, Plus, Sparkles, Download } from 'lucide-react';
+import { Zap, Plus, Sparkles, Download, Trash2 } from 'lucide-react';
 import { TIER_LIMITS } from '@/lib/usage';
 import { AssetGrid } from '@/components/dashboard/AssetGrid';
 import type { Tier } from '@/types';
@@ -25,9 +25,9 @@ export default async function DashboardPage() {
   if (!user) redirect('/login');
 
   const [totalAssets, initialAssets] = await Promise.all([
-    prisma.asset.count({ where: { userId: user.id } }),
+    prisma.asset.count({ where: { userId: user.id, deletedAt: null } }),
     prisma.asset.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, deletedAt: null },
       orderBy: { updatedAt: 'desc' },
       take: PAGE_SIZE,
       include: { _count: { select: { versions: true } } },
@@ -65,6 +65,12 @@ export default async function DashboardPage() {
           <span className="font-bold text-white">EasyMake</span>
         </Link>
         <div className="ml-auto flex items-center gap-3">
+          <Button asChild variant="outline" className="border-slate-700 text-slate-300">
+            <Link href="/trash">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Trash
+            </Link>
+          </Button>
           <Button asChild className="bg-violet-600 hover:bg-violet-700">
             <Link href="/studio">
               <Plus className="h-4 w-4 mr-2" />

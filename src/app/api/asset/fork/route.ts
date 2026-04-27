@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const source = await prisma.asset.findUnique({
-    where: { publicSlug: slug },
+  const source = await prisma.asset.findFirst({
+    where: { publicSlug: slug, deletedAt: null },
     select: {
       id: true,
       title: true,

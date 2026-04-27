@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const dateFrom = sp.get('dateFrom');
   const dateTo = sp.get('dateTo');
 
-  const where: Prisma.AssetWhereInput = { userId: session.user.id };
+  const where: Prisma.AssetWhereInput = { userId: session.user.id, deletedAt: null };
   if (search) {
     where.title = { contains: search };
   }
