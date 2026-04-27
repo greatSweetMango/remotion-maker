@@ -41,6 +41,32 @@ export function ParameterControl({ param, value, onChange, locked }: ParameterCo
   return <ControlContent param={param} value={value} onChange={onChange} />;
 }
 
+/**
+ * Clamp a numeric value to the param's [min, max] range. Returns 0 (or `min`
+ * if defined) for non-finite inputs — the LLM-emitted PARAMS spec drives the
+ * range, so falling back to a defined min preserves valid component props.
+ *
+ * TM-44: prevents NaN / negative-when-min-is-0 / out-of-range values from
+ * propagating to Player `inputProps`, which would make Remotion components
+ * render garbage frames or throw.
+ */
+function clampNumber(n: unknown, min?: number, max?: number): number {
+  const fallback = typeof min === 'number' ? min : 0;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return fallback;
+  let v = n;
+  if (typeof min === 'number' && v < min) v = min;
+  if (typeof max === 'number' && v > max) v = max;
+  return v;
+}
+
+/**
+ * Allow only #RGB / #RRGGBB hex codes. Anything else (XSS payloads, plain
+ * names, gibberish) is rejected — caller keeps the prior valid value.
+ */
+function isValidHexColor(s: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s);
+}
+
 function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 'locked'>) {
   return (
     <div className="space-y-1.5">
@@ -61,7 +87,14 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
             <HexColorPicker color={value as string} onChange={onChange} />
             <Input
               value={value as string}
-              onChange={e => onChange(e.target.value)}
+              onChange={e => {
+                const next = e.target.value;
+                // Accept any in-progress typing for UX (so users can clear & retype),
+                // but only commit a value to upstream state when it's a real hex.
+                // Empty / partial input keeps the previous state; invalid (e.g. XSS,
+                // 'red', random text) is dropped at the boundary.
+                if (next === '' || isValidHexColor(next)) onChange(next);
+              }}
               className="mt-2 bg-slate-700 border-slate-600 text-white font-mono text-xs"
               placeholder="#000000"
             />
@@ -75,8 +108,8 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
             min={param.min ?? 0}
             max={param.max ?? 100}
             step={param.step ?? 0.1}
-            value={[value as number]}
-            onValueChange={([v]) => onChange(v)}
+            value={[clampNumber(value as number, param.min, param.max)]}
+            onValueChange={([v]) => onChange(clampNumber(v, param.min, param.max))}
             className="flex-1"
           />
           <div className="flex items-center gap-1">
@@ -86,7 +119,14 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
               min={param.min}
               max={param.max}
               step={param.step ?? 0.1}
-              onChange={e => onChange(parseFloat(e.target.value) || 0)}
+              onChange={e => {
+                const raw = e.target.value;
+                // Allow empty buffer while user is mid-edit; don't propagate NaN.
+                if (raw === '' || raw === '-') return;
+                const n = parseFloat(raw);
+                if (!Number.isFinite(n)) return; // reject NaN/Infinity
+                onChange(clampNumber(n, param.min, param.max));
+              }}
               className="w-20 bg-slate-700 border-slate-600 text-white text-xs text-center"
             />
             {param.unit && <span className="text-xs text-slate-500">{param.unit}</span>}
