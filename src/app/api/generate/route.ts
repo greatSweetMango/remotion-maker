@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
 import { generateAsset } from '@/lib/ai/generate';
+import { AiRefusalError } from '@/lib/ai/refusal';
 import { getModels } from '@/lib/ai/client';
 import { checkGenerationLimit } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
@@ -101,6 +102,18 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ type: 'generate', asset: { ...asset, id: dbAsset.id } });
   } catch (error: unknown) {
+    // TM-59 — adversarial / safety / policy refusals surface as 400 with a
+    // category code so the UI can show a clearer toast. We do NOT consume
+    // monthly quota for these (no asset was created above this point).
+    if (error instanceof AiRefusalError) {
+      console.warn(
+        `[generate] refusal category=${error.category} hint=${error.matchedHint ?? '-'} tier=${user.tier}`,
+      );
+      return NextResponse.json(
+        { error: error.message, code: error.code, category: error.category },
+        { status: 400 },
+      );
+    }
     console.error('Generation error:', error);
     const msg = error instanceof Error ? error.message : 'Generation failed';
     return NextResponse.json({ error: msg }, { status: 500 });
