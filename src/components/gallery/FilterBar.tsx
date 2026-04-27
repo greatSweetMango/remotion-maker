@@ -8,6 +8,9 @@ const CATEGORIES = [
   { id: 'chart', label: 'Charts' },
   { id: 'background', label: 'Background' },
   { id: 'logo', label: 'Logo' },
+  { id: 'transition', label: 'Transitions' },
+  { id: 'infographic', label: 'Infographics' },
+  { id: 'composition', label: 'Compositions' },
 ] as const;
 
 export type Category = typeof CATEGORIES[number]['id'];
