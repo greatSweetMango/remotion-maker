@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus } from 'lucide-react';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
+import { HistoryGraph } from './HistoryGraph';
 import { TIER_LIMITS } from '@/lib/usage';
 import {
   CATEGORY_LABELS,
@@ -143,6 +144,7 @@ export function PromptPanel({
   const [modeOverride, setModeOverride] = useState<PromptMode | null>(null);
   const mode = effectiveMode(hasAsset, modeOverride);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyView, setHistoryView] = useState<'list' | 'graph'>('graph');
   const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -283,15 +285,34 @@ export function PromptPanel({
 
       {versions.length > 1 && (
         <div className="border-b border-slate-700">
-          <button
-            onClick={() => setShowHistory(v => !v)}
-            className="flex items-center gap-2 w-full px-4 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Version history ({versions.length})
-            {showHistory ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
-          </button>
-          {showHistory && (
+          <div className="flex items-center gap-1 px-1">
+            <button
+              onClick={() => setShowHistory(v => !v)}
+              className="flex-1 flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors rounded"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Version history ({versions.length})
+              {showHistory ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+            </button>
+            {showHistory && (
+              <button
+                onClick={() => setHistoryView(v => v === 'graph' ? 'list' : 'graph')}
+                className="px-2 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors rounded"
+                aria-label={`Switch to ${historyView === 'graph' ? 'list' : 'graph'} view`}
+                title={`Switch to ${historyView === 'graph' ? 'list' : 'graph'} view`}
+              >
+                {historyView === 'graph' ? <List className="h-3.5 w-3.5" /> : <GitBranch className="h-3.5 w-3.5" />}
+              </button>
+            )}
+          </div>
+          {showHistory && historyView === 'graph' && (
+            <HistoryGraph
+              versions={versions}
+              currentVersionIndex={currentVersionIndex}
+              onRestoreVersion={onRestoreVersion}
+            />
+          )}
+          {showHistory && historyView === 'list' && (
             <ScrollArea className="max-h-48">
               {[...versions].reverse().map((version, reversedIdx) => {
                 const idx = versions.length - 1 - reversedIdx;
