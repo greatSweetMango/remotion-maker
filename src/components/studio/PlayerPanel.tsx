@@ -3,9 +3,11 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
 import { evaluateComponent } from '@/lib/remotion/evaluator';
 import { Badge } from '@/components/ui/badge';
-import { Play, Grid3x3 } from 'lucide-react';
+import { Play, Grid3x3, Gauge } from 'lucide-react';
 import type { GeneratedAsset } from '@/types';
 import { useActiveSequenceOptional } from '@/hooks/useActiveSequence';
+import { useFpsMonitor } from '@/hooks/useFpsMonitor';
+import { pickDownsample } from '@/lib/perf/fps-sampler';
 
 interface PlayerPanelProps {
   asset: GeneratedAsset | null;
@@ -20,10 +22,31 @@ const BACKGROUNDS = [
   { label: 'Checker', value: 'checker' },
 ];
 
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelProps) {
   const [bg, setBg] = useState('#0f0f0f');
   const playerRef = useRef<PlayerRef>(null);
   const sequenceCtx = useActiveSequenceOptional();
+
+  // Auto-downsample is on by default; user can force original via toggle.
+  const [autoDownsample, setAutoDownsample] = useState(true);
+
+  // Once we've decided to downsample, we *stick* with it for this asset so
+  // the act of downsampling (which restores fps) doesn't immediately undo
+  // the decision, causing oscillation. Stored as `[assetId, latched]` so we
+  // can reset during render when the asset changes (avoids setState-in-effect).
+  const [latchState, setLatchState] = useState<{ assetId: string | null; latched: boolean }>({
+    assetId: null,
+    latched: false,
+  });
+  const downsampleLatched = latchState.assetId === (asset?.id ?? null) && latchState.latched;
+  if (asset && latchState.assetId !== asset.id) {
+    // Render-phase reset is safe: we only update state during render when the
+    // current value disagrees with derived input, matching React's "store info
+    // from previous render" pattern.
+    setLatchState({ assetId: asset.id, latched: false });
+  }
 
   // Register the player ref with the active-sequence context (if any) once it mounts.
   useEffect(() => {
@@ -36,6 +59,44 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
     if (!asset?.jsCode) return null;
     return evaluateComponent(asset.jsCode);
   }, [asset?.jsCode]);
+
+  // Only run the FPS monitor when there's something playing.
+  const fpsState = useFpsMonitor({ enabled: Boolean(Component && asset && !isGenerating) });
+
+  // Compute the effective composition dims. Decision flow:
+  //   1. user disabled auto → original dims always.
+  //   2. already latched → use downsampled dims.
+  //   3. monitor says isLow → latch and downsample (if possible).
+  const effectiveAsset = useMemo(() => {
+    if (!asset) return null;
+    if (!autoDownsample) {
+      return { fps: asset.fps, width: asset.width, height: asset.height };
+    }
+    if (downsampleLatched) {
+      const ds = pickDownsample(asset);
+      return ds ?? { fps: asset.fps, width: asset.width, height: asset.height };
+    }
+    return { fps: asset.fps, width: asset.width, height: asset.height };
+  }, [asset, autoDownsample, downsampleLatched]);
+
+  // Latch when monitor reports low fps and we *can* downsample.
+  // setState-in-effect is intentional here: the FPS monitor is an external
+  // signal source (RAF measurements) and we are translating its state into
+  // React state. Conditions short-circuit so this fires at most once per
+  // asset, guarding against cascading renders.
+  useEffect(() => {
+    if (!autoDownsample) return;
+    if (downsampleLatched) return;
+    if (!asset) return;
+    if (!fpsState.isLow) return;
+    if (pickDownsample(asset) === null) return; // already at floor
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLatchState({ assetId: asset.id, latched: true });
+  }, [autoDownsample, downsampleLatched, asset, fpsState.isLow]);
+
+  const isDownsampling = autoDownsample && downsampleLatched && asset
+    ? pickDownsample(asset) !== null
+    : false;
 
   const backgroundStyle: React.CSSProperties = bg === 'checker'
     ? {
@@ -52,10 +113,50 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
         <span className="text-xs text-slate-400 font-medium flex-1 truncate">
           {asset?.title || 'Preview'}
         </span>
-        {asset && (
+        {asset && effectiveAsset && (
           <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
-            {asset.fps}fps · {(asset.durationInFrames / asset.fps).toFixed(1)}s
+            {effectiveAsset.fps}fps · {(asset.durationInFrames / asset.fps).toFixed(1)}s
+            {isDownsampling && (
+              <span className="ml-1 text-amber-400" title="Auto-downsampled for smoother playback">
+                · ds
+              </span>
+            )}
           </Badge>
+        )}
+        {IS_DEV && fpsState.fps !== null && (
+          <Badge
+            variant="outline"
+            className={`text-xs border-slate-600 ${fpsState.isLow ? 'text-amber-400' : 'text-emerald-400'}`}
+            title={`Measured render fps (sample n=${fpsState.sampleCount})`}
+            data-testid="fps-monitor-badge"
+          >
+            <Gauge className="h-3 w-3 mr-1" />
+            {Math.round(fpsState.fps)}
+          </Badge>
+        )}
+        {asset && (
+          <button
+            type="button"
+            onClick={() => {
+              setAutoDownsample((v) => !v);
+              // Flipping the toggle resets the latched decision so the next
+              // measurement window can re-evaluate.
+              setLatchState({ assetId: asset?.id ?? null, latched: false });
+            }}
+            className={`text-xs px-2 py-0.5 rounded border ${
+              autoDownsample
+                ? 'border-violet-500 text-violet-300'
+                : 'border-slate-600 text-slate-400'
+            }`}
+            title={
+              autoDownsample
+                ? 'Auto-downsample enabled — click to force original quality'
+                : 'Forcing original quality — click to enable auto-downsample'
+            }
+            data-testid="fps-downsample-toggle"
+          >
+            {autoDownsample ? 'Auto' : 'Original'}
+          </button>
         )}
         <div className="flex gap-1 ml-2">
           {BACKGROUNDS.map(b => (
@@ -81,17 +182,20 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
             <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
             <span className="text-slate-400 text-sm">Generating animation...</span>
           </div>
-        ) : Component && asset ? (
+        ) : Component && asset && effectiveAsset ? (
           <div className="w-full h-full flex items-center justify-center">
             <div style={{ width: '100%', maxWidth: '100%', aspectRatio: `${asset.width}/${asset.height}` }}>
               <Player
                 ref={playerRef}
                 component={Component as React.ComponentType<Record<string, unknown>>}
                 inputProps={paramValues}
-                durationInFrames={asset.durationInFrames}
-                fps={asset.fps}
-                compositionWidth={asset.width}
-                compositionHeight={asset.height}
+                durationInFrames={Math.max(
+                  1,
+                  Math.round((asset.durationInFrames / asset.fps) * effectiveAsset.fps),
+                )}
+                fps={effectiveAsset.fps}
+                compositionWidth={effectiveAsset.width}
+                compositionHeight={effectiveAsset.height}
                 style={{ width: '100%', height: '100%' }}
                 autoPlay
                 loop
