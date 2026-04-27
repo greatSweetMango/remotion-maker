@@ -13,6 +13,13 @@ export interface Parameter {
   step?: number;
   unit?: string;
   options?: string[];
+  /**
+   * Sequence ids this parameter belongs to. `['global']` means always shown.
+   * Optional — when absent, sequence-filtering falls back to a key-prefix
+   * heuristic (`inferParamSequences`). Populated by `extractParameters` from
+   * `// sequence: a|b|global` annotations on the PARAMS line.
+   */
+  sequenceIds?: string[];
 }
 
 export interface GeneratedAsset {

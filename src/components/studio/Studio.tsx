@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { PromptPanel } from './PromptPanel';
 import { PlayerPanel } from './PlayerPanel';
@@ -7,6 +7,7 @@ import { CustomizePanel } from './CustomizePanel';
 import { ExportPanel } from './ExportPanel';
 import { TemplatePicker } from './TemplatePicker';
 import { useStudio } from '@/hooks/useStudio';
+import { ActiveSequenceProvider, useActiveSequence } from '@/hooks/useActiveSequence';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, Settings2, Download, LayoutGrid } from 'lucide-react';
@@ -35,7 +36,13 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
+  // Sequence-aware sidebar context (TM-28). Source defaults to original code;
+  // jsCode also works because the transpiler preserves Sequence JSX/createElement
+  // calls — but TS source has clearer regex-able `<Sequence ...>` tags.
+  const sequenceSource = state.asset?.code ?? null;
+
   return (
+    <ActiveSequenceProvider source={sequenceSource}>
     <div className="flex flex-col h-screen bg-slate-950 overflow-hidden"style={{ maxWidth: '100vw' }}>
       <header className="flex items-center gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900 flex-shrink-0">
         <Link href="/" className="flex items-center gap-1.5">
@@ -227,6 +234,47 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
           ))}
         </div>
       </div>
+      <SequenceHotkeys />
     </div>
+    </ActiveSequenceProvider>
   );
+}
+
+/**
+ * Keyboard shortcuts for sequence navigation:
+ *   - `A` toggles "All" mode (show every parameter regardless of segment)
+ *   - `1`–`9` jumps the Player to sequence 1–9 (and selects it)
+ *   - `Esc` resumes auto-follow (clears explicit selection)
+ * Disabled when focus is inside an editable element.
+ */
+function SequenceHotkeys() {
+  const { segments, toggleAllMode, seekToSequence, resumeAutoFollow } = useActiveSequence();
+  useEffect(() => {
+    if (segments.length <= 1) return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const editable = target?.isContentEditable;
+      if (editable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        toggleAllMode();
+        return;
+      }
+      if (e.key === 'Escape') {
+        resumeAutoFollow();
+        return;
+      }
+      const num = parseInt(e.key, 10);
+      if (!Number.isNaN(num) && num >= 1 && num <= 9 && segments[num - 1]) {
+        e.preventDefault();
+        seekToSequence(segments[num - 1].id);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [segments, toggleAllMode, seekToSequence, resumeAutoFollow]);
+  return null;
 }

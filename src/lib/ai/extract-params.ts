@@ -21,6 +21,11 @@ export function extractParameters(code: string): Parameter[] {
     const maxMatch = rest.match(/max:\s*([\d.]+)/);
     const unitMatch = rest.match(/unit:\s*(\w+)/);
     const optionsMatch = rest.match(/options:\s*([\w|]+)/);
+    // Sequence membership annotation: `sequence: intro|feature-1|global` (kebab-case ids)
+    const sequenceMatch = rest.match(/sequence(?:Ids?)?:\s*([a-z0-9|_-]+)/i);
+    const sequenceIds = sequenceMatch
+      ? sequenceMatch[1].split('|').map(s => s.trim()).filter(Boolean)
+      : undefined;
 
     const label = key
       .replace(/([A-Z])/g, ' $1')
@@ -51,6 +56,7 @@ export function extractParameters(code: string): Parameter[] {
       max: maxMatch ? parseNum(maxMatch[1]) : undefined,
       unit: unitMatch?.[1],
       options: optionsMatch ? optionsMatch[1].split('|') : undefined,
+      sequenceIds,
     });
   }
 

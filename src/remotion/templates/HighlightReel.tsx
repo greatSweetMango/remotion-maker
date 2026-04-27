@@ -3,16 +3,16 @@ import { useCurrentFrame, useVideoConfig, spring, interpolate, AbsoluteFill, Seq
 // Full composition: 30s highlight reel
 // Sequences: intro(0-150) → h1(150-360) → h2(360-570) → h3(570-780) → outro(780-900)
 const PARAMS = {
-  reelTitle: "Best of 2026",          // type: text
-  reelSubtitle: "Top moments",        // type: text
-  highlight1: "Launched in 12 countries", // type: text
-  highlight2: "1M+ creators onboarded",   // type: text
-  highlight3: "Featured by Apple",        // type: text
-  outroText: "More to come",          // type: text
-  primaryColor: "#fb7185",            // type: color
-  accentColor: "#fbbf24",             // type: color
-  backgroundColor: "#0c0a1a",         // type: color
-  textColor: "#ffffff",               // type: color
+  reelTitle: "Best of 2026",          // type: text, sequence: intro
+  reelSubtitle: "Top moments",        // type: text, sequence: intro
+  highlight1: "Launched in 12 countries", // type: text, sequence: highlight-1
+  highlight2: "1M+ creators onboarded",   // type: text, sequence: highlight-2
+  highlight3: "Featured by Apple",        // type: text, sequence: highlight-3
+  outroText: "More to come",          // type: text, sequence: outro
+  primaryColor: "#fb7185",            // type: color, sequence: global
+  accentColor: "#fbbf24",             // type: color, sequence: global
+  backgroundColor: "#0c0a1a",         // type: color, sequence: global
+  textColor: "#ffffff",               // type: color, sequence: global
 } as const;
 
 export const HighlightReel = ({

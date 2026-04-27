@@ -3,19 +3,19 @@ import { useCurrentFrame, useVideoConfig, spring, interpolate, AbsoluteFill, Seq
 // Full composition: 60s product intro
 // Sequences: intro(0-240) → feature1(240-690) → feature2(690-1140) → feature3(1140-1560) → outro(1560-1800)
 const PARAMS = {
-  productName: "EasyMake",                  // type: text
-  tagline: "Make videos in seconds",        // type: text
-  feature1Title: "AI Generation",           // type: text
-  feature1Body: "Generate stunning visuals from a single prompt", // type: text
-  feature2Title: "Live Editing",            // type: text
-  feature2Body: "Tweak parameters in real time with no re-render", // type: text
-  feature3Title: "Export Anywhere",         // type: text
-  feature3Body: "MP4, GIF, or React component — your call",       // type: text
-  ctaText: "Get started today",             // type: text
-  primaryColor: "#7C3AED",                  // type: color
-  accentColor: "#22d3ee",                   // type: color
-  backgroundColor: "#0a0a14",               // type: color
-  textColor: "#ffffff",                     // type: color
+  productName: "EasyMake",                  // type: text, sequence: intro|outro
+  tagline: "Make videos in seconds",        // type: text, sequence: intro
+  feature1Title: "AI Generation",           // type: text, sequence: feature-1
+  feature1Body: "Generate stunning visuals from a single prompt", // type: text, sequence: feature-1
+  feature2Title: "Live Editing",            // type: text, sequence: feature-2
+  feature2Body: "Tweak parameters in real time with no re-render", // type: text, sequence: feature-2
+  feature3Title: "Export Anywhere",         // type: text, sequence: feature-3
+  feature3Body: "MP4, GIF, or React component — your call",       // type: text, sequence: feature-3
+  ctaText: "Get started today",             // type: text, sequence: outro
+  primaryColor: "#7C3AED",                  // type: color, sequence: global
+  accentColor: "#22d3ee",                   // type: color, sequence: global
+  backgroundColor: "#0a0a14",               // type: color, sequence: global
+  textColor: "#ffffff",                     // type: color, sequence: global
 } as const;
 
 export const ProductIntro = ({
