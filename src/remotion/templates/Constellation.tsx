@@ -36,14 +36,39 @@ export const Constellation = ({
   const linkD2 = linkD * linkD;
 
   // Seeded stars (deterministic).
+  // Base position uses a Halton low-discrepancy sequence so stars are
+  // spread uniformly across the frame instead of clumping on one side
+  // (the previous sin-hash PRNG produced visible left/right bias for
+  // small N — see TM-43 visual audit, TM-63).
+  const halton = (index: number, base: number) => {
+    let f = 1;
+    let r = 0;
+    let i = index;
+    while (i > 0) {
+      f /= base;
+      r += f * (i % base);
+      i = Math.floor(i / base);
+    }
+    return r;
+  };
   const stars = Array.from({ length: count }).map((_, i) => {
     const seed = i + 1;
     const rnd = (k: number) => {
       const s = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
       return s - Math.floor(s);
     };
-    const baseX = rnd(1) * width;
-    const baseY = rnd(2) * height;
+    // Halton(2, 3) — uniform coverage. Add a small jitter (<= 1/sqrt(N)
+    // cell) so the lattice doesn't look mechanical, and offset the
+    // sequence by 1 so we skip the (0,0) corner.
+    const cell = 1 / Math.sqrt(count);
+    const jitterX = (rnd(7) - 0.5) * cell;
+    const jitterY = (rnd(8) - 0.5) * cell;
+    const hx = halton(seed, 2) + jitterX;
+    const hy = halton(seed, 3) + jitterY;
+    const ux = ((hx % 1) + 1) % 1;
+    const uy = ((hy % 1) + 1) % 1;
+    const baseX = ux * width;
+    const baseY = uy * height;
     const vx = (rnd(3) - 0.5) * 30;
     const vy = (rnd(4) - 0.5) * 30;
     // Wrap-around drift.
