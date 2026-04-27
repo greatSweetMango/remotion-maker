@@ -20,7 +20,7 @@
 }
 ```
 
-**전제**: Orchestrator가 이미 worktree 생성 + branch-locks.json 등록함. TeamLead는 worktree에서 작업만.
+**전제**: Orchestrator가 이미 worktree 생성 + `scripts/setup-worktree.sh` 부트스트랩(.env.local 복사 + NEXTAUTH_URL 포트 치환 + prisma db push) + branch-locks.json 등록까지 완료. TeamLead는 워크트리에서 작업만 — `.env.local` / `prisma/dev.db`가 이미 존재하므로 추가 env 설정 불필요. 누락 발견 시 TeamLead가 직접 `bash scripts/setup-worktree.sh <worktree_path> <dev_port>` 재실행 가능 (idempotent).
 
 ## 단계 (Phase A → F)
 
