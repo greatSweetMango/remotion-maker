@@ -39,6 +39,7 @@ export async function POST(req: Request) {
 
   const models = getModels();
   const model = user.tier === 'PRO' ? models.pro : models.free;
+  console.log(`[generate] tier=${user.tier} model=${model} usage=${user.monthlyUsage}`);
 
   try {
     const result = await generateAsset(prompt, model, { answers });
