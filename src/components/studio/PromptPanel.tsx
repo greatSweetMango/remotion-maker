@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle } from 'lucide-react';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
 import { TIER_LIMITS } from '@/lib/usage';
 import {
@@ -29,6 +29,24 @@ interface PromptPanelProps {
 }
 
 const SUGGESTION_CARD_COUNT = 4;
+
+/**
+ * Pure helper — derives the effective prompt mode from `hasAsset` and the user's
+ * explicit override.
+ *
+ * Rules:
+ *  - No asset → always `'generate'` (Edit makes no sense without something to edit).
+ *  - Asset present + no user override → default to `'edit'`.
+ *  - Asset present + user override → honor the override.
+ *
+ * Keeping this as a pure function (instead of `useState` + `useEffect(setMode…)`) avoids
+ * the React 19 "set-state-in-effect" lint warning that surfaced in TM-13/14 retrospectives.
+ */
+export type PromptMode = 'generate' | 'edit';
+export function effectiveMode(hasAsset: boolean, userOverride: PromptMode | null): PromptMode {
+  if (!hasAsset) return 'generate';
+  return userOverride ?? 'edit';
+}
 
 interface ClarifyCardProps {
   questions: ClarifyQuestion[];
@@ -119,10 +137,15 @@ export function PromptPanel({
   clarify, onSubmitClarifyAnswers, onSkipClarify,
 }: PromptPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [mode, setMode] = useState<'generate' | 'edit'>('generate');
+  // User-explicit override; `null` means "follow default for current hasAsset state".
+  // When hasAsset flips false→true we keep this as null so the default ('edit') applies;
+  // when the user clicks New/Edit we record their intent here.
+  const [modeOverride, setModeOverride] = useState<PromptMode | null>(null);
+  const mode = effectiveMode(hasAsset, modeOverride);
   const [showHistory, setShowHistory] = useState(false);
   const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const suggestions = React.useMemo<PromptSuggestion[]>(
     () => pickDiversifiedSuggestions(SUGGESTION_CARD_COUNT, suggestionSeed),
@@ -135,23 +158,25 @@ export function PromptPanel({
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
-  useEffect(() => {
-    if (hasAsset) setMode('edit');
-  }, [hasAsset]);
-
   const isLoading = isGenerating || isEditing;
   const editCount = versions.length > 0 ? versions.length - 1 : 0;
   const editLimit = tier === 'FREE' ? TIER_LIMITS.FREE.editsPerAsset : '∞';
 
   function submit() {
     if (!prompt.trim() || isLoading) return;
-    if (mode === 'generate' || !hasAsset) {
+    if (mode === 'generate') {
       onGenerate(prompt.trim());
     } else {
       onEdit(prompt.trim());
     }
     setPrompt('');
   }
+
+  const selectGenerate = useCallback(() => setModeOverride('generate'), []);
+  const selectEdit = useCallback(() => {
+    // Only meaningful when an asset exists; effectiveMode will clamp regardless.
+    setModeOverride('edit');
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,28 +190,96 @@ export function PromptPanel({
     }
   }
 
+  // Panel-scoped shortcuts: ⌘+N → Generate new, ⌘+E → Edit current.
+  // Scoped to the panel container (not window) to avoid hijacking ⌘+N globally;
+  // only fires while focus is inside the panel (textarea, buttons, etc.).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'n') {
+        e.preventDefault();
+        setModeOverride('generate');
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      } else if (key === 'e' && hasAsset) {
+        e.preventDefault();
+        setModeOverride('edit');
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
+    };
+    el.addEventListener('keydown', handler);
+    return () => el.removeEventListener('keydown', handler);
+  }, [hasAsset]);
+
   return (
-    <div className="flex flex-col h-full bg-slate-900">
+    <div ref={containerRef} className="flex flex-col h-full bg-slate-900">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700">
         <Sparkles className="h-4 w-4 text-violet-400" />
         <span className="text-sm font-semibold text-white">Prompt</span>
-        {hasAsset && (
-          <div className="ml-auto flex items-center gap-1.5">
+        {hasAsset ? (
+          <div
+            className="ml-auto flex items-center gap-1"
+            role="radiogroup"
+            aria-label="Prompt mode"
+          >
             <button
-              onClick={() => setMode('generate')}
-              className={`text-xs px-2.5 py-1 rounded-md transition-colors ${mode === 'generate' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              type="button"
+              role="radio"
+              aria-checked={mode === 'edit'}
+              onClick={selectEdit}
+              title="Edit current asset (⌘E)"
+              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                mode === 'edit'
+                  ? 'bg-violet-600 border-violet-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+              }`}
             >
-              New
+              <Pencil className="h-3 w-3" aria-hidden />
+              <span>Edit current</span>
+              {tier === 'FREE' && (
+                <span className="opacity-70">({editCount}/{editLimit})</span>
+              )}
+              <kbd className="ml-1 hidden sm:inline-block text-[10px] opacity-60">⌘E</kbd>
             </button>
             <button
-              onClick={() => setMode('edit')}
-              className={`text-xs px-2.5 py-1 rounded-md transition-colors ${mode === 'edit' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              type="button"
+              role="radio"
+              aria-checked={mode === 'generate'}
+              onClick={selectGenerate}
+              title="Generate a new asset (⌘N)"
+              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                mode === 'generate'
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+              }`}
             >
-              Edit {tier === 'FREE' && `(${editCount}/${editLimit})`}
+              <Plus className="h-3 w-3" aria-hidden />
+              <span>Generate new</span>
+              <kbd className="ml-1 hidden sm:inline-block text-[10px] opacity-60">⌘N</kbd>
             </button>
           </div>
+        ) : (
+          <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-emerald-300/80">
+            <Plus className="h-3 w-3" aria-hidden />
+            Generate new
+          </span>
         )}
       </div>
+
+      {hasAsset && (
+        <p
+          className={`px-4 py-2 text-[11px] border-b border-slate-700 leading-relaxed ${
+            mode === 'edit' ? 'text-violet-200/80 bg-violet-950/20' : 'text-emerald-200/80 bg-emerald-950/20'
+          }`}
+          aria-live="polite"
+        >
+          {mode === 'edit'
+            ? 'Editing the current asset — your prompt will tweak what you see.'
+            : 'Generating a brand-new asset — this will replace the current one.'}
+        </p>
+      )}
 
       {versions.length > 1 && (
         <div className="border-b border-slate-700">
@@ -280,7 +373,7 @@ export function PromptPanel({
           onChange={e => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            mode === 'generate' || !hasAsset
+            mode === 'generate'
               ? 'Describe your animation...\ne.g. "Animated counter from 0 to 1000 with spring physics"'
               : 'Describe your changes...\ne.g. "Make the color blue and add a glow effect"'
           }
@@ -290,7 +383,11 @@ export function PromptPanel({
         <Button
           type="submit"
           disabled={!prompt.trim() || isLoading}
-          className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-50"
+          className={`w-full disabled:opacity-50 ${
+            mode === 'edit'
+              ? 'bg-violet-600 hover:bg-violet-700'
+              : 'bg-emerald-600 hover:bg-emerald-700'
+          }`}
         >
           {isLoading ? (
             <>
@@ -299,8 +396,13 @@ export function PromptPanel({
             </>
           ) : (
             <>
-              <Send className="h-4 w-4 mr-2" />
-              {mode === 'generate' || !hasAsset ? 'Generate' : 'Apply Changes'}
+              {mode === 'edit' ? (
+                <Pencil className="h-4 w-4 mr-2" aria-hidden />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" aria-hidden />
+              )}
+              {mode === 'edit' ? 'Apply changes' : 'Generate new'}
+              <Send className="h-3.5 w-3.5 ml-2 opacity-70" aria-hidden />
               <span className="ml-auto text-xs opacity-60">⌘↵</span>
             </>
           )}
