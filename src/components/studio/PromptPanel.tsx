@@ -4,9 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle } from 'lucide-react';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
 import { TIER_LIMITS } from '@/lib/usage';
+import {
+  CATEGORY_LABELS,
+  pickDiversifiedSuggestions,
+  type PromptSuggestion,
+} from '@/lib/prompt-suggestions';
 
 interface PromptPanelProps {
   onGenerate: (prompt: string) => void;
@@ -23,14 +28,7 @@ interface PromptPanelProps {
   onSkipClarify?: () => void;
 }
 
-const EXAMPLE_PROMPTS = [
-  'Animated counter from 0 to 100 with spring effect',
-  'Comic book explosion effect text: POW!',
-  'Animated bar chart showing monthly revenue',
-  'Gradient blob background animation',
-  'Logo reveal with particle effect',
-  'Neon text glow animation',
-];
+const SUGGESTION_CARD_COUNT = 4;
 
 interface ClarifyCardProps {
   questions: ClarifyQuestion[];
@@ -123,7 +121,19 @@ export function PromptPanel({
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<'generate' | 'edit'>('generate');
   const [showHistory, setShowHistory] = useState(false);
+  const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const suggestions = React.useMemo<PromptSuggestion[]>(
+    () => pickDiversifiedSuggestions(SUGGESTION_CARD_COUNT, suggestionSeed),
+    [suggestionSeed]
+  );
+
+  function applySuggestion(s: PromptSuggestion) {
+    setPrompt(s.prompt);
+    // Auto-focus the textarea after the value lands so the user can keep typing/editing.
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
 
   useEffect(() => {
     if (hasAsset) setMode('edit');
@@ -223,17 +233,40 @@ export function PromptPanel({
         />
       )}
 
-      {!hasAsset && !clarify && (
+      {!hasAsset && !clarify && prompt.trim().length === 0 && (
         <div className="px-4 py-3 border-b border-slate-700">
-          <p className="text-xs text-slate-500 mb-2">Try an example:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {EXAMPLE_PROMPTS.slice(0, 3).map(p => (
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-slate-500">Try a suggestion:</p>
+            <button
+              type="button"
+              onClick={() => setSuggestionSeed(Math.floor(Math.random() * 1_000_000))}
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-violet-300 transition-colors"
+              aria-label="Shuffle suggestions"
+            >
+              <Shuffle className="h-3 w-3" />
+              Shuffle
+            </button>
+          </div>
+          <div
+            className="grid grid-cols-2 gap-1.5"
+            role="list"
+            aria-label="Prompt suggestions"
+          >
+            {suggestions.map((s) => (
               <button
-                key={p}
-                onClick={() => setPrompt(p)}
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full border border-slate-600 transition-colors"
+                key={s.id}
+                type="button"
+                onClick={() => applySuggestion(s)}
+                role="listitem"
+                title={s.prompt}
+                className="group flex flex-col gap-1 text-left bg-slate-800 hover:bg-slate-700 hover:border-violet-500/60 border border-slate-600 rounded-md px-2.5 py-2 transition-colors"
               >
-                {p}
+                <span className="text-[10px] uppercase tracking-wider text-violet-300/80 group-hover:text-violet-200">
+                  {CATEGORY_LABELS[s.category]}
+                </span>
+                <span className="text-xs text-slate-200 leading-snug line-clamp-2">
+                  {s.label}
+                </span>
               </button>
             ))}
           </div>
