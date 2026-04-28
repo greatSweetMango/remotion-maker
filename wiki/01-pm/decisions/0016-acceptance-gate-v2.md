@@ -11,7 +11,7 @@ status: active
 ## Status
 
 Proposed (TM-73). 본 PR 머지 시 Active.
-관련: [[0015-routing-streaming-pending|ADR-0015]], `PENDING-TM-70-judge-determinism` (judge 결정성 정책 — TM-70).
+관련: [[0015-routing-streaming-pending|ADR-0015]], `0018-judge-determinism` (judge 결정성 정책 — TM-70).
 
 ## Context
 
@@ -102,7 +102,7 @@ overall 점수는 N=3 trial 의 평균이다 (TM-70 ADR 결정 그대로).
 ## See also
 
 - [[0015-routing-streaming-pending|ADR-0015]] — 직전 ADR (라우팅/스트리밍).
-- `PENDING-TM-70-judge-determinism` — judge trial 단위 결정성 (본 ADR 의 전제).
+- `0018-judge-determinism` — judge trial 단위 결정성 (본 ADR 의 전제).
 - `wiki/05-reports/2026-04-27-TM-46-visual-judge-r5.md` — r5 raw 측정.
 - `wiki/05-reports/2026-04-27-TM-70-rca.md` — judge variance RCA.
 - `wiki/05-reports/2026-04-27-TM-73-retro.md` — 본 ADR 의 채택 회고.

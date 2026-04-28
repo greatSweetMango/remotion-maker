@@ -17,6 +17,7 @@ status: active
 - [[0003-prompt-caching|ADR-0003: 편집 요청에 프롬프트 캐싱을 적용한다]]
 - [[0012-adr-number-collision-avoidance|ADR-0012: ADR 번호 충돌 회피 — Orchestrator 단독 NNNN 부여]]
 - [[0016-acceptance-gate-v2|ADR-0016: Visual quality acceptance gate v2 — 4-criteria multi-run]]
+- [[0018-judge-determinism|ADR-0018: judge determinism]]
 
 ## 새 ADR 만들기
 
