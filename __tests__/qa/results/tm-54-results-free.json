@@ -1,20 +1,20 @@
 {
   "summary": {
-    "generated_at": "2026-04-27T16:30:59.586Z",
+    "generated_at": "2026-04-28T03:21:50.224Z",
     "ai_provider": "openai",
     "tier": "FREE",
     "model": "gpt-4o-mini",
     "n": 10,
-    "pass": 9,
+    "pass": 10,
     "first_token_ms": {
-      "p50": 568,
-      "p90": 646,
-      "p95": 646
+      "p50": 616,
+      "p90": 2817,
+      "p95": 2817
     },
     "total_ms": {
-      "p50": 7277,
-      "p90": 11582,
-      "p95": 11582
+      "p50": 10398,
+      "p90": 19053,
+      "p95": 19053
     }
   },
   "runs": [
@@ -25,8 +25,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 568,
-      "totalMs": 7422
+      "firstTokenMs": 636,
+      "totalMs": 7650
     },
     {
       "id": "tm54-02",
@@ -35,8 +35,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 646,
-      "totalMs": 11582
+      "firstTokenMs": 616,
+      "totalMs": 16844
     },
     {
       "id": "tm54-03",
@@ -45,8 +45,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 568,
-      "totalMs": 7225
+      "firstTokenMs": 597,
+      "totalMs": 9744
     },
     {
       "id": "tm54-04",
@@ -55,8 +55,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 580,
-      "totalMs": 5707
+      "firstTokenMs": 632,
+      "totalMs": 7418
     },
     {
       "id": "tm54-05",
@@ -65,8 +65,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 595,
-      "totalMs": 7277
+      "firstTokenMs": 585,
+      "totalMs": 10398
     },
     {
       "id": "tm54-06",
@@ -75,8 +75,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 490,
-      "totalMs": 8652
+      "firstTokenMs": 477,
+      "totalMs": 14981
     },
     {
       "id": "tm54-07",
@@ -85,8 +85,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 554,
-      "totalMs": 7682
+      "firstTokenMs": 517,
+      "totalMs": 9807
     },
     {
       "id": "tm54-08",
@@ -95,8 +95,8 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 511,
-      "totalMs": 6135
+      "firstTokenMs": 538,
+      "totalMs": 5344
     },
     {
       "id": "tm54-09",
@@ -105,18 +105,18 @@
       "model": "gpt-4o-mini",
       "ok": true,
       "type": "generate",
-      "firstTokenMs": 512,
-      "totalMs": 7028
+      "firstTokenMs": 1008,
+      "totalMs": 18627
     },
     {
       "id": "tm54-10",
       "prompt": "인포그래픽 — 3개 단계, 아이콘 + 짧은 설명, 페이드인",
       "tier": "FREE",
       "model": "gpt-4o-mini",
-      "ok": false,
-      "type": "clarify",
-      "firstTokenMs": 515,
-      "totalMs": 1853
+      "ok": true,
+      "type": "generate",
+      "firstTokenMs": 2817,
+      "totalMs": 19053
     }
   ]
 }
