@@ -132,9 +132,15 @@ export async function judgePrompt(
     ),
   ];
 
+  // TM-70: pin temperature=0 + seed for judge determinism. Variance experiment
+  // (`__tests__/benchmarks/tm-70-judge-variance.ts`) showed default-temperature
+  // (=1.0) calls drift ±10 points on identical input — larger than the r3→r4
+  // -7.8 "regression". See ADR-PENDING-TM-70 + 2026-04-27-TM-70-rca.md.
   const completion = await client.chat.completions.create({
     model: JUDGE_MODEL,
     max_tokens: 400,
+    temperature: 0,
+    seed: 42,
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
