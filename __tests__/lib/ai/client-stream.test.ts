@@ -177,6 +177,93 @@ describe('chatCompleteStream', () => {
     });
   });
 
+  // TM-72 — capture-side determinism: temperature / seed must be pinned by
+  // default and overridable via env. Mirrors TM-70 judge config.
+  describe('TM-72 capture determinism', () => {
+    const ORIGINAL_TEMPERATURE = process.env.AI_TEMPERATURE;
+    const ORIGINAL_SEED = process.env.AI_SEED;
+    afterEach(() => {
+      if (ORIGINAL_TEMPERATURE === undefined) delete process.env.AI_TEMPERATURE;
+      else process.env.AI_TEMPERATURE = ORIGINAL_TEMPERATURE;
+      if (ORIGINAL_SEED === undefined) delete process.env.AI_SEED;
+      else process.env.AI_SEED = ORIGINAL_SEED;
+    });
+
+    it('pins OpenAI temperature=0 + seed=42 by default', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      process.env.OPENAI_API_KEY = 'sk-test';
+      delete process.env.AI_TEMPERATURE;
+      delete process.env.AI_SEED;
+      openaiCreate.mockResolvedValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'sys mentioning JSON output',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      expect(openaiCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ temperature: 0, seed: 42 }),
+      );
+    });
+
+    it('pins Anthropic temperature=0 by default (no seed knob)', async () => {
+      process.env.AI_PROVIDER = 'anthropic';
+      process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+      delete process.env.AI_TEMPERATURE;
+      delete process.env.AI_SEED;
+      anthropicStream.mockReturnValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'sys',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      const callArgs = anthropicStream.mock.calls[0][0];
+      expect(callArgs.temperature).toBe(0);
+      // Anthropic SDK does not currently accept `seed`; ensure we don't
+      // accidentally start sending it (would be a request validation error).
+      expect(callArgs.seed).toBeUndefined();
+    });
+
+    it('honors AI_TEMPERATURE / AI_SEED env overrides', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      process.env.OPENAI_API_KEY = 'sk-test';
+      process.env.AI_TEMPERATURE = '0.7';
+      process.env.AI_SEED = '7';
+      openaiCreate.mockResolvedValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'sys mentioning JSON',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      expect(openaiCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ temperature: 0.7, seed: 7 }),
+      );
+    });
+
+    it('omits seed when AI_SEED=none (A/B variance opt-out)', async () => {
+      process.env.AI_PROVIDER = 'openai';
+      process.env.OPENAI_API_KEY = 'sk-test';
+      delete process.env.AI_TEMPERATURE;
+      process.env.AI_SEED = 'none';
+      openaiCreate.mockResolvedValue(asAsync([]));
+
+      await chatCompleteStream({
+        model: 'gpt-4o-mini',
+        system: 'sys mentioning JSON',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      const callArgs = openaiCreate.mock.calls[0][0];
+      expect(callArgs.temperature).toBe(0);
+      expect(callArgs).not.toHaveProperty('seed');
+    });
+  });
+
   it('returns sane firstTokenMs even when no tokens were emitted', async () => {
     process.env.AI_PROVIDER = 'openai';
     openaiCreate.mockResolvedValue(asAsync([]));
