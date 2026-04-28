@@ -280,3 +280,52 @@ task_id: TM-49
 - TM-70 variance 측정: ~$0.15
 - TM-46 r5 N=2: ~$3.60 (capture $0.60 + judge $3.00)
 - 누적 야간 OpenAI: $0.65 (TM-49 종결 시) + $3.75 = **~$4.40** (cap $18 의 24%)
+
+## 10. 야간 1차 후속 — TM-72 / TM-46 r6 (FINAL append 2026-04-28)
+
+### 10.1 TM-72 — capture-side 결정성 (capture LLM temp=0 + seed=42)
+
+- TM-70 (judge 결정성) 의 후속. generate 호출에 temp=0 + seed=42 적용 (`src/lib/ai/client.ts`).
+- ADR-0017 capture-determinism 박제. ADR-0018 judge-determinism 와 직교.
+- r6 측정 결과: round-level std 14.8 → 1.77 (88% 감소). per-prompt mean_std 8.10 → 5.33.
+- 효과 검증 완료. 양면 결정성 도구 box 완성.
+
+### 10.2 TM-46 r6 — capture+judge 양면 결정성 후 첫 측정 (N=2)
+
+- 30 prompts × 3 frames × 2 회차 (run-A 69.9, run-B 67.4).
+- N=2 mean of rounds: **68.65** / round std: **1.77**.
+- ADR-0016 4 기준 평가:
+  - C1 mean ≥ 75 → **FAIL** (68.65)
+  - C2 std < 5 → **PASS** (1.77)  ← 첫 PASS
+  - C3 95% CI ⊂ [70, 80] → **FAIL** ([66.20, 71.10])
+  - C4 per-cat min ≥ 60 → **FAIL** (transition 55.33)
+  - **Overall: MISS** (1/4)
+- **결정적 발견**: TM-72 capture-determinism 도입이 round-level 측정 안정성에는 강력 효과.
+  그러나 mean (시각 품질) 자체에는 재료적 영향 없음 (67.8 → 68.65, +0.85). prompt-only
+  한계가 명확.
+- 카테고리별: data-viz 59.2 / text-anim 77.9 / transition 55.3 / loader 80.3 /
+  infographic 70.5. transition 의 60-cutoff 미달이 acceptance 의 발목.
+- 보고서: [TM-46 r6 visual judge](2026-04-27-TM-46-visual-judge-r6.md) /
+  [TM-46 r6 retro](2026-04-27-TM-46-retro-r6.md).
+
+### 10.3 종합 — 야간 1차 사이클 정식 종결 (FINAL)
+
+- TM-46 acceptance 5회차 연속 MISS. 단 r6 에서:
+  1. **결정성 측면 acceptance v2 (ADR-0016) 의 1/4 PASS** 첫 달성. 측정도구 안정성
+     확보.
+  2. **시각 품질 측면 정체** 가 데이터로 명확. prompt-only 모드의 천장 ~70 점.
+  3. **다음 단계는 prompt 튜닝이 아니라 reference 템플릿 retrieval-augmented
+     generation** (TM-43/38/39 batch 활용).
+- 다음 사이클 권고:
+  1. **reference 템플릿 RAG (신규 task)** — 시각 품질 천장 돌파 가설.
+  2. **워크트리 prisma client 격리 (infra task)** — dev 서버가 main DB 를 열지 않도록
+     `setup-worktree.sh` 에 `prisma generate` 추가.
+  3. **dv-08 collapse RCA** — capture max_tokens cutoff 가설 검증.
+- **r6 출력 (양면 결정성 + ADR-0016 1/4 PASS) 으로 야간 1차 사이클의 결정성 측면 결산**.
+  품질 측면은 reference 템플릿 사이클 (별도) 위임.
+
+### 10.4 누적 비용 (r6 포함)
+
+- TM-72 capture 결정성 변경: 코드만, 비용 없음
+- TM-46 r6 N=2: ~$3.60 (capture + judge, run-B 재시도 포함)
+- 누적 야간 OpenAI: $4.40 (r5 까지) + $3.60 = **~$8.00** (cap $18 의 44%)
