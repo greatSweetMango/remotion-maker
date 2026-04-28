@@ -233,3 +233,50 @@ task_id: TM-49
 ---
 
 **산출물 박제**: 이 보고서, `2026-04-27-TM-49-triage.md` (회고). PR + .agent-state/STOP.
+
+---
+
+## 9. 야간 1차 후속 — TM-70 / TM-71 / TM-46 r5 (append 2026-04-28)
+
+야간 사이클 종결 권고 후 follow-up 으로 진행한 측정 도구 정합성 작업.
+
+### 9.1 TM-70 — judge variance 진단 + 결정성 픽스
+
+- `tm-70-judge-variance.ts` 로 동일 PNG 셋 × 3회 호출 → ±10 점 variance 측정.
+- 픽스: `tm-46-judge.ts` 에 `temperature: 0` + `seed: 42` 적용.
+- 효과: judge 단독 variance 는 ±0~2 로 떨어짐. 그러나 end-to-end variance 는 capture variance 가 dominant 라 잔존 (r5 에서 검증).
+- 보고서: [TM-70 RCA](2026-04-27-TM-70-rca.md) / [TM-70 retro](2026-04-27-TM-70-retro.md).
+
+### 9.2 TM-71 — 5 카테고리 prompt 가이드라인
+
+- `GENERATION_SYSTEM_PROMPT` 에 data-viz / text-anim / transition / loader / infographic
+  카테고리별 가이드라인 추가.
+- r5 측정 결과: data-viz 만 누적 +15.3 (r3 44.5 → r5 59.8). 그 외 카테고리는 변화 미미.
+- 보고서: [TM-71 fix](2026-04-27-TM-71-fix.md) / [TM-71 retro](2026-04-27-TM-71-retro.md).
+
+### 9.3 TM-46 r5 — 누적 변경 후 측정 (N=2 결정성)
+
+- 30 prompts × **N=2 captures** × N=2 judges 풀 측정 (야간 1차 중 처음 N=2 도입).
+- 결과: avg **67.8** / 100, mean std **8.10**, max std **34.50**. acceptance ≥75 **MISS**.
+- **결정적 발견**: TM-70 judge determinism 만으로 end-to-end determinism 미확보.
+  capture-side LLM code-gen 자체가 비결정적이며 prompt 복잡도와 std 가 양의 상관.
+- r4 의 "회귀" 가설 (-7.8 from r3) 은 통계적으로 노이즈로 기각 (N=2 std 8.1 > 추정 변동 7.8).
+- 보고서: [TM-46 r5 visual judge](2026-04-27-TM-46-visual-judge-r5.md) /
+  [TM-46 r5 retro](2026-04-27-TM-46-retro-r5.md).
+
+### 9.4 종합 — 야간 1차 사이클 정식 종결
+
+- TM-46 acceptance 4회차 연속 MISS. 단 r5 에서 측정도구 한계가 데이터로 명확화.
+- 다음 사이클 권고:
+  1. **acceptance gate v2 ADR** — 단발 avg ≥ 75 → N=3 평균 ≥ 75 AND mean_std ≤ 5.
+  2. **capture-side determinism (TM-72 후보)** — generate 호출에 temp=0 + seed 적용 시도.
+  3. **prompt-only 한계 케이스 분리** — bar chart, complex infographic 은 reference
+     템플릿 없이는 prompt 만으로 75 도달이 통계적으로 어렵다는 결론. TM-43 batch 와 별도
+     reference 템플릿 follow-up 필요.
+- **acceptance gate 자체 재검토 권고로 야간 1차 사이클을 정식 종결**한다 (추가 회차 ROI 낮음).
+
+### 9.5 누적 비용 (TM-49 종결 이후)
+
+- TM-70 variance 측정: ~$0.15
+- TM-46 r5 N=2: ~$3.60 (capture $0.60 + judge $3.00)
+- 누적 야간 OpenAI: $0.65 (TM-49 종결 시) + $3.75 = **~$4.40** (cap $18 의 24%)
