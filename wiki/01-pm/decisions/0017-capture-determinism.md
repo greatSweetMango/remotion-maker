@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-72 — Capture-side LLM determinism (temperature=0, seed=42)"
+title: "ADR-0017 — Capture-side LLM determinism (temperature=0, seed=42)"
 created: 2026-04-27
 updated: 2026-04-27
 tags: [adr, ai, qa, determinism]
@@ -7,7 +7,7 @@ status: active
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-72: Capture-side LLM determinism
+# ADR-0017: Capture-side LLM determinism
 
 ## Status
 
