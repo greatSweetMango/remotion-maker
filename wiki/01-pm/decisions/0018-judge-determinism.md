@@ -1,12 +1,12 @@
 ---
-title: ADR-PENDING-TM-70 — Visual judge 결정성 정책 (temperature=0 + seed + N-shot)
+title: ADR-0018 — Visual judge 결정성 정책 (temperature=0 + seed + N-shot)
 created: 2026-04-27
 updated: 2026-04-27
 tags: [decision, ai, qa, llm-judge]
 status: active
 ---
 
-# ADR-PENDING-TM-70: Visual judge 결정성 정책
+# ADR-0018: Visual judge 결정성 정책
 
 ## Status
 
