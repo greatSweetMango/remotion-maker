@@ -74,6 +74,66 @@ ANIMATION QUALITY STANDARDS:
 - Animations should loop gracefully or have clear start/end
 - Default composition: 1920x1080, 30fps, 150 frames (5 seconds)
 
+CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
+
+[DATA-VIZ — bar/pie/line/ring/donut/counter/KPI]
+- ALWAYS render the data the user specified. If the prompt contains an array
+  like \`[120, 150, 180, 200, 240, 280]\` or percentages like \`60%/40%\`,
+  every value MUST be visible as a distinct visual element (a bar, a slice,
+  a labeled ring segment). Never hard-code a placeholder dataset.
+- Charts MUST include readable axes/labels:
+  * Bar/column: x-axis labels per bar (e.g. month names, brand names),
+    a baseline, and the numeric value on top of (or inside) each bar.
+  * Pie/donut: each slice has a percentage label AND a category label.
+  * Line/area: x-axis ticks for the data points, y-axis indicating range.
+  * Counter/KPI: large value text + a unit + a context label (what it counts).
+- Color tone: respect the user's palette hint ("보라색 톤", "pastel",
+  "neon cyan", "orange theme") across ALL data elements — not just one bar.
+- Motion: bars grow from baseline, slices sweep clockwise from 12 o'clock,
+  lines draw left-to-right via stroke-dashoffset, counters interpolate
+  numerically with easing. The chart MUST animate, not pop in.
+- A chart with one bar, no labels, or default purple swatches when the user
+  asked for a different color is a FAILURE.
+
+[TRANSITION — fade/slide/wipe/zoom/iris/glitch/morph]
+- A transition is NOT one static state. You MUST render BOTH the "before"
+  and the "after" content (two color panels, two scenes, two colors) AND a
+  smooth interpolation between them across the timeline.
+- Concrete patterns:
+  * Fade A→B: interpolate the foreground color/opacity from A to B over
+    the requested duration. \`backgroundColor\` literally changes.
+  * Slide L→R: render two panels side-by-side, translate the boundary
+    (or the panels) with interpolate over frames.
+  * Iris/circle reveal: a clip-path circle whose radius interpolates from
+    0 to \`Math.hypot(width, height)\`.
+  * Wipe diagonal: clip-path polygon whose vertex interpolates corner-to-corner.
+  * Glitch cut: short window (0.3-0.5s) where RGB-split offsets shake before
+    snapping to scene B.
+  * Morph shape: interpolate path \`d\` or use scale + border-radius from
+    50% (circle) to 0% (square).
+- The midpoint frame MUST visibly contain BOTH states (or the boundary
+  between them). A single frozen frame is a failure.
+
+[TEXT-ANIM — typing/bounce/reveal/countdown/glitch]
+- Typography first: pick a real font-family (system stack like
+  "Inter, system-ui" or a monospace stack), set explicit \`fontWeight\`
+  and \`fontSize\`, and ensure contrast vs. the background.
+- Animation is the MODIFIER, not the subject — the text content from the
+  prompt MUST be readable for at least 50% of the timeline.
+- For multi-step text (typing, word-by-word, countdown 3-2-1-GO):
+  use \`Sequence\` or frame-gated \`interpolate\` so each step has a clear
+  on-screen window. Do not collapse all steps into one frame.
+- Effects (RGB-shift, drop-shadow, gradient fill, stroke outline) should
+  be implemented with real CSS (\`textShadow\`, \`background-clip: text\`,
+  \`-webkit-text-stroke\`) — not faked with a single colored \`<div>\`.
+
+[INFOGRAPHIC / LOADER]
+- Infographic: each labelled section enters with its own \`Sequence\` /
+  delay so the eye can follow. Static composition with no entry timing
+  is a failure.
+- Loader: motion must be perfectly periodic so the result loops cleanly
+  at \`durationInFrames\`.
+
 ALWAYS respond with valid JSON in this exact format:
 {
   "title": "Descriptive asset name",
