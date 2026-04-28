@@ -45,6 +45,56 @@ export interface ChatCompleteResult {
  */
 export const DEFAULT_MAX_TOKENS = 2500;
 
+/**
+ * TM-72 — capture-side determinism defaults.
+ *
+ * TM-46 r5 RCA found that even after TM-70 fixed judge-side variance,
+ * the underlying capture / code-generation step still produced different
+ * Remotion code on every call (different particle counts, easing curves,
+ * colors), driving a per-sample Δmax of ~10 score points across the
+ * acceptance gate. Mirroring the TM-70 judge fix, we now pin
+ * `temperature=0` + `seed=42` on the generation path as well so that the
+ * same prompt yields the same code unless the caller (or operator)
+ * explicitly opts back into stochastic sampling via env overrides.
+ *
+ * Override knobs — both providers respect them, both default to
+ * deterministic:
+ *   - `AI_TEMPERATURE`   — float, default `0`
+ *   - `AI_SEED`          — int, default `42` (set to literal string `none`
+ *                          to omit the seed entirely, e.g. for A/B tests)
+ *
+ * The OpenAI Chat Completions API exposes `seed` as a best-effort knob;
+ * Anthropic does not currently expose `seed` so only `temperature` is
+ * forwarded for that provider. Both default to `0` which is sufficient to
+ * remove the dominant non-determinism source identified in TM-46 r5.
+ *
+ * Refs: wiki/05-reports/2026-04-27-TM-46-visual-judge-r5.md,
+ *       wiki/05-reports/2026-04-27-TM-70-rca.md
+ */
+export const DEFAULT_AI_TEMPERATURE = 0;
+export const DEFAULT_AI_SEED = 42;
+
+/** Resolve the active sampling temperature, allowing env override. */
+export function resolveTemperature(): number {
+  const raw = process.env.AI_TEMPERATURE;
+  if (raw === undefined || raw === '') return DEFAULT_AI_TEMPERATURE;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : DEFAULT_AI_TEMPERATURE;
+}
+
+/**
+ * Resolve the active OpenAI `seed`, allowing env override. Returning
+ * `undefined` deliberately omits the field from the request (caller use
+ * case: A/B variance experiments).
+ */
+export function resolveSeed(): number | undefined {
+  const raw = process.env.AI_SEED;
+  if (raw === undefined || raw === '') return DEFAULT_AI_SEED;
+  if (raw.toLowerCase() === 'none') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.trunc(n) : DEFAULT_AI_SEED;
+}
+
 function getProvider(): AIProvider {
   return (process.env.AI_PROVIDER as AIProvider) ?? 'anthropic';
 }
@@ -107,11 +157,16 @@ export async function chatCompleteStream({
     const systemForJson = /\bjson\b/i.test(system)
       ? system
       : `${system}\n\nRespond strictly in JSON.`;
+    const seed = resolveSeed();
     const stream = await client.chat.completions.create({
       model,
       max_tokens: maxTokens,
       stream: true,
       response_format: { type: 'json_object' },
+      // TM-72 — pin temperature/seed for capture-side determinism so the
+      // same prompt yields the same code (mirrors TM-70 judge config).
+      temperature: resolveTemperature(),
+      ...(seed !== undefined ? { seed } : {}),
       messages: [
         { role: 'system', content: systemForJson },
         ...messages.map((m) => ({
@@ -158,6 +213,10 @@ export async function chatCompleteStream({
   const stream = client.messages.stream({
     model,
     max_tokens: maxTokens,
+    // TM-72 — Anthropic does not currently expose a `seed` knob; pinning
+    // temperature is sufficient to remove the dominant non-determinism
+    // source on this path (mirrors capture-side determinism policy).
+    temperature: resolveTemperature(),
     system,
     messages: anthropicMessages,
   });
