@@ -1870,6 +1870,25 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 79,
+        "title": "AI-BUG-customize-undo-redo — implement param history layer",
+        "description": "Customize panel slider/color changes have no undo/redo. UPDATE_PARAM reducer overwrites state.paramValues with no past/future stack; Cmd+Z handler absent; UI has no undo/redo buttons. Spec: TM-78 wiki/05-reports/2026-04-27-TM-78-qa.md. Implement past/future stack in useStudio (depth=100, debounce 250ms during drag), UNDO_PARAM/REDO_PARAM actions, window keydown for cmd+z / cmd+shift+z (skip when focus is editable), CustomizePanel header undo/redo buttons (disabled when stack empty), branch behavior (new change after undo clears future). Validate with: 50 changes -> 50 undo -> initial; 30 changes -> 10 undo -> new change -> redo blocked; 100+ changes -> oldest dropped; no memory growth proportional to interaction count beyond depth limit.",
+        "details": "discovered_by: TM-78. spec_link: wiki/05-reports/2026-04-27-TM-78-qa.md.",
+        "testStrategy": "Playwright on customize panel: 50 slider changes -> 50 cmd+z -> initial state restored; 30 changes -> 10 cmd+z -> new change -> cmd+shift+z is no-op (future cleared); >100 changes -> earliest entries discarded; perf: history array length stays <= 100.",
+        "status": "pending",
+        "dependencies": [
+          78
+        ],
+        "priority": "high",
+        "metadata": {
+          "triggers_requalify": ["TM-78"],
+          "qa_iteration": 1,
+          "discovered_by": "TM-78",
+          "spec_link": "wiki/05-reports/2026-04-27-TM-78-qa.md"
+        },
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -1882,7 +1901,7 @@
       ],
       "created": "2026-04-27T15:31:17.711Z",
       "description": "Tasks for master context",
-      "updated": "2026-04-27T16:50:01.642Z"
+      "updated": "2026-05-02T13:45:12.628Z"
     }
   }
 }
