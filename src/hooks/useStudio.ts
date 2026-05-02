@@ -28,8 +28,26 @@ export function studioReducer(state: StudioState, action: StudioAction): StudioS
       return { ...state, isEditing: action.payload };
     case 'SET_EXPORTING':
       return { ...state, isExporting: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload, isGenerating: false, isEditing: false };
+    case 'SET_ERROR': {
+      // TM-82 — accept either a bare string (legacy) or an object that
+      // also carries `lastFailed` so the UI can render a Retry affordance.
+      const payload = action.payload;
+      const message =
+        typeof payload === 'string' || payload === null ? payload : payload.message;
+      const lastFailed =
+        typeof payload === 'string' || payload === null
+          ? state.lastFailed
+          : payload.lastFailed ?? state.lastFailed;
+      return {
+        ...state,
+        error: message,
+        lastFailed,
+        isGenerating: false,
+        isEditing: false,
+      };
+    }
+    case 'CLEAR_ERROR':
+      return { ...state, error: null, lastFailed: null };
     case 'SET_ASSET': {
       const paramValues: Record<string, string | number | boolean> = {};
       for (const p of action.payload.parameters) {
@@ -176,6 +194,7 @@ export const initialState: StudioState = {
   isEditing: false,
   isExporting: false,
   error: null,
+  lastFailed: null,
   clarify: null,
   history: { past: [], future: [] },
 };
@@ -226,8 +245,15 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       dispatch({ type: 'SET_ASSET', payload: asset });
       toast.success('Animation created!');
     } catch (err: unknown) {
+      // TM-82 — keep the user-facing error message AND capture the last
+      // failed input so the UI can offer a Retry button. The route
+      // refunds quota on 5xx / timeout, so re-issuing is safe and does
+      // not double-charge.
       const message = err instanceof Error ? err.message : 'Generation failed';
-      dispatch({ type: 'SET_ERROR', payload: message });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: { message, lastFailed: { kind: 'generate', prompt, answers } },
+      });
       toast.error(message);
     }
   }, []);
@@ -277,8 +303,13 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       });
       toast.success('Animation updated!');
     } catch (err: unknown) {
+      // TM-82 — capture last-failed for Retry. Edit endpoint also refunds
+      // editUsage on 5xx (see api/edit/route.ts), so retry is idempotent.
       const message = err instanceof Error ? err.message : 'Edit failed';
-      dispatch({ type: 'SET_ERROR', payload: message });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: { message, lastFailed: { kind: 'edit', prompt } },
+      });
       toast.error(message);
     }
   }, [state.asset]);
@@ -352,6 +383,23 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     dispatch({ type: 'CLEAR_ASSET' });
   }, []);
 
+  // TM-82 — re-issue the last failed generate/edit. Quota was already
+  // refunded by the API route on the failed attempt, so this does not
+  // double-charge. UI surfaces this via PromptPanel's error banner.
+  const retry = useCallback(async () => {
+    const lf = state.lastFailed;
+    if (!lf) return;
+    if (lf.kind === 'generate') {
+      await generate(lf.prompt, lf.answers);
+    } else {
+      await edit(lf.prompt);
+    }
+  }, [state.lastFailed, generate, edit]);
+
+  const dismissError = useCallback(() => {
+    dispatch({ type: 'CLEAR_ERROR' });
+  }, []);
+
   return {
     state,
     generate,
@@ -362,6 +410,8 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     clearAsset,
     submitClarifyAnswers,
     skipClarify,
+    retry,
+    dismissError,
     undo,
     redo,
     canUndo,

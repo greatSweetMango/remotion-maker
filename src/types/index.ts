@@ -51,6 +51,21 @@ export interface AssetVersion {
   parentId?: string | null;
 }
 
+/**
+ * TM-82 — last-failed bookkeeping so the UI can offer a "Retry" button.
+ *
+ * The route already refunds quota on 5xx / timeout (api/generate +
+ * api/edit catch branches), so re-issuing the same request is idempotent
+ * with respect to billing. We capture just enough context to reconstruct
+ * the call: which endpoint, which prompt, and (for clarify follow-ups)
+ * the answers payload.
+ */
+export interface LastFailed {
+  kind: 'generate' | 'edit';
+  prompt: string;
+  answers?: ClarifyAnswers;
+}
+
 export interface StudioState {
   asset: GeneratedAsset | null;
   versions: AssetVersion[];
@@ -60,6 +75,8 @@ export interface StudioState {
   isEditing: boolean;
   isExporting: boolean;
   error: string | null;
+  /** TM-82 — populated when the most recent generate/edit failed; cleared on success or dismiss. */
+  lastFailed: LastFailed | null;
   clarify: ClarifyState | null;
   /**
    * Undo/redo history for customize-panel parameter edits (TM-91).
@@ -107,7 +124,8 @@ export type StudioAction =
   | { type: 'SET_EDITING'; payload: boolean }
   | { type: 'SET_EXPORTING'; payload: boolean }
   | { type: 'SET_ASSET'; payload: GeneratedAsset }
-  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_ERROR'; payload: { message: string | null; lastFailed?: LastFailed | null } | string | null }
+  | { type: 'CLEAR_ERROR' }
   | { type: 'UPDATE_PARAM'; payload: { key: string; value: string | number | boolean } }
   | { type: 'ADD_VERSION'; payload: AssetVersion }
   | { type: 'RESTORE_VERSION'; payload: number }

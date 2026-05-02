@@ -34,6 +34,8 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     clearAsset,
     submitClarifyAnswers,
     skipClarify,
+    retry,
+    dismissError,
     undo,
     redo,
     canUndo,
@@ -121,6 +123,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                 clarify={state.clarify}
                 onSubmitClarifyAnswers={submitClarifyAnswers}
                 onSkipClarify={skipClarify}
+                errorMessage={state.error}
+                canRetry={!!state.lastFailed}
+                onRetry={retry}
+                onDismissError={dismissError}
               />
             </div>
           </Panel>
@@ -197,6 +203,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
               clarify={state.clarify}
               onSubmitClarifyAnswers={submitClarifyAnswers}
               onSkipClarify={skipClarify}
+              errorMessage={state.error}
+              canRetry={!!state.lastFailed}
+              onRetry={retry}
+              onDismissError={dismissError}
             />
           )}
           {mobileTab === 'customize' && (

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List } from 'lucide-react';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List, AlertTriangle, X } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
 import { HistoryGraph } from './HistoryGraph';
 import { TIER_LIMITS } from '@/lib/usage';
@@ -27,6 +27,16 @@ interface PromptPanelProps {
   clarify?: { questions: ClarifyQuestion[]; pendingPrompt: string } | null;
   onSubmitClarifyAnswers?: (answers: ClarifyAnswers) => void;
   onSkipClarify?: () => void;
+  /**
+   * TM-82 — last error message from generate/edit. When non-null, an inline
+   * banner is rendered with a Retry button (provided `canRetry` is true) so
+   * users can recover from transient 5xx / timeout failures without
+   * re-typing their prompt. Quota was already refunded by the API route.
+   */
+  errorMessage?: string | null;
+  canRetry?: boolean;
+  onRetry?: () => void;
+  onDismissError?: () => void;
 }
 
 const SUGGESTION_CARD_COUNT = 4;
@@ -136,6 +146,7 @@ export function PromptPanel({
   onGenerate, onEdit, versions, currentVersionIndex,
   onRestoreVersion, isGenerating, isEditing, hasAsset, tier,
   clarify, onSubmitClarifyAnswers, onSkipClarify,
+  errorMessage, canRetry, onRetry, onDismissError,
 }: PromptPanelProps) {
   const [prompt, setPrompt] = useState('');
   // User-explicit override; `null` means "follow default for current hasAsset state".
@@ -383,6 +394,50 @@ export function PromptPanel({
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        // TM-82 — user-facing error banner with Retry. Shown alongside the
+        // sonner toast so the affordance persists after the toast dismisses.
+        // The route refunds quota on 5xx / timeout, so retry is idempotent.
+        <div
+          role="alert"
+          aria-live="polite"
+          data-testid="prompt-error-banner"
+          className="px-4 py-3 border-b border-red-900/50 bg-red-950/40"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" aria-hidden />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-red-200">요청이 실패했습니다</p>
+              <p className="text-[11px] text-red-300/80 mt-0.5 break-words">{errorMessage}</p>
+              {canRetry && onRetry && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  data-testid="prompt-error-retry"
+                  onClick={onRetry}
+                  disabled={isLoading}
+                  className="mt-2 h-7 text-[11px] bg-red-900/40 hover:bg-red-900/60 text-red-100 border border-red-800/60"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1.5" aria-hidden />
+                  다시 시도
+                </Button>
+              )}
+            </div>
+            {onDismissError && (
+              <button
+                type="button"
+                onClick={onDismissError}
+                aria-label="에러 메시지 닫기"
+                className="text-red-400/70 hover:text-red-200 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            )}
           </div>
         </div>
       )}
