@@ -1,10 +1,10 @@
-TM-80 a11y audit @ 2026-05-02T13:43:05.234Z
+TM-80 a11y audit @ 2026-05-02T14:06:08.837Z
 base: http://127.0.0.1:3080
 
-TOTAL — critical:21 serious:77 moderate:0 minor:0
+TOTAL — critical:0 serious:40 moderate:0 minor:0
 
 # home  (http://127.0.0.1:3080/)
-  axe: c:0 s:2 m:0 mi:0  passes:21  incomplete:1
+  axe: c:0 s:2 m:0 mi:0  passes:20  incomplete:1
   kbd: interactive=52  reached=30  unlabeled=0
   contrast violations: 2
     - [serious] color-contrast (2): Elements must meet minimum color contrast ratio thresholds
@@ -25,60 +25,36 @@ TOTAL — critical:21 serious:77 moderate:0 minor:0
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.border-b.px-4:nth-child(2) > .mb-2.justify-between.items-center > p
 
 # tpl:counter-animation  (http://127.0.0.1:3080/studio?template=counter-animation)
-  axe: c:6 s:14 m:0 mi:0  passes:26  incomplete:3
-  kbd: interactive=47  reached=29  unlabeled=16
-  contrast violations: 11
-    - [serious] aria-input-field-name (3): ARIA input fields must have an accessible name
-        sel: span[aria-valuemin="40"]
-    - [critical] button-name (1): Buttons must have discernible text
-        sel: .peer
-    - [serious] color-contrast (11): Elements must meet minimum color contrast ratio thresholds
+  axe: c:0 s:5 m:0 mi:0  passes:27  incomplete:4
+  kbd: interactive=47  reached=29  unlabeled=13
+  contrast violations: 5
+    - [serious] color-contrast (5): Elements must meet minimum color contrast ratio thresholds
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role="radiogroup"][aria-label="Prompt mode"] > .border-violet-500.bg-violet-600[title="Edit current asset (⌘E)"] > kbd
-    - [critical] label (5): Form elements must have labels
-        sel: input[min="40"]
 
 # tpl:bar-chart  (http://127.0.0.1:3080/studio?template=bar-chart)
-  axe: c:5 s:10 m:0 mi:0  passes:26  incomplete:3
-  kbd: interactive=45  reached=29  unlabeled=13
-  contrast violations: 9
-    - [serious] aria-input-field-name (1): ARIA input fields must have an accessible name
-        sel: .size-3
-    - [critical] button-name (1): Buttons must have discernible text
-        sel: .peer
-    - [serious] color-contrast (9): Elements must meet minimum color contrast ratio thresholds
+  axe: c:0 s:5 m:0 mi:0  passes:27  incomplete:4
+  kbd: interactive=45  reached=29  unlabeled=12
+  contrast violations: 5
+    - [serious] color-contrast (5): Elements must meet minimum color contrast ratio thresholds
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role="radiogroup"][aria-label="Prompt mode"] > .border-violet-500.bg-violet-600[title="Edit current asset (⌘E)"] > kbd
-    - [critical] label (4): Form elements must have labels
-        sel: .w-20
 
 # tpl:gradient-orbs  (http://127.0.0.1:3080/studio?template=gradient-orbs)
-  axe: c:2 s:12 m:0 mi:0  passes:26  incomplete:3
-  kbd: interactive=44  reached=29  unlabeled=11
-  contrast violations: 10
-    - [serious] aria-input-field-name (2): ARIA input fields must have an accessible name
-        sel: span[aria-valuemin="20"]
-    - [serious] color-contrast (10): Elements must meet minimum color contrast ratio thresholds
+  axe: c:0 s:5 m:0 mi:0  passes:27  incomplete:4
+  kbd: interactive=44  reached=29  unlabeled=9
+  contrast violations: 5
+    - [serious] color-contrast (5): Elements must meet minimum color contrast ratio thresholds
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role="radiogroup"][aria-label="Prompt mode"] > .border-violet-500.bg-violet-600[title="Edit current asset (⌘E)"] > kbd
-    - [critical] label (2): Form elements must have labels
-        sel: input[min="20"]
 
 # tpl:particle-physics  (http://127.0.0.1:3080/studio?template=particle-physics)
-  axe: c:4 s:13 m:0 mi:0  passes:26  incomplete:3
-  kbd: interactive=49  reached=29  unlabeled=15
-  contrast violations: 9
-    - [serious] aria-input-field-name (4): ARIA input fields must have an accessible name
-        sel: span[aria-valuemin="4"]
-    - [serious] color-contrast (9): Elements must meet minimum color contrast ratio thresholds
+  axe: c:0 s:5 m:0 mi:0  passes:27  incomplete:4
+  kbd: interactive=49  reached=29  unlabeled=11
+  contrast violations: 5
+    - [serious] color-contrast (5): Elements must meet minimum color contrast ratio thresholds
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role="radiogroup"][aria-label="Prompt mode"] > .border-violet-500.bg-violet-600[title="Edit current asset (⌘E)"] > kbd
-    - [critical] label (4): Form elements must have labels
-        sel: input[min="4"]
 
 # tpl:fluid-blobs  (http://127.0.0.1:3080/studio?template=fluid-blobs)
-  axe: c:4 s:13 m:0 mi:0  passes:26  incomplete:3
-  kbd: interactive=49  reached=29  unlabeled=15
-  contrast violations: 9
-    - [serious] aria-input-field-name (4): ARIA input fields must have an accessible name
-        sel: span[aria-valuemin="80"]
-    - [serious] color-contrast (9): Elements must meet minimum color contrast ratio thresholds
+  axe: c:0 s:5 m:0 mi:0  passes:27  incomplete:4
+  kbd: interactive=49  reached=29  unlabeled=11
+  contrast violations: 5
+    - [serious] color-contrast (5): Elements must meet minimum color contrast ratio thresholds
         sel: .border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role="radiogroup"][aria-label="Prompt mode"] > .border-violet-500.bg-violet-600[title="Edit current asset (⌘E)"] > kbd
-    - [critical] label (4): Form elements must have labels
-        sel: input[min="80"]

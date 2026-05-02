@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
 import { editAsset } from '@/lib/ai/edit';
 import { getModels } from '@/lib/ai/client';
-import { checkEditLimit } from '@/lib/usage';
+import { TIER_LIMITS, reserveEditSlot, refundEditSlot, isValidAssetIdForUsageKey } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const isTemplate = assetId.startsWith('template-');
+  const isTemplate = (assetId as string).startsWith('template-');
+
+  // TM-93 — assetId is the JSON-path key for the editUsage counter. Reject
+  // weird input *before* any DB call so we never feed it into the raw
+  // `json_extract($.<key>)` UPDATE. (cuids and `template-<cuid>` pass.)
+  if (!isValidAssetIdForUsageKey(assetId)) {
+    return NextResponse.json({ error: 'invalid assetId' }, { status: 400 });
+  }
 
   const [user, asset] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
@@ -45,13 +52,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
   }
 
-  const usageKey = isTemplate ? assetId : assetId;
-  const editUsage = JSON.parse(user.editUsage as string) as Record<string, number>;
-  const editCount = editUsage[usageKey] || 0;
+  const usageKey = assetId;
 
-  const limitCheck = checkEditLimit({ tier: user.tier, editCount });
-  if (!limitCheck.allowed) {
-    return NextResponse.json({ error: limitCheck.reason }, { status: 429 });
+  // TM-93 — atomically reserve one edit slot BEFORE the LLM call. Previously
+  // this route did findUnique → JSON.parse → compare → editAsset → update,
+  // the exact TOCTOU pattern fixed in /api/generate by TM-92. Concurrent
+  // edits on the same FREE asset all read editCount=N, all passed the
+  // gate, and all incremented to >limit. The new path uses a single atomic
+  // SQLite UPDATE with `json_extract` precondition — exactly `limit` of any
+  // burst observe `affected = 1`; the rest see 0 and fall through to 429.
+  // Refund happens on the LLM-failure path below so 5xx doesn't burn quota.
+  const limit = TIER_LIMITS[user.tier].editsPerAsset;
+  const reserved = await reserveEditSlot({ userId: user.id, assetId: usageKey, limit });
+  if (!reserved) {
+    return NextResponse.json(
+      {
+        error: `Edit limit reached (${limit} per asset on Free plan). Upgrade to Pro for unlimited edits.`,
+      },
+      { status: 429 },
+    );
   }
 
   const models = getModels();
@@ -86,14 +105,18 @@ export async function POST(req: Request) {
       });
       savedAssetId = newAsset.id;
 
+      // monthlyUsage still bumps for template→asset materialization (a new
+      // asset was created). editUsage was already incremented atomically by
+      // reserveEditSlot above — do NOT touch it here.
       await prisma.user.update({
         where: { id: user.id },
         data: {
           monthlyUsage: { increment: 1 },
-          editUsage: JSON.stringify({ ...editUsage, [usageKey]: editCount + 1 }),
         },
       });
     } else {
+      // editUsage already incremented atomically above (TM-93). Transaction
+      // here only covers the version+asset writes.
       await prisma.$transaction([
         prisma.assetVersion.create({
           data: {
@@ -113,17 +136,15 @@ export async function POST(req: Request) {
             title: edited.title,
           },
         }),
-        prisma.user.update({
-          where: { id: user.id },
-          data: {
-            editUsage: JSON.stringify({ ...editUsage, [usageKey]: editCount + 1 }),
-          },
-        }),
       ]);
     }
 
     return NextResponse.json({ ...edited, id: savedAssetId });
   } catch (error: unknown) {
+    // TM-93 — refund the slot we reserved before the LLM call so a 5xx (or
+    // any post-reserve failure) doesn't permanently consume the user's edit
+    // quota. Mirrors TM-92's monthlyUsage refund on /api/generate failure.
+    await refundEditSlot({ userId: user.id, assetId: usageKey }).catch(() => {});
     console.error('Edit error:', error);
     const msg = error instanceof Error ? error.message : 'Edit failed';
     return NextResponse.json({ error: msg }, { status: 500 });

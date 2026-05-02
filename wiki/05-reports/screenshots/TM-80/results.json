@@ -1,9 +1,9 @@
 {
   "base": "http://127.0.0.1:3080",
-  "runAt": "2026-05-02T13:43:05.234Z",
+  "runAt": "2026-05-02T14:06:08.837Z",
   "totals": {
-    "critical": 21,
-    "serious": 77,
+    "critical": 0,
+    "serious": 40,
     "moderate": 0,
     "minor": 0
   },
@@ -12,7 +12,7 @@
       "label": "home",
       "url": "http://127.0.0.1:3080/",
       "axe": {
-        "passes": 21,
+        "passes": 20,
         "incomplete": 1,
         "buckets": {
           "critical": 0,
@@ -220,6 +220,24 @@
         "tabReached": 30,
         "sample": [
           {
+            "tag": "nextjs-portal",
+            "role": null,
+            "label": null,
+            "focusVisible": false
+          },
+          {
+            "tag": "nextjs-portal",
+            "role": null,
+            "label": null,
+            "focusVisible": false
+          },
+          {
+            "tag": "nextjs-portal",
+            "role": null,
+            "label": null,
+            "focusVisible": false
+          },
+          {
             "tag": "a",
             "role": null,
             "label": "EasyMake",
@@ -240,32 +258,14 @@
           {
             "tag": "button",
             "role": "listitem",
-            "label": "TextKinetic title",
+            "label": "TransitionMask reveal",
             "focusVisible": true
           },
           {
             "tag": "button",
             "role": "listitem",
-            "label": "Data VizDonut progress",
+            "label": "LoaderCheckmark success",
             "focusVisible": true
-          },
-          {
-            "tag": "button",
-            "role": "listitem",
-            "label": "InfographicKPI dashboard",
-            "focusVisible": true
-          },
-          {
-            "tag": "button",
-            "role": "listitem",
-            "label": "TransitionCurtain pull",
-            "focusVisible": true
-          },
-          {
-            "tag": "textarea",
-            "role": null,
-            "label": null,
-            "focusVisible": false
           }
         ]
       },
@@ -299,187 +299,28 @@
       "label": "tpl:counter-animation",
       "url": "http://127.0.0.1:3080/studio?template=counter-animation",
       "axe": {
-        "passes": 26,
-        "incomplete": 3,
+        "passes": 27,
+        "incomplete": 4,
         "buckets": {
-          "critical": 6,
-          "serious": 14,
+          "critical": 0,
+          "serious": 5,
           "moderate": 0,
           "minor": 0
         },
         "list": [
           {
-            "id": "aria-input-field-name",
-            "impact": "serious",
-            "help": "ARIA input fields must have an accessible name",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/aria-input-field-name?application=axeAPI",
-            "nodeCount": 3,
-            "sampleSelector": "span[aria-valuemin=\"40\"]",
-            "sampleHtml": "<span role=\"slider\" aria-valuemin=\"40\" aria-valuemax=\"240\" aria-orientation=\"horizontal\" data-orientation=\"horizontal\" tabindex=\"0\" data-slot=\"slider-thumb\" class=\"relative block size-...\" data-radix-"
-          },
-          {
-            "id": "button-name",
-            "impact": "critical",
-            "help": "Buttons must have discernible text",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/button-name?application=axeAPI",
-            "nodeCount": 1,
-            "sampleSelector": ".peer",
-            "sampleHtml": "<button type=\"button\" role=\"switch\" aria-checked=\"false\" data-state=\"unchecked\" value=\"on\" data-slot=\"switch\" data-size=\"default\" class=\"peer group/switch re...\">"
-          },
-          {
             "id": "color-contrast",
             "impact": "serious",
             "help": "Elements must meet minimum color contrast ratio thresholds",
             "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
-            "nodeCount": 11,
+            "nodeCount": 5,
             "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
             "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
-          },
-          {
-            "id": "label",
-            "impact": "critical",
-            "help": "Form elements must have labels",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI",
-            "nodeCount": 5,
-            "sampleSelector": "input[min=\"40\"]",
-            "sampleHtml": "<input data-slot=\"input\" class=\"h-8 min-w-0 rounded-...\" min=\"40\" max=\"240\" step=\"0.1\" type=\"number\" value=\"120\">"
           }
         ]
       },
       "keyboard": {
         "interactiveCount": 47,
-        "withoutVisibleLabel": 16,
-        "tabReached": 29,
-        "sample": [
-          {
-            "tag": "button",
-            "role": null,
-            "label": "Mute sound",
-            "focusVisible": true
-          },
-          {
-            "tag": "input",
-            "role": null,
-            "label": "Change volume",
-            "focusVisible": true
-          },
-          {
-            "tag": "button",
-            "role": null,
-            "label": "Enter Fullscreen",
-            "focusVisible": true
-          },
-          {
-            "tag": "div",
-            "role": "separator",
-            "label": null,
-            "focusVisible": true
-          },
-          {
-            "tag": "button",
-            "role": "tab",
-            "label": "Customize",
-            "focusVisible": true
-          },
-          {
-            "tag": "div",
-            "role": "tabpanel",
-            "label": "Customize8 paramsResources▾Images0Drop o",
-            "focusVisible": false
-          },
-          {
-            "tag": "summary",
-            "role": null,
-            "label": "Resources▾",
-            "focusVisible": true
-          },
-          {
-            "tag": "button",
-            "role": null,
-            "label": "Vivid",
-            "focusVisible": true
-          }
-        ]
-      },
-      "colorContrast": {
-        "nodeCount": 11,
-        "samples": [
-          {
-            "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
-            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.95 (foreground color: #cca7ff, background color: #7f22fe, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
-          },
-          {
-            "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .hover\\:border-slate-600.hover\\:text-white[title=\"Generate a new asset (⌘N)\"] > kbd",
-            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
-          },
-          {
-            "target": "#radix-_r_9_-trigger-customize",
-            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
-          },
-          {
-            "target": "#radix-_r_9_-trigger-export",
-            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
-          },
-          {
-            "target": "summary",
-            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
-          }
-        ]
-      }
-    },
-    {
-      "label": "tpl:bar-chart",
-      "url": "http://127.0.0.1:3080/studio?template=bar-chart",
-      "axe": {
-        "passes": 26,
-        "incomplete": 3,
-        "buckets": {
-          "critical": 5,
-          "serious": 10,
-          "moderate": 0,
-          "minor": 0
-        },
-        "list": [
-          {
-            "id": "aria-input-field-name",
-            "impact": "serious",
-            "help": "ARIA input fields must have an accessible name",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/aria-input-field-name?application=axeAPI",
-            "nodeCount": 1,
-            "sampleSelector": ".size-3",
-            "sampleHtml": "<span role=\"slider\" aria-valuemin=\"0.3\" aria-valuemax=\"3\" aria-orientation=\"horizontal\" data-orientation=\"horizontal\" tabindex=\"0\" data-slot=\"slider-thumb\" class=\"relative block size-...\" data-radix-c"
-          },
-          {
-            "id": "button-name",
-            "impact": "critical",
-            "help": "Buttons must have discernible text",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/button-name?application=axeAPI",
-            "nodeCount": 1,
-            "sampleSelector": ".peer",
-            "sampleHtml": "<button type=\"button\" role=\"switch\" aria-checked=\"true\" data-state=\"checked\" value=\"on\" data-slot=\"switch\" data-size=\"default\" class=\"peer group/switch re...\">"
-          },
-          {
-            "id": "color-contrast",
-            "impact": "serious",
-            "help": "Elements must meet minimum color contrast ratio thresholds",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
-            "nodeCount": 9,
-            "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
-            "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
-          },
-          {
-            "id": "label",
-            "impact": "critical",
-            "help": "Form elements must have labels",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI",
-            "nodeCount": 4,
-            "sampleSelector": ".w-20",
-            "sampleHtml": "<input data-slot=\"input\" class=\"h-8 min-w-0 rounded-...\" min=\"0.3\" max=\"3\" step=\"0.1\" type=\"number\" value=\"1\">"
-          }
-        ]
-      },
-      "keyboard": {
-        "interactiveCount": 45,
         "withoutVisibleLabel": 13,
         "tabReached": 29,
         "sample": [
@@ -534,7 +375,7 @@
         ]
       },
       "colorContrast": {
-        "nodeCount": 9,
+        "nodeCount": 5,
         "samples": [
           {
             "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
@@ -545,15 +386,120 @@
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-customize",
+            "target": "#radix-_R_dl5esndlb_-trigger-customize",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-export",
+            "target": "#radix-_R_dl5esndlb_-trigger-export",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "summary",
+            "target": ".text-slate-500.uppercase.tracking-wider",
+            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+          }
+        ]
+      }
+    },
+    {
+      "label": "tpl:bar-chart",
+      "url": "http://127.0.0.1:3080/studio?template=bar-chart",
+      "axe": {
+        "passes": 27,
+        "incomplete": 4,
+        "buckets": {
+          "critical": 0,
+          "serious": 5,
+          "moderate": 0,
+          "minor": 0
+        },
+        "list": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+            "nodeCount": 5,
+            "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
+            "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
+          }
+        ]
+      },
+      "keyboard": {
+        "interactiveCount": 45,
+        "withoutVisibleLabel": 12,
+        "tabReached": 29,
+        "sample": [
+          {
+            "tag": "button",
+            "role": null,
+            "label": "Mute sound",
+            "focusVisible": true
+          },
+          {
+            "tag": "input",
+            "role": null,
+            "label": "Change volume",
+            "focusVisible": true
+          },
+          {
+            "tag": "button",
+            "role": null,
+            "label": "Enter Fullscreen",
+            "focusVisible": true
+          },
+          {
+            "tag": "div",
+            "role": "separator",
+            "label": null,
+            "focusVisible": true
+          },
+          {
+            "tag": "button",
+            "role": "tab",
+            "label": "Customize",
+            "focusVisible": true
+          },
+          {
+            "tag": "div",
+            "role": "tabpanel",
+            "label": "Customize8 paramsResources▾Images0Drop o",
+            "focusVisible": false
+          },
+          {
+            "tag": "summary",
+            "role": null,
+            "label": "Resources▾",
+            "focusVisible": true
+          },
+          {
+            "tag": "button",
+            "role": null,
+            "label": "Vivid",
+            "focusVisible": true
+          }
+        ]
+      },
+      "colorContrast": {
+        "nodeCount": 5,
+        "samples": [
+          {
+            "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
+            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.95 (foreground color: #cca7ff, background color: #7f22fe, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .hover\\:border-slate-600.hover\\:text-white[title=\"Generate a new asset (⌘N)\"] > kbd",
+            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": "#radix-_R_dl5esndlb_-trigger-customize",
+            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": "#radix-_R_dl5esndlb_-trigger-export",
+            "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+          },
+          {
+            "target": ".text-slate-500.uppercase.tracking-wider",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           }
         ]
@@ -563,47 +509,29 @@
       "label": "tpl:gradient-orbs",
       "url": "http://127.0.0.1:3080/studio?template=gradient-orbs",
       "axe": {
-        "passes": 26,
-        "incomplete": 3,
+        "passes": 27,
+        "incomplete": 4,
         "buckets": {
-          "critical": 2,
-          "serious": 12,
+          "critical": 0,
+          "serious": 5,
           "moderate": 0,
           "minor": 0
         },
         "list": [
           {
-            "id": "aria-input-field-name",
-            "impact": "serious",
-            "help": "ARIA input fields must have an accessible name",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/aria-input-field-name?application=axeAPI",
-            "nodeCount": 2,
-            "sampleSelector": "span[aria-valuemin=\"20\"]",
-            "sampleHtml": "<span role=\"slider\" aria-valuemin=\"20\" aria-valuemax=\"200\" aria-orientation=\"horizontal\" data-orientation=\"horizontal\" tabindex=\"0\" data-slot=\"slider-thumb\" class=\"relative block size-...\" data-radix-"
-          },
-          {
             "id": "color-contrast",
             "impact": "serious",
             "help": "Elements must meet minimum color contrast ratio thresholds",
             "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
-            "nodeCount": 10,
+            "nodeCount": 5,
             "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
             "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
-          },
-          {
-            "id": "label",
-            "impact": "critical",
-            "help": "Form elements must have labels",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI",
-            "nodeCount": 2,
-            "sampleSelector": "input[min=\"20\"]",
-            "sampleHtml": "<input data-slot=\"input\" class=\"h-8 min-w-0 rounded-...\" min=\"20\" max=\"200\" step=\"0.1\" type=\"number\" value=\"100\">"
           }
         ]
       },
       "keyboard": {
         "interactiveCount": 44,
-        "withoutVisibleLabel": 11,
+        "withoutVisibleLabel": 9,
         "tabReached": 29,
         "sample": [
           {
@@ -657,7 +585,7 @@
         ]
       },
       "colorContrast": {
-        "nodeCount": 10,
+        "nodeCount": 5,
         "samples": [
           {
             "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
@@ -668,15 +596,15 @@
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-customize",
+            "target": "#radix-_R_dl5esndlb_-trigger-customize",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-export",
+            "target": "#radix-_R_dl5esndlb_-trigger-export",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "summary",
+            "target": ".text-slate-500.uppercase.tracking-wider",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           }
         ]
@@ -686,47 +614,29 @@
       "label": "tpl:particle-physics",
       "url": "http://127.0.0.1:3080/studio?template=particle-physics",
       "axe": {
-        "passes": 26,
-        "incomplete": 3,
+        "passes": 27,
+        "incomplete": 4,
         "buckets": {
-          "critical": 4,
-          "serious": 13,
+          "critical": 0,
+          "serious": 5,
           "moderate": 0,
           "minor": 0
         },
         "list": [
           {
-            "id": "aria-input-field-name",
-            "impact": "serious",
-            "help": "ARIA input fields must have an accessible name",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/aria-input-field-name?application=axeAPI",
-            "nodeCount": 4,
-            "sampleSelector": "span[aria-valuemin=\"4\"]",
-            "sampleHtml": "<span role=\"slider\" aria-valuemin=\"4\" aria-valuemax=\"40\" aria-orientation=\"horizontal\" data-orientation=\"horizontal\" tabindex=\"0\" data-slot=\"slider-thumb\" class=\"relative block size-...\" data-radix-co"
-          },
-          {
             "id": "color-contrast",
             "impact": "serious",
             "help": "Elements must meet minimum color contrast ratio thresholds",
             "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
-            "nodeCount": 9,
+            "nodeCount": 5,
             "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
             "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
-          },
-          {
-            "id": "label",
-            "impact": "critical",
-            "help": "Form elements must have labels",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI",
-            "nodeCount": 4,
-            "sampleSelector": "input[min=\"4\"]",
-            "sampleHtml": "<input data-slot=\"input\" class=\"h-8 min-w-0 rounded-...\" min=\"4\" max=\"40\" step=\"0.1\" type=\"number\" value=\"26\">"
           }
         ]
       },
       "keyboard": {
         "interactiveCount": 49,
-        "withoutVisibleLabel": 15,
+        "withoutVisibleLabel": 11,
         "tabReached": 29,
         "sample": [
           {
@@ -780,7 +690,7 @@
         ]
       },
       "colorContrast": {
-        "nodeCount": 9,
+        "nodeCount": 5,
         "samples": [
           {
             "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
@@ -791,15 +701,15 @@
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-customize",
+            "target": "#radix-_R_dl5esndlb_-trigger-customize",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-export",
+            "target": "#radix-_R_dl5esndlb_-trigger-export",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "summary",
+            "target": ".text-slate-500.uppercase.tracking-wider",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           }
         ]
@@ -809,47 +719,29 @@
       "label": "tpl:fluid-blobs",
       "url": "http://127.0.0.1:3080/studio?template=fluid-blobs",
       "axe": {
-        "passes": 26,
-        "incomplete": 3,
+        "passes": 27,
+        "incomplete": 4,
         "buckets": {
-          "critical": 4,
-          "serious": 13,
+          "critical": 0,
+          "serious": 5,
           "moderate": 0,
           "minor": 0
         },
         "list": [
           {
-            "id": "aria-input-field-name",
-            "impact": "serious",
-            "help": "ARIA input fields must have an accessible name",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/aria-input-field-name?application=axeAPI",
-            "nodeCount": 4,
-            "sampleSelector": "span[aria-valuemin=\"80\"]",
-            "sampleHtml": "<span role=\"slider\" aria-valuemin=\"80\" aria-valuemax=\"400\" aria-orientation=\"horizontal\" data-orientation=\"horizontal\" tabindex=\"0\" data-slot=\"slider-thumb\" class=\"relative block size-...\" data-radix-"
-          },
-          {
             "id": "color-contrast",
             "impact": "serious",
             "help": "Elements must meet minimum color contrast ratio thresholds",
             "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
-            "nodeCount": 9,
+            "nodeCount": 5,
             "sampleSelector": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
             "sampleHtml": "<kbd class=\"ml-1 hidden sm:inline-block text-[10px] opacity-60\">⌘E</kbd>"
-          },
-          {
-            "id": "label",
-            "impact": "critical",
-            "help": "Form elements must have labels",
-            "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI",
-            "nodeCount": 4,
-            "sampleSelector": "input[min=\"80\"]",
-            "sampleHtml": "<input data-slot=\"input\" class=\"h-8 min-w-0 rounded-...\" min=\"80\" max=\"400\" step=\"0.1\" type=\"number\" value=\"220\">"
           }
         ]
       },
       "keyboard": {
         "interactiveCount": 49,
-        "withoutVisibleLabel": 15,
+        "withoutVisibleLabel": 11,
         "tabReached": 29,
         "sample": [
           {
@@ -903,7 +795,7 @@
         ]
       },
       "colorContrast": {
-        "nodeCount": 9,
+        "nodeCount": 5,
         "samples": [
           {
             "target": ".border-r > .bg-slate-900.h-full.flex-col > .py-3.px-4.border-b > .ml-auto[role=\"radiogroup\"][aria-label=\"Prompt mode\"] > .border-violet-500.bg-violet-600[title=\"Edit current asset (⌘E)\"] > kbd",
@@ -914,15 +806,15 @@
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.94 (foreground color: #627187, background color: #1d293d, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-customize",
+            "target": "#radix-_R_dl5esndlb_-trigger-customize",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.11 (foreground color: #0a0a0a, background color: #0f172b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "#radix-_r_9_-trigger-export",
+            "target": "#radix-_R_dl5esndlb_-trigger-export",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.23 (foreground color: #12161e, background color: #1d293d, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           },
           {
-            "target": "summary",
+            "target": ".text-slate-500.uppercase.tracking-wider",
             "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.23 (foreground color: #62748e, background color: #020618, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
           }
         ]

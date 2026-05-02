@@ -36,6 +36,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     skipClarify,
     retry,
     dismissError,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
@@ -163,6 +167,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                     paramValues={state.paramValues}
                     onParamChange={updateParam}
                     tier={tier}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
                   />
                 </TabsContent>
 
@@ -216,6 +224,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                   paramValues={state.paramValues}
                   onParamChange={updateParam}
                   tier={tier}
+                  onUndo={undo}
+                  onRedo={redo}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                 />
               </div>
             </>
