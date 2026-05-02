@@ -61,6 +61,18 @@ export interface StudioState {
   isExporting: boolean;
   error: string | null;
   clarify: ClarifyState | null;
+  /**
+   * Undo/redo history for customize-panel parameter edits (TM-91).
+   * Each entry is a snapshot of `paramValues` taken BEFORE applying the
+   * next UPDATE_PARAM. Capped at HISTORY_DEPTH; older entries drop off
+   * the bottom of `past`. New UPDATE_PARAM clears `future` (branch).
+   * SET_ASSET / ADD_VERSION / RESTORE_VERSION reset both stacks because
+   * the parameter set itself changes — no meaningful undo across that.
+   */
+  history: {
+    past: Array<Record<string, string | number | boolean>>;
+    future: Array<Record<string, string | number | boolean>>;
+  };
 }
 
 export interface ClarifyChoice {
@@ -101,7 +113,9 @@ export type StudioAction =
   | { type: 'RESTORE_VERSION'; payload: number }
   | { type: 'CLEAR_ASSET' }
   | { type: 'SET_CLARIFY'; payload: { questions: ClarifyQuestion[]; prompt: string } }
-  | { type: 'CLEAR_CLARIFY' };
+  | { type: 'CLEAR_CLARIFY' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' };
 
 export interface Template {
   id: string;

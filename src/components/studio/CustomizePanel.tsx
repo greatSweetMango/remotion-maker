@@ -6,7 +6,7 @@ import { SequenceTimeline } from './SequenceTimeline';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Palette, Ruler, Clock, Type, Settings2, Image as ImageIcon } from 'lucide-react';
+import { Palette, Ruler, Clock, Type, Settings2, Image as ImageIcon, Undo2, Redo2 } from 'lucide-react';
 import { ResourcePanel } from './ResourcePanel';
 import type { Parameter, Tier } from '@/types';
 import Link from 'next/link';
@@ -18,6 +18,11 @@ interface CustomizePanelProps {
   paramValues: Record<string, string | number | boolean>;
   onParamChange: (key: string, value: string | number | boolean) => void;
   tier: Tier;
+  /** TM-91 undo/redo. Optional so legacy/test callers without history still work. */
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 const GROUP_META = {
@@ -32,7 +37,16 @@ const GROUP_META = {
 const GROUP_ORDER: Parameter['group'][] = ['color', 'size', 'timing', 'text', 'media', 'other'];
 const FREE_PARAM_LIMIT = 3;
 
-export function CustomizePanel({ parameters, paramValues, onParamChange, tier }: CustomizePanelProps) {
+export function CustomizePanel({
+  parameters,
+  paramValues,
+  onParamChange,
+  tier,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+}: CustomizePanelProps) {
   const sequenceCtx = useActiveSequenceOptional();
   const segments = sequenceCtx?.segments;
   const activeSequenceId = sequenceCtx?.activeSequenceId ?? ALL_MODE_ID;
@@ -64,13 +78,43 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 gap-2">
         <span className="text-sm font-semibold text-white">Customize</span>
-        <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
-          {visibleParams.length === parameters.length
-            ? `${parameters.length} params`
-            : `${visibleParams.length}/${parameters.length} params`}
-        </Badge>
+        <div className="flex items-center gap-1">
+          {onUndo && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-400 hover:text-white disabled:opacity-30"
+              onClick={onUndo}
+              disabled={!canUndo}
+              aria-label="Undo"
+              title="Undo (Cmd+Z)"
+            >
+              <Undo2 aria-hidden className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {onRedo && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-400 hover:text-white disabled:opacity-30"
+              onClick={onRedo}
+              disabled={!canRedo}
+              aria-label="Redo"
+              title="Redo (Cmd+Shift+Z)"
+            >
+              <Redo2 aria-hidden className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Badge variant="outline" className="text-xs border-slate-600 text-slate-400 ml-1">
+            {visibleParams.length === parameters.length
+              ? `${parameters.length} params`
+              : `${visibleParams.length}/${parameters.length} params`}
+          </Badge>
+        </div>
       </div>
 
       <SequenceTimelineSlot />
