@@ -1,0 +1,33 @@
+=== Step 1: seed users ===
+seeded FREE userId=cmoodtdp10000dm7ki3ecxtmu PRO userId=cmoodtdp70001dm7k664nyj77
+=== Step 2: login both users ===
+login OK email=tm76-free@localhost userId=cmoodtdp10000dm7ki3ecxtmu tier=FREE
+login OK email=tm76-pro@localhost userId=cmoodtdp70001dm7k664nyj77 tier=PRO
+=== Step 3: FREE /api/generate ===
+generated assetA.id=cmoodwxno0001dmks76l0tb3e latency=6484ms
+versions after generate: 1
+=== Step 4: FREE /api/edit ===
+edit OK latency=5371ms
+versions after edit: 2
+=== Step 5: FREE /api/asset/:id/share ===
+shared slug=f7DHI7RciK8U
+=== Step 6: PRO /api/asset/fork ===
+forked forkId=cmoodx2o70006dmkshsl6qm5e sourceAssetId(api)=cmoodwxno0001dmks76l0tb3e
+fork DB row: userId=cmoodtdp70001dm7k664nyj77 sourceAssetId=cmoodwxno0001dmks76l0tb3e publicSlug=null sharedAt=null
+=== Step 7: PRO GET /api/assets ===
+PRO listing contains fork: title=GeneratedAsset (forked)
+=== Step 8: cross-user access checks ===
+FREE → POST share on PRO fork: status=403
+FREE → DELETE on PRO fork: status=403
+=== Step 9: FREE soft-delete original ===
+soft-delete status=200 body={"ok":true}
+after soft-delete: deletedAt=Sat May 02 2026 22:35:53 GMT+0900 (대한민국 표준시) versions=2
+fork after soft-delete: sourceAssetId=cmoodwxno0001dmks76l0tb3e
+soft-deleted asset correctly hidden from /api/assets
+=== Step 10: Prisma hard-delete original (cascade test) ===
+versions after hard-delete: 0 (should be 0 — onDelete: Cascade)
+fork after hard-delete: sourceAssetId=null
+=== Step 11: orphan check ===
+orphan versions: 0
+forks pointing to missing source (should be 0 due to SetNull): 0
+=== DONE ===

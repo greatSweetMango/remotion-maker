@@ -99,25 +99,34 @@ echo "[setup-worktree] dev port:    $DEV_PORT"
 # 1) Copy .env.local
 cp "$MAIN_REPO/.env.local" "$WORKTREE_PATH/.env.local"
 
-# 2) Substitute NEXTAUTH_URL host+port. Use a temp file for portable in-place edit.
+# 2) Substitute NEXTAUTH_URL host+port AND pin DATABASE_URL to an ABSOLUTE worktree-local
+#    path. The relative `file:./dev.db` form is dangerous in worktrees: Next 16 + turbopack
+#    infers the workspace root from a parent lockfile and resolves the SQLite path relative
+#    to the *main repo*, silently sharing the prod-like DB across worktrees. (Discovered
+#    TM-76 retro 2026-04-27 — see wiki/02-dev/tech-notes/2026-04-27-worktree-database-url.md)
 TMP_ENV="$WORKTREE_PATH/.env.local.tmp"
-awk -v host="$DEV_HOST" -v port="$DEV_PORT" '
-  BEGIN { replaced = 0 }
+ABS_DB_URL="file:$WORKTREE_PATH/prisma/dev.db"
+awk -v host="$DEV_HOST" -v port="$DEV_PORT" -v dburl="$ABS_DB_URL" '
+  BEGIN { auth_replaced = 0; db_replaced = 0 }
   /^NEXTAUTH_URL=/ {
     print "NEXTAUTH_URL=http://" host ":" port
-    replaced = 1
+    auth_replaced = 1
+    next
+  }
+  /^DATABASE_URL=/ {
+    print "DATABASE_URL=" dburl
+    db_replaced = 1
     next
   }
   { print }
   END {
-    if (!replaced) {
-      print "NEXTAUTH_URL=http://" host ":" port
-    }
+    if (!auth_replaced) print "NEXTAUTH_URL=http://" host ":" port
+    if (!db_replaced)   print "DATABASE_URL=" dburl
   }
 ' "$WORKTREE_PATH/.env.local" > "$TMP_ENV"
 mv "$TMP_ENV" "$WORKTREE_PATH/.env.local"
 
-echo "[setup-worktree] .env.local copied + NEXTAUTH_URL pinned to http://$DEV_HOST:$DEV_PORT"
+echo "[setup-worktree] .env.local copied + NEXTAUTH_URL pinned to http://$DEV_HOST:$DEV_PORT + DATABASE_URL pinned to $ABS_DB_URL"
 
 # 3) Prisma db push (worktree-local SQLite at <worktree>/prisma/dev.db via DATABASE_URL=file:./dev.db).
 #    The schema file in the worktree controls the migration; --skip-generate avoids regenerating client
@@ -127,8 +136,8 @@ if [[ ! -f "$SCHEMA_PATH" ]]; then
   echo "[setup-worktree] prisma/schema.prisma not found at $SCHEMA_PATH — skipping db push" >&2
 else
   pushd "$WORKTREE_PATH" >/dev/null
-  # Use the .env.local we just wrote so DATABASE_URL is picked up.
-  DATABASE_URL="file:./dev.db" npx --yes prisma db push --schema "$SCHEMA_PATH" --skip-generate
+  # Use absolute path to match what we wrote to .env.local (avoids cwd-relative drift).
+  DATABASE_URL="$ABS_DB_URL" npx --yes prisma db push --schema "$SCHEMA_PATH" --skip-generate
   popd >/dev/null
   echo "[setup-worktree] prisma db push OK ($WORKTREE_PATH/prisma/dev.db)"
 
