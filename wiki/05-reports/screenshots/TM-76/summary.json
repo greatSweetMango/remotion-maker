@@ -1,0 +1,100 @@
+{
+  "startedAt": "2026-05-02T13:35:39.418Z",
+  "finishedAt": "2026-05-02T13:35:53.646Z",
+  "base": "http://localhost:3076",
+  "bugs": [],
+  "bugCount": 0,
+  "severityCounts": {},
+  "steps": [
+    {
+      "step": "generate",
+      "status": 200,
+      "latencyMs": 6484,
+      "body": {
+        "type": "generate",
+        "asset": {
+          "id": "cmoodwxno0001dmks76l0tb3e",
+          "title": "Animated Counter",
+          "code": "import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';\n\nconst PARAMS = {\n  primaryColor: '#0000FF',     // type: color\n  speed: 1.0,                  // type: range, min: 0.1, max: 3.0\n  duration: 3,                 // type: range, min: 1, max: 10, unit: seconds\n} as const;\n\nexport const GeneratedAsset = ({\n  primaryColor = PARAMS.primaryColor,\n  duration = PARAMS.duration,\n}: typeof PARAMS = PARAMS) => {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const totalFrames = duration * fps;\n  const count = interpolate(frame, [0, totalFrames], [0, 100], { extrapolateRight: 'clamp' });\n\n  return (\n    <AbsoluteFill style={{ backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' }}>\n      <h1 style={{ color: primaryColor, fontSize: 80 }}>{Math.round(count)}</h1>\n    </AbsoluteFill>\n  );\n};",
+          "jsCode": "const PARAMS = {\n  primaryColor: '#0000FF',     // type: color\n  speed: 1.0,                  // type: range, min: 0.1, max: 3.0\n  duration: 3,                 // type: range, min: 1, max: 10, unit: seconds\n} ;\n\nconst GeneratedAsset = ({\n  primaryColor = PARAMS.primaryColor,\n  duration = PARAMS.duration,\n} = PARAMS) => {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const totalFrames = duration * fps;\n  const count = interpolate(frame, [0, totalFrames], [0, 100], { extrapolateRight: 'clamp' });\n\n  return (\n    React.createElement(AbsoluteFill, { style: { backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },}\n      , React.createElement('h1', { style: { color: primaryColor, fontSize: 80 },}, Math.round(count))\n    )\n  );\n};",
+          "parameters": [
+            {
+              "key": "primaryColor",
+              "label": "Primary Color",
+              "group": "color",
+              "type": "color",
+              "value": "#0000FF"
+            },
+            {
+              "key": "speed",
+              "label": "Speed",
+              "group": "timing",
+              "type": "range",
+              "value": 1,
+              "min": 0.1,
+              "max": 3
+            },
+            {
+              "key": "duration",
+              "label": "Duration",
+              "group": "timing",
+              "type": "range",
+              "value": 3,
+              "min": 1,
+              "max": 10,
+              "unit": "seconds"
+            }
+          ],
+          "durationInFrames": 90,
+          "fps": 30,
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "step": "edit",
+      "status": 200,
+      "latencyMs": 5371,
+      "ok": true
+    },
+    {
+      "step": "share",
+      "status": 200,
+      "body": {
+        "slug": "f7DHI7RciK8U",
+        "url": "/share/f7DHI7RciK8U",
+        "sharedAt": "2026-05-02T13:35:52.391Z"
+      }
+    },
+    {
+      "step": "fork",
+      "status": 201,
+      "body": {
+        "id": "cmoodx2o70006dmkshsl6qm5e",
+        "title": "GeneratedAsset (forked)",
+        "sourceAssetId": "cmoodwxno0001dmks76l0tb3e"
+      }
+    },
+    {
+      "step": "list",
+      "status": 200,
+      "found": true
+    },
+    {
+      "step": "cross-share",
+      "status": 403
+    },
+    {
+      "step": "cross-delete",
+      "status": 403
+    },
+    {
+      "step": "soft-delete",
+      "status": 200,
+      "body": {
+        "ok": true
+      }
+    }
+  ]
+}
