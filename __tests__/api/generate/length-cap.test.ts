@@ -10,7 +10,7 @@ jest.mock('@/lib/auth', () => ({ auth: jest.fn() }));
 
 jest.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     asset: { create: jest.fn() },
   },
 }));
@@ -33,7 +33,7 @@ const mockedAuth = auth as jest.MockedFunction<typeof auth>;
 type SessionShape = ReturnType<typeof auth> extends Promise<infer R> ? R : never;
 const mockedGenerate = generateAsset as jest.MockedFunction<typeof generateAsset>;
 const m = prisma as unknown as {
-  user: { findUnique: jest.Mock; update: jest.Mock };
+  user: { findUnique: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
   asset: { create: jest.Mock };
 };
 
@@ -55,6 +55,7 @@ beforeEach(() => {
     usageResetAt: new Date(),
     editUsage: '{}',
   });
+  m.user.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('POST /api/generate — TM-58 prompt length cap', () => {
