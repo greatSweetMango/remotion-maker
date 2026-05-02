@@ -1,0 +1,66 @@
+{
+  "task": "TM-83",
+  "startedAt": "2026-05-02T13:44:33.779Z",
+  "finishedAt": "2026-05-02T13:47:28.449Z",
+  "base": "http://localhost:3083",
+  "devPid": 80047,
+  "rssKb": {
+    "before": 350576,
+    "afterConcurrent": 425504,
+    "afterSequential": 472576,
+    "deltaTotalKb": 122000
+  },
+  "concurrent": {
+    "wallMsTotal": 5893,
+    "label": "concurrent-10",
+    "n": 10,
+    "ok": 10,
+    "failed": 0,
+    "statuses": {
+      "200": 10
+    },
+    "kinds": {
+      "generate": 10
+    },
+    "bytesTotal": 33555,
+    "wallMs": {
+      "min": 4622.93,
+      "p50": 4936.07,
+      "p90": 5122.25,
+      "p99": 5891.27,
+      "max": 5891.27,
+      "avg": 4996.24
+    },
+    "errors": []
+  },
+  "sequential": {
+    "wallMsTotal": 167061,
+    "label": "sequential-30",
+    "n": 30,
+    "ok": 30,
+    "failed": 0,
+    "statuses": {
+      "200": 30
+    },
+    "kinds": {
+      "generate": 30
+    },
+    "bytesTotal": 104473,
+    "wallMs": {
+      "min": 4247.46,
+      "p50": 5378.9,
+      "p90": 6623.87,
+      "p99": 7444.94,
+      "max": 7444.94,
+      "avg": 5568.67
+    },
+    "errors": []
+  },
+  "raceChecks": {
+    "auth401": 0,
+    "status429": 0,
+    "status5xx": 0,
+    "verdict": "no-observed-race"
+  },
+  "speedup": 1.11
+}
