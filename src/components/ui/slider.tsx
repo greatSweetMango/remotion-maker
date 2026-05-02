@@ -12,7 +12,19 @@ function Slider({
   min = 0,
   max = 100,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & {
+  /**
+   * Accessible label forwarded to the slider thumb. axe-core flags slider
+   * thumbs without an accessible name as a serious WCAG 4.1.2 violation
+   * (TM-80). When the slider is paired with a visible <Label>, prefer
+   * `aria-labelledby`. This prop is forwarded to every Thumb so multi-thumb
+   * sliders share the same accessible name.
+   */
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+}) {
+  const ariaLabel = props['aria-label'];
+  const ariaLabelledBy = props['aria-labelledby'];
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -49,6 +61,8 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
           className="relative block size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
         />
       ))}

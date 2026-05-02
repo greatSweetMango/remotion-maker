@@ -77,7 +77,7 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         <details className="group" open={visibleParams.some(p => p.type === 'image' || p.type === 'font')}>
-          <summary className="cursor-pointer list-none flex items-center gap-2 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300">
+          <summary className="cursor-pointer list-none flex items-center gap-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-200">
             <ImageIcon className="h-3.5 w-3.5" />
             Resources
             <span className="ml-auto text-[10px] text-slate-600 group-open:rotate-180 transition-transform">▾</span>
@@ -96,7 +96,7 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
         />
 
         {visibleParams.length === 0 && (
-          <div className="text-center py-8 text-slate-500 text-xs">
+          <div className="text-center py-8 text-slate-400 text-xs">
             No parameters defined for this sequence. Toggle <span className="text-violet-300">All</span> above to see every parameter.
           </div>
         )}
@@ -110,8 +110,8 @@ export function CustomizePanel({ parameters, paramValues, onParamChange, tier }:
           return (
             <div key={group}>
               <div className="flex items-center gap-2 mb-3">
-                <Icon className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</span>
+                <Icon aria-hidden className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
               </div>
               <div className="space-y-4">
                 {groupParams.map(param => {
