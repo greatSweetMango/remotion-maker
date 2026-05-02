@@ -37,22 +37,48 @@ model_raw="$(printf '%s' "$payload" | jq -r '
   // "" )
 ' 2>/dev/null || echo "")"
 
+model_lower="$(printf '%s' "$model_raw" | tr '[:upper:]' '[:lower:]')"
+
+# Provider / family resolution. Anthropic models drive Claude pricing;
+# OpenAI models (gpt-*) use the OpenAI table and feed `openai_total_usd`.
+provider="anthropic"
+case "$model_lower" in
+  gpt-*|*o1*|*openai*) provider="openai" ;;
+esac
+
 model_family="sonnet"
-case "$(printf '%s' "$model_raw" | tr '[:upper:]' '[:lower:]')" in
-  *opus*)   model_family="opus"   ;;
-  *sonnet*) model_family="sonnet" ;;
-  *haiku*)  model_family="haiku"  ;;
-esac
+if [[ "$provider" == "anthropic" ]]; then
+  case "$model_lower" in
+    *opus*)   model_family="opus"   ;;
+    *sonnet*) model_family="sonnet" ;;
+    *haiku*)  model_family="haiku"  ;;
+  esac
+fi
 
-# 가격 (USD per 1M tokens) — Claude 4.5 (Opus/Sonnet/Haiku)
-case "$model_family" in
-  opus)   p_in=15;    p_out=75; p_cw=18.75; p_cr=1.5  ;;
-  sonnet) p_in=3;     p_out=15; p_cw=3.75;  p_cr=0.30 ;;
-  haiku)  p_in=1;     p_out=5;  p_cw=1.25;  p_cr=0.10 ;;
-esac
+# 가격 (USD per 1M tokens). Anthropic: Claude 4.5 (Opus/Sonnet/Haiku);
+# OpenAI: gpt-4o vs gpt-4o-mini (cache fields zeroed — OpenAI does not
+# expose per-cache pricing in its usage payload yet).
+if [[ "$provider" == "anthropic" ]]; then
+  case "$model_family" in
+    opus)   p_in=15;    p_out=75; p_cw=18.75; p_cr=1.5  ;;
+    sonnet) p_in=3;     p_out=15; p_cw=3.75;  p_cr=0.30 ;;
+    haiku)  p_in=1;     p_out=5;  p_cw=1.25;  p_cr=0.10 ;;
+  esac
+else
+  case "$model_lower" in
+    *gpt-4o-mini*)  p_in=0.15; p_out=0.60 ;;
+    *gpt-4.1-mini*) p_in=0.4;  p_out=1.6  ;;
+    *gpt-4.1*)      p_in=2;    p_out=8    ;;
+    *gpt-4o*)       p_in=2.5;  p_out=10   ;;
+    *)              p_in=0.15; p_out=0.60 ;;
+  esac
+  p_cw=0; p_cr=0
+fi
 
-input_tokens=$(printf '%s' "$usage_json"      | jq -r '.input_tokens // 0')
-output_tokens=$(printf '%s' "$usage_json"     | jq -r '.output_tokens // 0')
+# Token extraction — accept both Anthropic (input_tokens/output_tokens) and
+# OpenAI (prompt_tokens/completion_tokens) shapes.
+input_tokens=$(printf '%s' "$usage_json"      | jq -r '(.input_tokens // .prompt_tokens // 0)')
+output_tokens=$(printf '%s' "$usage_json"     | jq -r '(.output_tokens // .completion_tokens // 0)')
 cache_read=$(printf '%s' "$usage_json"        | jq -r '.cache_read_input_tokens // 0')
 cache_creation=$(printf '%s' "$usage_json"    | jq -r '.cache_creation_input_tokens // 0')
 
@@ -80,6 +106,7 @@ mkdir -p "$(dirname "$LOCK_FILE")"
 
   tmp="$(mktemp)"
   jq --arg today "$today" \
+     --arg provider "$provider" \
      --argjson in_tok "$input_tokens" \
      --argjson out_tok "$output_tokens" \
      --argjson cost "$cost_usd" \
@@ -95,6 +122,9 @@ mkdir -p "$(dirname "$LOCK_FILE")"
     | .current.cost_usd      = (((.current.cost_usd     // 0) + $cost) | . * 1000000 | round / 1000000)
     | (if $research == 1 then
          .current.research_cost_usd = (((.current.research_cost_usd // 0) + $cost) | . * 1000000 | round / 1000000)
+       else . end)
+    | (if $provider == "openai" then
+         .openai_total_usd = (((.openai_total_usd // 0) + $cost) | . * 1000000 | round / 1000000)
        else . end)
   ' "$SPEND_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$SPEND_FILE" || rm -f "$tmp"
 ) 9>"$LOCK_FILE"

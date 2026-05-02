@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { recordUsage } from './spend';
 
 export type AIProvider = 'anthropic' | 'openai';
 
@@ -162,6 +163,10 @@ export async function chatCompleteStream({
       model,
       max_tokens: maxTokens,
       stream: true,
+      // TM-77 — opt into usage on the terminal stream chunk so we can
+      // attribute cost in `.agent-state/spend.json`. Without this OpenAI
+      // returns `usage: null` for streamed completions.
+      stream_options: { include_usage: true },
       response_format: { type: 'json_object' },
       // TM-72 — pin temperature/seed for capture-side determinism so the
       // same prompt yields the same code (mirrors TM-70 judge config).
@@ -179,12 +184,21 @@ export async function chatCompleteStream({
       ],
     });
 
+    let openaiUsage:
+      | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+      | null = null;
     for await (const event of stream) {
+      // The terminal usage chunk has empty `choices` and a populated `usage`.
+      if (event.usage) openaiUsage = event.usage;
       const chunk = event.choices?.[0]?.delta?.content ?? '';
       if (!chunk) continue;
       markFirst();
       text += chunk;
       onDelta?.(chunk, text);
+    }
+
+    if (openaiUsage) {
+      recordUsage({ provider: 'openai', model, usage: openaiUsage });
     }
 
     return {
@@ -228,6 +242,26 @@ export async function chatCompleteStream({
       text += chunk;
       onDelta?.(chunk, text);
     }
+  }
+
+  // TM-77 — pull final usage off the assembled message so spend.json gets
+  // an authoritative input/output/cache token count for this call.
+  try {
+    const final = await stream.finalMessage();
+    if (final?.usage) {
+      recordUsage({
+        provider: 'anthropic',
+        model,
+        usage: {
+          input_tokens: final.usage.input_tokens,
+          output_tokens: final.usage.output_tokens,
+          cache_creation_input_tokens: final.usage.cache_creation_input_tokens ?? 0,
+          cache_read_input_tokens: final.usage.cache_read_input_tokens ?? 0,
+        },
+      });
+    }
+  } catch {
+    // ignore — cost ledger never blocks the request path
   }
 
   return {
