@@ -1,5 +1,5 @@
 'use client';
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
 import type {
   AssetVersion,
   GeneratedAsset,
@@ -10,7 +10,17 @@ import type {
 } from '@/types';
 import { toast } from 'sonner';
 
-function studioReducer(state: StudioState, action: StudioAction): StudioState {
+/**
+ * Maximum number of undo steps retained for customize-panel parameter edits.
+ * When exceeded the oldest entry is dropped from `past` (FIFO). 100 picked as
+ * a balance between memory (each entry is a shallow params snapshot, ~few KB)
+ * and user expectation. See TM-91.
+ */
+export const HISTORY_DEPTH = 100;
+
+const emptyHistory = (): StudioState['history'] => ({ past: [], future: [] });
+
+export function studioReducer(state: StudioState, action: StudioAction): StudioState {
   switch (action.type) {
     case 'SET_GENERATING':
       return { ...state, isGenerating: action.payload, error: null };
@@ -42,13 +52,52 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         isGenerating: false,
         isEditing: false,
         error: null,
+        // Reset history — parameter SET differs across assets; cross-asset
+        // undo would resurrect keys that no longer exist.
+        history: emptyHistory(),
       };
     }
-    case 'UPDATE_PARAM':
+    case 'UPDATE_PARAM': {
+      const prev = state.paramValues[action.payload.key];
+      // No-op writes don't pollute history (avoids accidental dup pushes
+      // from controlled-input rerenders).
+      if (prev === action.payload.value) return state;
+      const past = [...state.history.past, state.paramValues];
+      // Cap depth: drop oldest from front when exceeding HISTORY_DEPTH.
+      if (past.length > HISTORY_DEPTH) past.shift();
       return {
         ...state,
         paramValues: { ...state.paramValues, [action.payload.key]: action.payload.value },
+        // Branch — any new edit invalidates the redo stack.
+        history: { past, future: [] },
       };
+    }
+    case 'UNDO': {
+      const { past, future } = state.history;
+      if (past.length === 0) return state;
+      const previous = past[past.length - 1]!;
+      return {
+        ...state,
+        paramValues: previous,
+        history: {
+          past: past.slice(0, -1),
+          future: [state.paramValues, ...future],
+        },
+      };
+    }
+    case 'REDO': {
+      const { past, future } = state.history;
+      if (future.length === 0) return state;
+      const next = future[0]!;
+      return {
+        ...state,
+        paramValues: next,
+        history: {
+          past: [...past, state.paramValues],
+          future: future.slice(1),
+        },
+      };
+    }
     case 'ADD_VERSION': {
       // Parent = whatever version is currently active. If the user just
       // restored an older version, this naturally produces a branch.
@@ -77,6 +126,8 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         versions: newVersions,
         currentVersionIndex: newVersions.length - 1,
         isEditing: false,
+        // New version = new parameter set; reset undo history.
+        history: emptyHistory(),
       };
     }
     case 'RESTORE_VERSION': {
@@ -96,6 +147,8 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         } : state.asset,
         paramValues,
         currentVersionIndex: action.payload,
+        // Reset history on version restore (parameter set may differ).
+        history: emptyHistory(),
       };
     }
     case 'SET_CLARIFY':
@@ -114,7 +167,7 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
   }
 }
 
-const initialState: StudioState = {
+export const initialState: StudioState = {
   asset: null,
   versions: [],
   currentVersionIndex: -1,
@@ -124,6 +177,7 @@ const initialState: StudioState = {
   isExporting: false,
   error: null,
   clarify: null,
+  history: { past: [], future: [] },
 };
 
 export function useStudio(initialAsset?: GeneratedAsset | null) {
@@ -233,6 +287,45 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     dispatch({ type: 'UPDATE_PARAM', payload: { key, value } });
   }, []);
 
+  const undo = useCallback(() => {
+    dispatch({ type: 'UNDO' });
+  }, []);
+
+  const redo = useCallback(() => {
+    dispatch({ type: 'REDO' });
+  }, []);
+
+  const canUndo = state.history.past.length > 0;
+  const canRedo = state.history.future.length > 0;
+
+  // Global keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z = redo.
+  // Skips when focus is in an editable text field — typing should not be
+  // hijacked by undo (the browser's own text-input undo applies there).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const isEditable =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        (target && target.isContentEditable);
+      if (isEditable) return;
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: 'UNDO' });
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        dispatch({ type: 'REDO' });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const restoreVersion = useCallback((index: number) => {
     dispatch({ type: 'RESTORE_VERSION', payload: index });
     toast.success('Restored to previous version');
@@ -269,5 +362,9 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     clearAsset,
     submitClarifyAnswers,
     skipClarify,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }
