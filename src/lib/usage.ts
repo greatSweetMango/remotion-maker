@@ -1,9 +1,86 @@
 import type { Tier } from '@/types';
+import { prisma } from '@/lib/db/prisma';
 
 export const TIER_LIMITS = {
   FREE: { monthlyGenerations: 3, editsPerAsset: 3, uploadImages: 5, uploadFonts: 3 },
   PRO:  { monthlyGenerations: 200, editsPerAsset: Infinity, uploadImages: Infinity, uploadFonts: Infinity },
 } as const;
+
+/**
+ * TM-93 — assetId character whitelist for safe interpolation into a SQLite
+ * `json_extract` JSON path. cuids are `[a-z0-9]+`; template ids are
+ * `template-<cuid>`. Anything else is rejected before we touch the DB.
+ */
+const ASSET_ID_RE = /^[a-zA-Z0-9_-]+$/;
+
+export function isValidAssetIdForUsageKey(assetId: string): boolean {
+  return ASSET_ID_RE.test(assetId) && assetId.length <= 128;
+}
+
+/**
+ * TM-93 — atomically reserve one edit slot for `assetId` against the
+ * per-asset edit cap. The previous code did
+ * `findUnique → JSON.parse → compare → editAsset → update`,
+ * which is the same TOCTOU pattern fixed for /api/generate in TM-92 (see
+ * `wiki/02-dev/tech-notes/2026-04-27-TM-92-fix.md`). With JSON column the
+ * Prisma `updateMany` route is awkward (no per-key conditional), so we use
+ * SQLite's `json_extract` / `json_set` inside a single atomic UPDATE.
+ *
+ * Returns `true` when a slot was reserved (caller proceeds with the LLM
+ * call), `false` when the cap has already been hit (caller returns 429).
+ *
+ * `Infinity` cap (PRO tier) bypasses the WHERE and always succeeds — but we
+ * still increment so the counter is observable in the editUsage map.
+ */
+export async function reserveEditSlot(params: {
+  userId: string;
+  assetId: string;
+  limit: number;
+}): Promise<boolean> {
+  const { userId, assetId, limit } = params;
+  if (!isValidAssetIdForUsageKey(assetId)) {
+    // Refuse rather than open up a SQL/JSON-path injection surface.
+    throw new Error('reserveEditSlot: invalid assetId');
+  }
+  // SQLite json paths use `$.<key>`. assetId is whitelisted above so direct
+  // interpolation is safe; `limit` is bound as a parameter.
+  const path = `$."${assetId}"`;
+  const effectiveLimit = Number.isFinite(limit) ? limit : Number.MAX_SAFE_INTEGER;
+  const affected = await prisma.$executeRaw`
+    UPDATE User
+    SET editUsage = json_set(
+      editUsage,
+      ${path},
+      COALESCE(json_extract(editUsage, ${path}), 0) + 1
+    )
+    WHERE id = ${userId}
+      AND COALESCE(json_extract(editUsage, ${path}), 0) < ${effectiveLimit}
+  `;
+  return affected === 1;
+}
+
+/**
+ * Refund an edit slot reserved by `reserveEditSlot`. Used on the LLM-failure
+ * path so a 5xx never burns an edit. Atomic single-statement UPDATE; floors
+ * at 0 to avoid drift if a refund races a manual reset.
+ */
+export async function refundEditSlot(params: {
+  userId: string;
+  assetId: string;
+}): Promise<void> {
+  const { userId, assetId } = params;
+  if (!isValidAssetIdForUsageKey(assetId)) return;
+  const path = `$."${assetId}"`;
+  await prisma.$executeRaw`
+    UPDATE User
+    SET editUsage = json_set(
+      editUsage,
+      ${path},
+      MAX(COALESCE(json_extract(editUsage, ${path}), 0) - 1, 0)
+    )
+    WHERE id = ${userId}
+  `;
+}
 
 interface UsageCheckResult {
   allowed: boolean;
