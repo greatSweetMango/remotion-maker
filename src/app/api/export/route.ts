@@ -17,10 +17,26 @@ let bundleCache: string | null = null;
 async function getBundlePath(): Promise<string> {
   if (bundleCache) return bundleCache;
 
-  const entryPoint = path.resolve(process.cwd(), 'src/remotion/UniversalComposition.tsx');
+  // TM-89: bundle entry must call `registerRoot()`. UniversalComposition.tsx
+  // does not (it's also consumed by the in-app <Player> path which registers
+  // implicitly), so we point at a thin wrapper that registers RemotionRoot.
+  const entryPoint = path.resolve(process.cwd(), 'src/remotion/export-entry.tsx');
+  // The entry imports `@/lib/remotion/evaluator` (via UniversalComposition).
+  // Next.js / tsconfig resolves the `@/*` alias for us at runtime, but the
+  // standalone @remotion/bundler is unaware of tsconfig paths — inject the
+  // alias here, mirroring the TM-75 visual-regression driver.
   bundleCache = await bundle({
     entryPoint,
-    webpackOverride: (config) => config,
+    webpackOverride: (config) => ({
+      ...config,
+      resolve: {
+        ...config.resolve,
+        alias: {
+          ...(config.resolve?.alias || {}),
+          '@': path.resolve(process.cwd(), 'src'),
+        },
+      },
+    }),
   });
 
   return bundleCache;
