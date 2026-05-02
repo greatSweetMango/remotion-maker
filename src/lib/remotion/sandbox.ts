@@ -23,6 +23,13 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bnew\s+Function\b/, label: 'Forbidden: Function constructor' },
   { pattern: /\bsetTimeout\s*\(\s*['"`]/, label: 'Forbidden: setTimeout(string)' },
   { pattern: /\bsetInterval\s*\(\s*['"`]/, label: 'Forbidden: setInterval(string)' },
+  // TM-85 — Remotion components animate via `useCurrentFrame`. Any timer
+  // scheduling in user code is either recursive-DoS bait (setTimeout calls
+  // itself) or a microtask-flood loop. Deny outright.
+  { pattern: /\bsetTimeout\s*\(/, label: 'Forbidden: setTimeout' },
+  { pattern: /\bsetInterval\s*\(/, label: 'Forbidden: setInterval' },
+  { pattern: /\brequestAnimationFrame\s*\(/, label: 'Forbidden: requestAnimationFrame' },
+  { pattern: /\bqueueMicrotask\s*\(/, label: 'Forbidden: queueMicrotask' },
 
   // Network
   { pattern: /\bfetch\s*\(/, label: 'Forbidden: fetch' },
@@ -50,11 +57,28 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
 
   // Realm / prototype escape
   { pattern: /\bglobalThis\b/, label: 'Forbidden: globalThis' },
+  { pattern: /\bglobal\b(?!\s*[A-Za-z0-9_])/, label: 'Forbidden: global' },
   { pattern: /\b__proto__\b/, label: 'Forbidden: __proto__' },
   { pattern: /\b__defineGetter__\b/, label: 'Forbidden: __defineGetter__' },
   { pattern: /\b__defineSetter__\b/, label: 'Forbidden: __defineSetter__' },
   { pattern: /\barguments\s*\.\s*callee\b/, label: 'Forbidden: arguments.callee' },
   { pattern: /\bwith\s*\(/, label: 'Forbidden: with statement' },
+
+  // Reflection / metaprogramming (TM-85). `Reflect` + `Proxy` give attackers
+  // a path around frozen objects and into prototype chains; deny statically.
+  { pattern: /\bReflect\s*\./, label: 'Forbidden: Reflect' },
+  { pattern: /\bnew\s+Proxy\b/, label: 'Forbidden: Proxy' },
+  { pattern: /\bProxy\s*\(/, label: 'Forbidden: Proxy' },
+  { pattern: /\bProxy\s*\./, label: 'Forbidden: Proxy' },
+
+  // Encoding / binary helpers (TM-85). Often used to smuggle obfuscated
+  // payloads past the deny list (`eval(atob('...'))`).
+  { pattern: /\batob\s*\(/, label: 'Forbidden: atob' },
+  { pattern: /\bbtoa\s*\(/, label: 'Forbidden: btoa' },
+  { pattern: /\bBuffer\b/, label: 'Forbidden: Buffer' },
+
+  // WebAssembly — full alternative execution surface, deny entirely. (TM-85)
+  { pattern: /\bWebAssembly\b/, label: 'Forbidden: WebAssembly' },
 
   // Worker spawning (avoid resource exhaustion via fanout)
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
@@ -72,6 +96,43 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bdo\s*\{[\s\S]*?\}\s*while\s*\(\s*(?:true|1)\s*\)/, label: 'Forbidden: do…while(true) infinite loop' },
 ];
 
+/**
+ * Heuristic AST-lite check for self-recursive Promise chains.
+ *
+ * A common 0-day pattern smuggled past simple `Promise` denial is:
+ *
+ *     function loop() { return Promise.resolve().then(loop); }
+ *     loop();
+ *
+ * The chain is unbounded and starves the microtask queue, hanging the tab
+ * even though no `for(;;)` / `while(true)` ever appears. We detect the
+ * pattern by looking for any function whose body contains `.then(<ownName>)`
+ * — purely textual, but cheap, and the false-positive rate on legitimate
+ * Remotion code is effectively zero (components don't await microtask
+ * loops at module scope).
+ */
+function detectRecursivePromiseChain(code: string): boolean {
+  // Collect every identifier declared as a function/arrow at the top level.
+  // We then check whether `.then(<name>)` appears anywhere in the source AND
+  // that name's declaration is co-located with a `Promise` reference. This
+  // is intentionally textual; the false-positive surface for legit Remotion
+  // code is empty (components don't pass their own name to `.then`).
+  const declRe = /\b(?:function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/g;
+  const names = new Set<string>();
+  for (const m of code.matchAll(declRe)) {
+    const name = m[1] ?? m[2];
+    if (name) names.add(name);
+  }
+  if (names.size === 0) return false;
+  if (!/\bPromise\b/.test(code)) return false;
+
+  for (const name of names) {
+    const re = new RegExp(`\\.then\\s*\\(\\s*${name}\\b`);
+    if (re.test(code)) return true;
+  }
+  return false;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
 
@@ -79,6 +140,10 @@ export function validateCode(code: string): ValidationResult {
     if (pattern.test(code) && !errors.includes(label)) {
       errors.push(label);
     }
+  }
+
+  if (detectRecursivePromiseChain(code)) {
+    errors.push('Forbidden: recursive Promise chain');
   }
 
   return { valid: errors.length === 0, errors };
