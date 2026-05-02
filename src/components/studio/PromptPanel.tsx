@@ -245,16 +245,16 @@ export function PromptPanel({
               title="Edit current asset (⌘E)"
               className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border transition-colors ${
                 mode === 'edit'
-                  ? 'bg-violet-600 border-violet-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                  ? 'bg-violet-700 border-violet-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'
               }`}
             >
               <Pencil className="h-3 w-3" aria-hidden />
               <span>Edit current</span>
               {tier === 'FREE' && (
-                <span className="opacity-70">({editCount}/{editLimit})</span>
+                <span className={mode === 'edit' ? 'text-violet-100' : 'text-slate-400'}>({editCount}/{editLimit})</span>
               )}
-              <kbd className="ml-1 hidden sm:inline-block text-[10px] opacity-60">⌘E</kbd>
+              <kbd className={`ml-1 hidden sm:inline-block text-[10px] ${mode === 'edit' ? 'text-white' : 'text-slate-300'}`}>⌘E</kbd>
             </button>
             <button
               type="button"
@@ -264,13 +264,13 @@ export function PromptPanel({
               title="Generate a new asset (⌘N)"
               className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border transition-colors ${
                 mode === 'generate'
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                  ? 'bg-emerald-700 border-emerald-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'
               }`}
             >
               <Plus className="h-3 w-3" aria-hidden />
               <span>Generate new</span>
-              <kbd className="ml-1 hidden sm:inline-block text-[10px] opacity-60">⌘N</kbd>
+              <kbd className={`ml-1 hidden sm:inline-block text-[10px] ${mode === 'generate' ? 'text-white' : 'text-slate-300'}`}>⌘N</kbd>
             </button>
           </div>
         ) : (
