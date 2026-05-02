@@ -10,13 +10,20 @@
 #      hostname defaults to `127.0.0.1` (NOT `localhost`) — see TM-65 below.
 #   3) Runs `npx prisma db push --schema <worktree_path>/prisma/schema.prisma --skip-generate`
 #      using DATABASE_URL=file:./dev.db (worktree-relative) so each worktree gets its own SQLite DB.
-#   4) Prints a completion banner with paths/ports.
+#   4) Runs `npx prisma generate --schema <worktree_path>/prisma/schema.prisma` so the worktree
+#      gets its own generated Prisma client at <worktree>/node_modules/.prisma/client. Without
+#      this, an empty worktree node_modules causes module resolution to fall back to the main
+#      repo's generated client (TM-46 r6 retro: dev server in worktree opened main's
+#      `prisma/dev.db`, accumulating monthly-limit usage on the main user).
+#   5) Prints a completion banner with paths/ports.
 #
 # Notes:
-#   - Re-running on an already-bootstrapped worktree is safe (overwrites .env.local, db push is idempotent).
+#   - Re-running on an already-bootstrapped worktree is safe (overwrites .env.local, db push is idempotent,
+#     prisma generate is idempotent — re-emits the same client into node_modules).
 #   - New deps are NOT installed here; assume the worktree was created from main with node_modules linked or
 #     a separate `npm install` already run.
-#   - Discovery context: TM-42/43/45 retros surfaced repeated manual env+db setup pain.
+#   - Discovery context: TM-42/43/45 retros surfaced repeated manual env+db setup pain;
+#     TM-46 r6 retro surfaced the worktree-prisma-client isolation gap fixed in TM-87.
 #
 # TM-65 — multi-worktree cookie isolation:
 #   Browsers scope cookies by HOSTNAME, not host:port. Two dev servers both on `localhost`
@@ -124,6 +131,38 @@ else
   DATABASE_URL="file:./dev.db" npx --yes prisma db push --schema "$SCHEMA_PATH" --skip-generate
   popd >/dev/null
   echo "[setup-worktree] prisma db push OK ($WORKTREE_PATH/prisma/dev.db)"
+
+  # 4) Prisma generate — emit a worktree-local generated client into <worktree>/node_modules/.prisma/client.
+  #    Without this the worktree's empty node_modules causes Node module resolution to walk up to the main
+  #    repo's node_modules and load main's generated client. Worse, `prisma generate` itself walks up to
+  #    locate `@prisma/client` and emits the new client into MAIN's `node_modules/.prisma/client`, so a
+  #    worktree generate silently overwrites main's client. Per TM-46 r6 retro this caused the worktree
+  #    dev server to effectively share main's runtime — including main's `prisma/dev.db` — and burn the
+  #    main user's monthly OpenAI usage cap.
+  #
+  #    Fix: seed the worktree's node_modules with copies of main's `@prisma/` and `.prisma/` directories
+  #    BEFORE running `prisma generate`. Once `@prisma/client` exists locally, `prisma generate`'s walk
+  #    stops in the worktree and emits the client into the worktree's own `node_modules/.prisma/client`.
+  #    Idempotent: cp -R overwrites, prisma generate is overwrite-safe.
+  MAIN_PRISMA_PKG="$MAIN_REPO/node_modules/@prisma"
+  MAIN_PRISMA_GEN="$MAIN_REPO/node_modules/.prisma"
+  WORKTREE_NM="$WORKTREE_PATH/node_modules"
+  if [[ -d "$MAIN_PRISMA_PKG" ]]; then
+    mkdir -p "$WORKTREE_NM"
+    # Remove existing worktree-local copies first so cp -R is deterministic across re-runs.
+    rm -rf "$WORKTREE_NM/@prisma" "$WORKTREE_NM/.prisma"
+    cp -R "$MAIN_PRISMA_PKG" "$WORKTREE_NM/@prisma"
+    if [[ -d "$MAIN_PRISMA_GEN" ]]; then
+      cp -R "$MAIN_PRISMA_GEN" "$WORKTREE_NM/.prisma"
+    fi
+    pushd "$WORKTREE_PATH" >/dev/null
+    DATABASE_URL="file:./dev.db" npx --yes prisma generate --schema "$SCHEMA_PATH"
+    popd >/dev/null
+    echo "[setup-worktree] prisma generate OK ($WORKTREE_PATH/node_modules/.prisma/client)"
+  else
+    echo "[setup-worktree] main repo has no node_modules/@prisma — skipping local prisma generate" >&2
+    echo "[setup-worktree] worktree dev server will fall back to main's generated client (TM-46 r6 risk)" >&2
+  fi
 fi
 
 echo ""
