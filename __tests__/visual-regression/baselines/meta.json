@@ -1,0 +1,356 @@
+{
+  "generatedAt": "2026-05-02T13:39:18.956Z",
+  "threshold": 0.05,
+  "templates": {
+    "counter-animation": {
+      "file": "CounterAnimation.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "dea1c9b2c3a36bb24b5833c5a48dfcc30bbc7d661f14bf9ae55bdf4874807126",
+      "dHash": "0008304c4c300000",
+      "bytes": 44124
+    },
+    "progress-circle": {
+      "file": "ProgressCircle.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "77b8375596da8d70d0ab04fc83997469300a25a9273a6167c60c1ed1bb0724e7",
+      "dHash": "00000c0c0c000000",
+      "bytes": 53928
+    },
+    "comic-effect": {
+      "file": "ComicEffect.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5496463458663100687efb49654c185fe74d80c46c33819c0e3696aefafdfb5f",
+      "dHash": "240c8e0e0e8e0c04",
+      "bytes": 134344
+    },
+    "text-reveal": {
+      "file": "TextReveal.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "c27ae6babd3a1c8d73d40d49d035d6df67145358dea973d7d70aa7e5a3ee0f8f",
+      "dHash": "0008708d9c620800",
+      "bytes": 45496
+    },
+    "typewriter": {
+      "file": "Typewriter.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "aedba1f4cbc9ce41fe4bb443717543cd7756c34767b6cdc513ce2410f9b8768d",
+      "dHash": "0000100848100000",
+      "bytes": 38129
+    },
+    "split-text": {
+      "file": "SplitText.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f49360df24a5ed8816dab80466c0ef529cf28bd8599047d689bfd294620cf7d8",
+      "dHash": "00200e0e0d0c3008",
+      "bytes": 48158
+    },
+    "bar-chart": {
+      "file": "BarChart.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "e6625cb5bfcb837094627b9a5e4dc9bc22c5970cfd56f36cbd96477f5a59528b",
+      "dHash": "304c4c300c2b0100",
+      "bytes": 67256
+    },
+    "gradient-orbs": {
+      "file": "GradientOrbs.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "53fbc142e5bbb8506b0a0bc0adfcd51f23ba4415618ff3d67a4c8432ab736207",
+      "dHash": "000c0d0d0d0d1939",
+      "bytes": 857045
+    },
+    "circle-pulse": {
+      "file": "CirclePulse.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5e597a90e18b32698518a99382a8b11f5acfe65586ed197769aeefb8153d29f8",
+      "dHash": "0000100c0c100000",
+      "bytes": 79980
+    },
+    "lower-third": {
+      "file": "LowerThird.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "e447628f3cb7cac22b67ca9560e4a426235a71122eaedb0275af7fbba58e17f6",
+      "dHash": "0000000000606040",
+      "bytes": 47688
+    },
+    "product-intro": {
+      "file": "ProductIntro.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "122315b18f8685de221b2574412db48cf714406f7cf46e65908fb9ddf15955d5",
+      "dHash": "0002298686690400",
+      "bytes": 121094
+    },
+    "data-story": {
+      "file": "DataStory.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "c484464334bb618ab2e4e1a70837976726f1996cd28a39570a8f68d9f217ca42",
+      "dHash": "0022c83717cc1200",
+      "bytes": 71960
+    },
+    "highlight-reel": {
+      "file": "HighlightReel.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "b5fc1dd212256e4ef39bdef2b662d3ee891857df6eac215c5b4a0f9247a864b1",
+      "dHash": "001864231fcc3200",
+      "bytes": 89658
+    },
+    "line-chart": {
+      "file": "LineChart.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "193d80b0e4234865a296c1502b537ceb6557b1f622bd716026b4c9efe8708e06",
+      "dHash": "304d4db3030f4000",
+      "bytes": 88793
+    },
+    "donut-chart": {
+      "file": "DonutChart.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5a07ea2b32fc5b9694a94ce79667aab488b234e89e55c889d342abee1342b948",
+      "dHash": "20489a9b9c986010",
+      "bytes": 78470
+    },
+    "area-chart": {
+      "file": "AreaChart.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "0828007dd258466cbcf7e5ab8aa2b090764d1d4a4c239c28ca8a31a68c5ce5bd",
+      "dHash": "807078a3031b2380",
+      "bytes": 95524
+    },
+    "progress-bar": {
+      "file": "ProgressBar.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5026746f80e37b42717f17484e5b903f21616370662136933b50b90f9d482048",
+      "dHash": "803074567c4dc008",
+      "bytes": 139331
+    },
+    "glowing-text": {
+      "file": "GlowingText.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "e32bd567c8461dbe3f0fb1e3351819939752738b8e4c5c481ba7bed81626067d",
+      "dHash": "0003d42b2bd40b00",
+      "bytes": 477117
+    },
+    "wave-text": {
+      "file": "WaveText.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "215081d8fba61ca1dbb7047a3baee48498999142d9c83163de513491a8d8f8ad",
+      "dHash": "0008609e36400800",
+      "bytes": 57733
+    },
+    "rotating-text": {
+      "file": "RotatingText.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "b25c41437ee0c4de266e1929392689006544d83d1a763b08066ba25052169974",
+      "dHash": "0018609a9a601800",
+      "bytes": 42539
+    },
+    "logo-reveal": {
+      "file": "LogoReveal.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "657a77f72fbcaaced30735148bd53f74c3c8b33e06c3c9899d8dddf2f7ef8f95",
+      "dHash": "00100c4c0c140000",
+      "bytes": 81867
+    },
+    "zoom-transition": {
+      "file": "ZoomTransition.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "3b7cbff4f25feb5550fac3f945943d9f109d87cc7d660dde916c89dce2d0f4e4",
+      "dHash": "0201050505050102",
+      "bytes": 366118
+    },
+    "particle-field": {
+      "file": "ParticleField.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "9e5c01b157ae73df6c3db43c374859b258f19f9e3a60734bf03a333c8357063e",
+      "dHash": "3f3f3f1f07070327",
+      "bytes": 1777396
+    },
+    "timeline": {
+      "file": "Timeline.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5ab844d43460a88f15255e29c1c262a3ce395882ad8b4cc1e465d805c1d1e81a",
+      "dHash": "00308c8ca3220000",
+      "bytes": 84562
+    },
+    "icon-badge": {
+      "file": "IconBadge.tsx",
+      "captureFrame": 30,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "20331da7e92e4a65973f701a5dd5c090b5beff2fd32a218b09ec23304c10cdd7",
+      "dHash": "00204c4c4c4c3008",
+      "bytes": 91700
+    },
+    "particle-physics": {
+      "file": "ParticlePhysics.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ba26411d17155568e9170ba10665a58d247891741b7db06d61819e3e85e3d1fe",
+      "dHash": "43004045868f1f0f",
+      "bytes": 1461206
+    },
+    "morphing-geometry": {
+      "file": "MorphingGeometry.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f0dd1704d419c6323363780aec5265e362072db9eb055c81cfe27264ff6e5d93",
+      "dHash": "045a4e0f4e4e0e04",
+      "bytes": 1132484
+    },
+    "type-explosion": {
+      "file": "TypeExplosion.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7dd6100d94198ff8d929379db11e764fec95f932863da6f8454f3c3bdd217998",
+      "dHash": "0e0f4d0f0f0d0e0e",
+      "bytes": 919956
+    },
+    "flow-field": {
+      "file": "FlowField.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "2fa1ad98d5c97e167007bded9f4fbdeb50b18b5b39e86904c4209bca1adf6d30",
+      "dHash": "3d3d3f2f2f2f2b27",
+      "bytes": 1764638
+    },
+    "fluid-blobs": {
+      "file": "FluidBlobs.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "86900e68fb3c5de99ea13594a923568b9e52f7c526974f05feef9ebf6388c6c9",
+      "dHash": "4e371f0f0f4e4e04",
+      "bytes": 1380701
+    },
+    "bezier-path": {
+      "file": "BezierPath.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "08c59a0c8c71cb9e9433be91a3e5fba4d2db01e77cd7376678aaa04bb5f988db",
+      "dHash": "060e260f4f4e0e8c",
+      "bytes": 1120232
+    },
+    "glitch-effect": {
+      "file": "GlitchEffect.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "522a39b3618c468230c6a11ae2a60f9c99722d4532ad84381fba58bc295cbd19",
+      "dHash": "0006798696690600",
+      "bytes": 74804
+    },
+    "liquid-wave": {
+      "file": "LiquidWave.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "17b86898475432c9ed9f3c29136212480dec87cf89e2cd55dbb260fdf10989e3",
+      "dHash": "0020db1c62639c42",
+      "bytes": 168654
+    },
+    "constellation": {
+      "file": "Constellation.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "e47e8f7d195d64c6eca76cc3422bde7b64dba212d7e8cd3f29d1af78f46166e4",
+      "dHash": "060e0e0e0f0f8f0c",
+      "bytes": 1249269
+    },
+    "holographic-card": {
+      "file": "HolographicCard.tsx",
+      "captureFrame": 60,
+      "fps": 60,
+      "width": 1920,
+      "height": 1080,
+      "sha256": "67d6f7e932dc22c850c7bdd7418af418dc3452883ec2c04a52c295e5930814f1",
+      "dHash": "0c1a8e8f9f9e020e",
+      "bytes": 1210545
+    }
+  }
+}
