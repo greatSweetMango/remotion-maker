@@ -68,14 +68,24 @@ function isValidHexColor(s: string): boolean {
 }
 
 function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 'locked'>) {
+  // TM-90: Stable id for label↔control association. Each ParameterControl
+  // renders one visible <Label>, and the matching control receives this id
+  // as `aria-labelledby` (slider/switch) or htmlFor target (input). Without
+  // this, axe-core flags 21 critical "form field has no label" issues from
+  // TM-80's audit.
+  const reactId = React.useId();
+  const labelId = `param-${param.key}-${reactId}`;
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-400 font-medium">{param.label}</Label>
+      <Label id={labelId} className="text-xs text-slate-400 font-medium">{param.label}</Label>
 
       {param.type === 'color' && (
         <Popover>
           <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 w-full px-3 py-2 rounded-md border border-slate-600 bg-slate-800 hover:bg-slate-700 transition-colors">
+            <button
+              aria-labelledby={labelId}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md border border-slate-600 bg-slate-800 hover:bg-slate-700 transition-colors"
+            >
               <div
                 className="w-5 h-5 rounded-sm border border-slate-500 flex-shrink-0"
                 style={{ backgroundColor: value as string }}
@@ -86,6 +96,7 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
           <PopoverContent className="w-auto p-3 bg-slate-800 border-slate-600" side="left">
             <HexColorPicker color={value as string} onChange={onChange} />
             <Input
+              aria-label={`${param.label} hex color`}
               value={value as string}
               onChange={e => {
                 const next = e.target.value;
@@ -105,6 +116,7 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
       {param.type === 'range' && (
         <div className="flex items-center gap-3">
           <Slider
+            aria-labelledby={labelId}
             min={param.min ?? 0}
             max={param.max ?? 100}
             step={param.step ?? 0.1}
@@ -115,6 +127,7 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
           <div className="flex items-center gap-1">
             <Input
               type="number"
+              aria-label={`${param.label} value${param.unit ? ` (${param.unit})` : ''}`}
               value={value as number}
               min={param.min}
               max={param.max}
@@ -129,13 +142,15 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
               }}
               className="w-20 bg-slate-700 border-slate-600 text-white text-xs text-center"
             />
-            {param.unit && <span className="text-xs text-slate-500">{param.unit}</span>}
+            {/* text-slate-400 (was 500) for WCAG AA on bg-slate-900 (TM-90). */}
+            {param.unit && <span aria-hidden className="text-xs text-slate-400">{param.unit}</span>}
           </div>
         </div>
       )}
 
       {param.type === 'text' && (
         <Input
+          aria-labelledby={labelId}
           value={value as string}
           onChange={e => onChange(e.target.value)}
           className="bg-slate-700 border-slate-600 text-white"
@@ -145,6 +160,7 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
       {param.type === 'boolean' && (
         <div className="flex items-center gap-2">
           <Switch
+            aria-labelledby={labelId}
             checked={value as boolean}
             onCheckedChange={onChange}
           />
@@ -153,16 +169,25 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
       )}
 
       {param.type === 'icon' && (
-        <IconPickerControl value={(value as string) || DEFAULT_LUCIDE_ICON} onChange={onChange} />
+        <IconPickerControl
+          ariaLabelledBy={labelId}
+          value={(value as string) || DEFAULT_LUCIDE_ICON}
+          onChange={onChange}
+        />
       )}
 
       {(param.type === 'image' || param.type === 'font') && (
-        <UploadParameterControl param={param} value={value as string} onChange={onChange} />
+        <UploadParameterControl
+          ariaLabelledBy={labelId}
+          param={param}
+          value={value as string}
+          onChange={onChange}
+        />
       )}
 
       {param.type === 'select' && (
         <Select value={value as string} onValueChange={onChange}>
-          <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+          <SelectTrigger aria-labelledby={labelId} className="bg-slate-700 border-slate-600 text-white">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-slate-800 border-slate-600">
@@ -181,6 +206,7 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
 interface IconPickerControlProps {
   value: string;
   onChange: (value: string) => void;
+  ariaLabelledBy?: string;
 }
 
 interface LucideIconRenderProps {
@@ -197,6 +223,7 @@ interface UploadParameterControlProps {
   param: Parameter;
   value: string;
   onChange: (value: string) => void;
+  ariaLabelledBy?: string;
 }
 
 interface UploadedAssetSummary {
@@ -213,7 +240,7 @@ interface UploadedAssetSummary {
  * public URL (image) or font family name (font). Upload happens in the
  * sibling `ResourcePanel`; this control is read-only on uploads.
  */
-function UploadParameterControl({ param, value, onChange }: UploadParameterControlProps) {
+function UploadParameterControl({ param, value, onChange, ariaLabelledBy }: UploadParameterControlProps) {
   const [uploads, setUploads] = useState<UploadedAssetSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const kind = param.type === 'image' ? 'image' : 'font';
@@ -243,12 +270,12 @@ function UploadParameterControl({ param, value, onChange }: UploadParameterContr
   return (
     <div className="space-y-1.5">
       <Select value={value || ''} onValueChange={onChange}>
-        <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-xs">
+        <SelectTrigger aria-labelledby={ariaLabelledBy} className="bg-slate-700 border-slate-600 text-white text-xs">
           <SelectValue placeholder={loading ? 'Loading…' : `Pick ${kind}…`} />
         </SelectTrigger>
         <SelectContent className="bg-slate-800 border-slate-600 max-h-72">
           {uploads.length === 0 && (
-            <div className="px-3 py-2 text-xs text-slate-500">
+            <div className="px-3 py-2 text-xs text-slate-400">
               No {kind}s uploaded yet. Use the Resources panel.
             </div>
           )}
@@ -263,13 +290,13 @@ function UploadParameterControl({ param, value, onChange }: UploadParameterContr
         </SelectContent>
       </Select>
       {value && kind === 'image' && (
-        <div className="mt-1 text-[10px] text-slate-500 truncate font-mono">{value}</div>
+        <div className="mt-1 text-[10px] text-slate-400 truncate font-mono">{value}</div>
       )}
     </div>
   );
 }
 
-function IconPickerControl({ value, onChange }: IconPickerControlProps) {
+function IconPickerControl({ value, onChange, ariaLabelledBy }: IconPickerControlProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const results = useMemo(() => searchLucideCatalog(query), [query]);
@@ -279,6 +306,7 @@ function IconPickerControl({ value, onChange }: IconPickerControlProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-labelledby={ariaLabelledBy}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-md border border-slate-600 bg-slate-800 hover:bg-slate-700 transition-colors"
         >
           <LucideIconRender name={value} size={18} className="text-slate-200 flex-shrink-0" />
@@ -291,6 +319,7 @@ function IconPickerControl({ value, onChange }: IconPickerControlProps) {
         align="start"
       >
         <Input
+          aria-label="Search icons"
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search icons…"
@@ -320,7 +349,7 @@ function IconPickerControl({ value, onChange }: IconPickerControlProps) {
             );
           })}
           {results.length === 0 && (
-            <div className="col-span-6 text-center text-xs text-slate-500 py-4">
+            <div className="col-span-6 text-center text-xs text-slate-400 py-4">
               No icons match &quot;{query}&quot;
             </div>
           )}
