@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { generateAsset } from '@/lib/ai/generate';
 import { AiRefusalError } from '@/lib/ai/refusal';
 import { getModels } from '@/lib/ai/client';
-import { checkGenerationLimit } from '@/lib/usage';
+import { TIER_LIMITS } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
 
 export const runtime = 'nodejs';
@@ -40,9 +40,30 @@ export async function POST(req: Request) {
     user.monthlyUsage = 0;
   }
 
-  const limitCheck = checkGenerationLimit({ tier: user.tier, monthlyUsage: user.monthlyUsage });
-  if (!limitCheck.allowed) {
-    return NextResponse.json({ error: limitCheck.reason }, { status: 429 });
+  // TM-92 — atomically reserve a quota slot BEFORE the LLM call.
+  //
+  // Previously this route did `findUnique → in-memory compare → generateAsset → update`,
+  // which is a TOCTOU race: N concurrent FREE requests at usage=0 all read 0, all
+  // pass the gate, all increment to N. SQLite + Prisma do not serialize this.
+  //
+  // The fix is a single conditional `updateMany` whose `where` includes the cap.
+  // SQLite executes this as one atomic statement, so exactly `limit - usage` of
+  // the burst will see `count: 1`; the rest see `count: 0` and are rejected.
+  // Refunds happen on the no-charge paths (clarify, refusal) below.
+  const limit = TIER_LIMITS[user.tier].monthlyGenerations;
+  const reserved = await prisma.user.updateMany({
+    where: { id: user.id, monthlyUsage: { lt: limit } },
+    data: { monthlyUsage: { increment: 1 } },
+  });
+  if (reserved.count === 0) {
+    return NextResponse.json(
+      {
+        error: `Monthly generation limit reached (${limit}). ${
+          user.tier === 'FREE' ? 'Upgrade to Pro for 200/month.' : 'Purchase additional credits.'
+        }`,
+      },
+      { status: 429 },
+    );
   }
 
   const models = getModels();
@@ -66,8 +87,13 @@ export async function POST(req: Request) {
       `[generate] done totalMs=${totalMs} firstTokenMs=${firstTokenMs} type=${result.type}`,
     );
 
-    // Clarify-only response: do NOT consume monthly quota.
+    // Clarify-only response: do NOT consume monthly quota. We already reserved
+    // a slot above; refund it here so clarify rounds remain free.
     if (result.type === 'clarify') {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { monthlyUsage: { decrement: 1 } },
+      });
       return NextResponse.json({ type: 'clarify', questions: result.questions });
     }
 
@@ -95,17 +121,18 @@ export async function POST(req: Request) {
       },
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { monthlyUsage: { increment: 1 } },
-    });
-
+    // Quota was already reserved before generation — no second increment here.
     return NextResponse.json({ type: 'generate', asset: { ...asset, id: dbAsset.id } });
   } catch (error: unknown) {
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a
     // category code so the UI can show a clearer toast. We do NOT consume
-    // monthly quota for these (no asset was created above this point).
+    // monthly quota for these (no asset was created above this point), so
+    // refund the slot reserved at the top of the handler.
     if (error instanceof AiRefusalError) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { monthlyUsage: { decrement: 1 } },
+      });
       console.warn(
         `[generate] refusal category=${error.category} hint=${error.matchedHint ?? '-'} tier=${user.tier}`,
       );
@@ -114,6 +141,11 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+    // Unexpected failure: also refund so a 500 doesn't burn the user's quota.
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { monthlyUsage: { decrement: 1 } },
+    });
     console.error('Generation error:', error);
     const msg = error instanceof Error ? error.message : 'Generation failed';
     return NextResponse.json({ error: msg }, { status: 500 });
