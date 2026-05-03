@@ -42,9 +42,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async session({ session, token }) {
       if (session.user && token.sub) {
-        session.user.id = token.sub;
+        // TM-95: Validate the token's user_id against the DB. After a worktree
+        // DB reset (prisma db push wipes), a stale JWT survives in the
+        // browser but its sub points to a deleted row. Without this check
+        // every protected page renders as "logged in" but every userId-scoped
+        // query returns empty — a confusing ghost-session state. Invalidate
+        // the session by clearing user so middleware/pages bounce to login.
         const dbUser = await prisma.user.findUnique({ where: { id: token.sub } });
-        if (dbUser) session.user.tier = dbUser.tier;
+        if (!dbUser) {
+          return { ...session, user: undefined as never };
+        }
+        session.user.id = token.sub;
+        session.user.tier = dbUser.tier;
       }
       return session;
     },

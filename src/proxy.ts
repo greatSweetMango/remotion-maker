@@ -7,10 +7,17 @@ export default auth((req) => {
   const { nextUrl, auth: session } = req;
   const isProtected = PROTECTED_PATHS.some(p => nextUrl.pathname.startsWith(p));
 
-  if (isProtected && !session) {
+  // TM-95: also treat sessions with no user (ghost JWT after DB reset — see
+  // session callback in src/lib/auth.ts) as unauthenticated.
+  if (isProtected && !session?.user) {
     const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search);
     if (process.env.DEV_AUTO_LOGIN === 'true') {
-      return NextResponse.redirect(new URL(`/dev-login?callbackUrl=${callbackUrl}`, nextUrl));
+      // Server-side auto-login: redirect to API GET handler which performs
+      // signIn() without depending on client JS hydration. Avoids the failure
+      // mode where AutoLoginForm's useEffect never fires (hydration error,
+      // strict-mode double-mount cancel, etc.) leaving the user stuck on a
+      // blank "Logging in..." page. (TM-95)
+      return NextResponse.redirect(new URL(`/api/dev/auto-login?callbackUrl=${callbackUrl}`, nextUrl));
     }
     return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, nextUrl));
   }
