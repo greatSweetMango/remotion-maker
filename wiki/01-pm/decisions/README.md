@@ -19,6 +19,7 @@ status: active
 - [[0016-acceptance-gate-v2|ADR-0016: Visual quality acceptance gate v2 — 4-criteria multi-run]]
 - [[0017-capture-determinism|ADR-0017: capture-side determinism]]
 - [[0018-judge-determinism|ADR-0018: judge determinism]]
+- [[0019-rag-templates|ADR-0019: Reference 템플릿 RAG]]
 
 ## 새 ADR 만들기
 

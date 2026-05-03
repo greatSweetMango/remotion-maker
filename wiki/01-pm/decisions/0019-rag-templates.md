@@ -1,5 +1,5 @@
 ---
-title: ADR-PENDING-TM-74 Reference-template RAG (simple keyword/category retrieval)
+title: ADR-0019 Reference-template RAG (simple keyword/category retrieval)
 status: accepted
 date: 2026-04-27
 tags:
@@ -13,7 +13,7 @@ related:
   - "[[2026-04-27-TM-74-fix]]"
 ---
 
-# ADR-PENDING-TM-74: Reference-template RAG (simple keyword/category retrieval)
+# ADR-0019: Reference-template RAG (simple keyword/category retrieval)
 
 ## Context
 
