@@ -13,6 +13,7 @@ import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { classifyRefusal, AiRefusalError } from './refusal';
+import { retrieveReferenceForPrompt } from './retrieval';
 import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
 
 export interface GenerateOptions {
@@ -293,12 +294,24 @@ export async function generateAsset(
   model: string = getModels().free,
   opts: GenerateOptions = {},
 ): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
-  // First attempt: standard system prompt.
+  // TM-74 — Reference-template RAG. We resolve a reference once for this
+  // prompt and append it to the system prompt for all attempts. Stable
+  // across retries to preserve prompt-cache key (ADR-0003).
+  const rag = retrieveReferenceForPrompt(prompt);
+  const baseSystemPrompt = GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + rag.addendum;
+  if (process.env.NODE_ENV !== 'production' && rag.reference) {
+    console.warn(
+      '[generateAsset] TM-74 RAG hit:',
+      { category: rag.category, ref: rag.reference.id },
+    );
+  }
+
+  // First attempt: standard system prompt + RAG reference (when present).
   const first = await generateOnce(
     prompt,
     model,
     opts,
-    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+    baseSystemPrompt,
   );
 
   // TM-52 — clarify over-trigger guard. If the LLM picked clarify but the
@@ -322,7 +335,7 @@ export async function generateAsset(
         prompt,
         model,
         opts,
-        GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + FORCE_GENERATE_REINFORCEMENT,
+        baseSystemPrompt + FORCE_GENERATE_REINFORCEMENT,
       );
       if (forced.kind === 'response') {
         // TM-68 — the LLM may obey on flow-control yet still emit clarify.
@@ -343,7 +356,7 @@ export async function generateAsset(
             prompt,
             model,
             opts,
-            GENERATION_WITH_CLARIFY_SYSTEM_PROMPT +
+            baseSystemPrompt +
               FORCE_GENERATE_REINFORCEMENT +
               buildEntityCountReinforcement(report.entityCount),
           );
@@ -357,7 +370,7 @@ export async function generateAsset(
                 'Please rephrase your prompt and try again.',
             );
           }
-          return generateAssetPlaceholderRetry(prompt, model, opts, hardened);
+          return generateAssetPlaceholderRetry(prompt, model, opts, hardened, baseSystemPrompt);
         }
         return forced.value;
       }
@@ -371,7 +384,7 @@ export async function generateAsset(
       }
       // Forced retry returned a placeholder — fall through to placeholder
       // handling below using `forced` as the new "first" attempt.
-      return generateAssetPlaceholderRetry(prompt, model, opts, forced);
+      return generateAssetPlaceholderRetry(prompt, model, opts, forced, baseSystemPrompt);
     }
   }
 
@@ -386,7 +399,7 @@ export async function generateAsset(
       );
     }
     const transpileReinforced =
-      GENERATION_WITH_CLARIFY_SYSTEM_PROMPT +
+      baseSystemPrompt +
       buildTranspileRetryReinforcement(first.errorMessage);
     const second = await generateOnce(prompt, model, opts, transpileReinforced);
     if (second.kind === 'response') return second.value;
@@ -404,18 +417,22 @@ export async function generateAsset(
   }
 
   // TM-51: placeholder detected — retry once with reinforced system prompt.
-  return generateAssetPlaceholderRetry(prompt, model, opts, first);
+  return generateAssetPlaceholderRetry(prompt, model, opts, first, baseSystemPrompt);
 }
 
 /**
  * TM-51 placeholder retry path — extracted so the TM-52 forced-generate path
  * can reuse it when its own forced retry also returns a placeholder.
+ *
+ * TM-74: callers pass the RAG-augmented base system prompt so the retry
+ * keeps the reference template in context.
  */
 async function generateAssetPlaceholderRetry(
   prompt: string,
   model: string,
   opts: GenerateOptions,
   first: { kind: 'placeholder'; reasons: string[]; rawCode: string },
+  baseSystemPrompt: string = GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
 ): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
   if (process.env.NODE_ENV !== 'production') {
     console.warn(
@@ -424,7 +441,7 @@ async function generateAssetPlaceholderRetry(
     );
   }
   const reinforced =
-    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + GENERATION_NON_EMPTY_REINFORCEMENT;
+    baseSystemPrompt + GENERATION_NON_EMPTY_REINFORCEMENT;
   const second = await generateOnce(prompt, model, opts, reinforced);
   if (second.kind === 'response') return second.value;
   if (second.kind === 'transpile_error') {
