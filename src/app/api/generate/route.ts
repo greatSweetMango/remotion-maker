@@ -122,7 +122,13 @@ export async function POST(req: Request) {
     });
 
     // Quota was already reserved before generation — no second increment here.
-    return NextResponse.json({ type: 'generate', asset: { ...asset, id: dbAsset.id } });
+    // TM-100: pass through `warning` (set when fallback template was used) so
+    // the UI can surface a non-fatal toast asking the user to refine the prompt.
+    return NextResponse.json({
+      type: 'generate',
+      asset: { ...asset, id: dbAsset.id },
+      ...(result.warning ? { warning: result.warning } : {}),
+    });
   } catch (error: unknown) {
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a
     // category code so the UI can show a clearer toast. We do NOT consume

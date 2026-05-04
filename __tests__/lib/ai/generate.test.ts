@@ -199,13 +199,37 @@ describe('generateAsset retry on placeholder (TM-51)', () => {
     expect(secondCall.system).toContain('ANTI-PLACEHOLDER ENFORCEMENT');
   });
 
-  it('throws after two consecutive placeholder responses', async () => {
+  // TM-100: retry budget extended to 3 attempts (was 2). The 3rd attempt
+  // uses forced-RAG + STRICT reinforcement; if even that returns a
+  // placeholder we fall back to a built-in template instead of throwing.
+  it('runs a third retry with forced RAG before falling back', async () => {
     mockedChat.mockResolvedValueOnce(placeholderJson);
     mockedChat.mockResolvedValueOnce(placeholderJson);
-    await expect(generateAsset('A loader spinner', 'gpt-4o')).rejects.toThrow(
-      /placeholder|empty component/i,
-    );
-    expect(mockedChat).toHaveBeenCalledTimes(2);
+    mockedChat.mockResolvedValueOnce(stubGenerateJson);
+    const result = await generateAsset('A loader spinner', 'gpt-4o');
+    expect(mockedChat).toHaveBeenCalledTimes(3);
+    expect(result.type).toBe('generate');
+    // Third call should use the STRICT reinforcement and a forced RAG block.
+    const thirdCall = mockedChat.mock.calls[2][0];
+    expect(thirdCall.system).toContain('FINAL ATTEMPT');
+    expect(thirdCall.system).toContain('TM-100');
+  });
+
+  it('returns fallback asset (no throw) after three consecutive placeholder responses', async () => {
+    mockedChat.mockResolvedValueOnce(placeholderJson);
+    mockedChat.mockResolvedValueOnce(placeholderJson);
+    mockedChat.mockResolvedValueOnce(placeholderJson);
+    const result = await generateAsset('A loader spinner', 'gpt-4o');
+    expect(mockedChat).toHaveBeenCalledTimes(3);
+    expect(result.type).toBe('generate');
+    if (result.type === 'generate') {
+      // Fallback asset carries a `warning` so the UI can prompt the user.
+      expect(result.warning).toBeTruthy();
+      expect(result.warning).toMatch(/placeholder|three times/i);
+      // The fallback asset is built from the CounterAnimation template.
+      expect(result.asset.code).toContain('PARAMS');
+      expect(result.asset.code.length).toBeGreaterThan(200);
+    }
   });
 });
 

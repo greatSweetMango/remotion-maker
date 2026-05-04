@@ -243,7 +243,14 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       // type === 'generate' (or legacy plain asset shape)
       const asset = data.type === 'generate' ? data.asset : data;
       dispatch({ type: 'SET_ASSET', payload: asset });
-      toast.success('Animation created!');
+      // TM-100: when the AI repeatedly returned placeholders the server falls
+      // back to a default template and tags the response with `warning`. We
+      // show a softer toast so the user knows to refine the prompt.
+      if (data.type === 'generate' && data.warning) {
+        toast.warning(data.warning, { duration: 8000 });
+      } else {
+        toast.success('Animation created!');
+      }
     } catch (err: unknown) {
       // TM-82 — keep the user-facing error message AND capture the last
       // failed input so the UI can offer a Retry button. The route

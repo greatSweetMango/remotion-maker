@@ -2,6 +2,7 @@ import { chatComplete, chatCompleteStream, getModels } from './client';
 import {
   GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
   GENERATION_NON_EMPTY_REINFORCEMENT,
+  GENERATION_NON_EMPTY_REINFORCEMENT_STRICT,
   buildTranspileRetryReinforcement,
 } from './prompts';
 import {
@@ -13,7 +14,11 @@ import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { classifyRefusal, AiRefusalError } from './refusal';
-import { retrieveReferenceForPrompt } from './retrieval';
+import {
+  retrieveReferenceForPrompt,
+  retrieveForcedReferenceForPrompt,
+  readTemplateSource,
+} from './retrieval';
 import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
 
 export interface GenerateOptions {
@@ -421,11 +426,20 @@ export async function generateAsset(
 }
 
 /**
- * TM-51 placeholder retry path — extracted so the TM-52 forced-generate path
- * can reuse it when its own forced retry also returns a placeholder.
+ * TM-51 / TM-100 placeholder retry path — extracted so the TM-52 forced-generate
+ * path can reuse it when its own forced retry also returns a placeholder.
  *
  * TM-74: callers pass the RAG-augmented base system prompt so the retry
  * keeps the reference template in context.
+ *
+ * TM-100: extended from one retry to two. Strategy:
+ *   - Retry #1: standard reinforcement (GENERATION_NON_EMPTY_REINFORCEMENT).
+ *   - Retry #2: forced-RAG reference (default counter exemplar if no
+ *     category was inferred) + STRICT reinforcement.
+ *   - Three strikes → return a working FALLBACK ASSET (built from a known
+ *     template) plus a `warning` field, instead of throwing. Rationale:
+ *     a hard error blocks the user; a fallback at least lets them edit
+ *     something concrete.
  */
 async function generateAssetPlaceholderRetry(
   prompt: string,
@@ -436,12 +450,13 @@ async function generateAssetPlaceholderRetry(
 ): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
   if (process.env.NODE_ENV !== 'production') {
     console.warn(
-      '[generateAsset] placeholder detected, retrying once:',
+      '[generateAsset] placeholder detected, retry #1/2:',
       first.reasons.join('; '),
     );
   }
-  const reinforced =
-    baseSystemPrompt + GENERATION_NON_EMPTY_REINFORCEMENT;
+
+  // ----- Retry #1: standard reinforcement -----
+  const reinforced = baseSystemPrompt + GENERATION_NON_EMPTY_REINFORCEMENT;
   const second = await generateOnce(prompt, model, opts, reinforced);
   if (second.kind === 'response') return second.value;
   if (second.kind === 'transpile_error') {
@@ -451,9 +466,95 @@ async function generateAssetPlaceholderRetry(
     );
   }
 
-  // Two strikes: surface a user-facing error rather than render a blank screen.
-  throw new Error(
-    `AI returned a placeholder/empty component twice (${second.reasons.join('; ')}). ` +
-      'Please rephrase your prompt with more detail and try again.',
-  );
+  // Two strikes — escalate to forced-RAG + strict reinforcement (Retry #2).
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[generateAsset] placeholder detected, retry #2/2 with forced RAG:',
+      second.reasons.join('; '),
+    );
+  }
+  const forcedRag = retrieveForcedReferenceForPrompt(prompt);
+  const strictSystem =
+    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT +
+    forcedRag.addendum +
+    GENERATION_NON_EMPTY_REINFORCEMENT_STRICT;
+  const third = await generateOnce(prompt, model, opts, strictSystem);
+  if (third.kind === 'response') return third.value;
+  if (third.kind === 'transpile_error') {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[generateAsset] strict retry transpile failure, falling back:',
+        third.errorMessage,
+      );
+    }
+    return await buildFallbackAsset(prompt, [
+      `transpile error: ${third.errorMessage}`,
+      ...second.reasons,
+      ...first.reasons,
+    ]);
+  }
+
+  // Three strikes — return a fallback so the user is unblocked.
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[generateAsset] placeholder x3, returning fallback asset:',
+      third.reasons.join('; '),
+    );
+  }
+  return await buildFallbackAsset(prompt, [
+    ...third.reasons,
+    ...second.reasons,
+    ...first.reasons,
+  ]);
+}
+
+/**
+ * TM-100: Build a known-good fallback asset from a built-in template so the
+ * user is never fully blocked when the LLM repeatedly returns placeholders.
+ * The returned response carries a `warning` field that the UI surfaces as
+ * a non-fatal toast: "We used a default template — please rephrase for a
+ * tailored result."
+ */
+const FALLBACK_TEMPLATE_FILENAME = 'CounterAnimation.tsx';
+const FALLBACK_WARNING =
+  'AI returned a placeholder/empty component three times — we substituted a default template. ' +
+  'Please rephrase your prompt with more concrete details (subject, palette, timing, data) and regenerate.';
+
+async function buildFallbackAsset(
+  prompt: string,
+  observedReasons: string[],
+): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
+  void prompt;
+  const source = readTemplateSource(FALLBACK_TEMPLATE_FILENAME);
+  if (!source) {
+    // If even the fallback template is unavailable (test env / fs failure),
+    // surface the original error so callers still get a signal.
+    throw new Error(
+      `AI returned a placeholder/empty component three times (${observedReasons.join('; ')}). ` +
+        'Please rephrase your prompt with more detail and try again.',
+    );
+  }
+  // Strip imports because runtime injects Remotion / React as globals.
+  const code = source.replace(/^\s*import[^\n]*\n/gm, '').trim();
+  const validation = validateCode(code);
+  if (!validation.valid) {
+    throw new Error(
+      `Fallback template failed sandbox validation: ${validation.errors.join(', ')}`,
+    );
+  }
+  const sanitized = sanitizeCode(code);
+  const jsCode = await transpileTSX(sanitized);
+  const parameters = extractParameters(code);
+  const asset: GeneratedAsset = {
+    id: crypto.randomUUID(),
+    title: 'Default Template (please refine your prompt)',
+    code,
+    jsCode,
+    parameters,
+    durationInFrames: 150,
+    fps: 30,
+    width: 1920,
+    height: 1080,
+  };
+  return { type: 'generate', asset, warning: FALLBACK_WARNING };
 }
