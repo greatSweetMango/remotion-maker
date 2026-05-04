@@ -25,8 +25,13 @@ const BACKGROUNDS = [
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
+// TM-99: speeds offered through the Remotion `<Player>` rate-control UI.
+// 1 must always be present so the user can return to normal playback.
+const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
+
 export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelProps) {
   const [bg, setBg] = useState('#0f0f0f');
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const playerRef = useRef<PlayerRef>(null);
   const sequenceCtx = useActiveSequenceOptional();
 
@@ -200,6 +205,35 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
             {autoDownsample ? 'Auto' : 'Original'}
           </button>
         )}
+        {asset && (
+          <div
+            className="flex gap-1 ml-2"
+            role="group"
+            aria-label="Playback speed"
+            data-testid="playback-rate-controls"
+          >
+            {PLAYBACK_RATES.map((rate) => {
+              const active = playbackRate === rate;
+              return (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => setPlaybackRate(rate)}
+                  aria-pressed={active}
+                  data-testid={`playback-rate-${rate}x`}
+                  className={`text-xs px-2 py-0.5 rounded border ${
+                    active
+                      ? 'border-violet-500 text-violet-300'
+                      : 'border-slate-600 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={`Play at ${rate}× speed`}
+                >
+                  {rate}×
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="flex gap-1 ml-2">
           {BACKGROUNDS.map(b => (
             <button
@@ -244,6 +278,8 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
                   loop={seekFrame === null}
                   controls
                   clickToPlay={seekFrame === null}
+                  playbackRate={playbackRate}
+                  showPlaybackRateControl={PLAYBACK_RATES as unknown as number[]}
                 />
               </EvaluatorErrorBoundary>
             </div>
