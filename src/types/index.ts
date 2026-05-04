@@ -109,7 +109,7 @@ export interface ClarifyResponse {
 
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
-  | { type: 'generate'; asset: GeneratedAsset };
+  | { type: 'generate'; asset: GeneratedAsset; warning?: string };
 
 /** Map of clarify question id → selected choice id */
 export type ClarifyAnswers = Record<string, string>;

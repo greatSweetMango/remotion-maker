@@ -355,3 +355,81 @@ export function retrieveReferenceForPrompt(prompt: string): {
   const addendum = buildReferenceBlock(prompt);
   return { category, reference, addendum };
 }
+
+/**
+ * TM-100: Forced RAG retrieval for the third placeholder retry.
+ *
+ * The standard `retrieveReferenceForPrompt` returns an empty addendum when
+ * the prompt didn't match any category. On the third placeholder retry we
+ * NEED a worked example regardless — fall back to a strong default (the
+ * counter template, chosen because it exercises every required pattern:
+ * `PARAMS` with multiple kinds, `useCurrentFrame`, `interpolate`, `spring`,
+ * `<AbsoluteFill>` root, and substantive JSX).
+ *
+ * If a category was already inferred we keep that reference instead, since
+ * a category-matched exemplar is strictly better than the default.
+ */
+const FORCED_FALLBACK_REF: ReferenceTemplate = {
+  id: 'counter-animation',
+  filename: 'CounterAnimation.tsx',
+  category: 'counter',
+  keywords: ['counter'],
+};
+
+export function retrieveForcedReferenceForPrompt(
+  prompt: string,
+  opts: { sourceLoader?: (filename: string) => string | null } = {},
+): {
+  category: RagCategory;
+  reference: ReferenceTemplate;
+  addendum: string;
+  forced: boolean;
+} {
+  const inferred = inferCategoryFromPrompt(prompt);
+  if (inferred) {
+    const reference = pickReferenceTemplate(inferred, prompt);
+    if (reference) {
+      return {
+        category: inferred,
+        reference,
+        addendum: buildReferenceBlock(prompt, opts),
+        forced: false,
+      };
+    }
+  }
+  // Forced default — counter exemplar.
+  const loader = opts.sourceLoader ?? readTemplateSource;
+  const source = loader(FORCED_FALLBACK_REF.filename) ?? '';
+  const MAX_REF_CHARS = 6000;
+  const truncated =
+    source.length > MAX_REF_CHARS
+      ? source.slice(0, MAX_REF_CHARS) + '\n// ... (truncated for context budget)'
+      : source;
+  const addendum = source
+    ? `
+
+============== REFERENCE TEMPLATE (RAG, FORCED — TM-100) ==============
+
+No category was inferred from your prompt, but you have already returned
+two placeholder stubs. Here is a generic working exemplar showing every
+required pattern (PARAMS with multiple types, useCurrentFrame, interpolate,
+spring, AbsoluteFill root, substantive JSX). Adapt its STRUCTURE — replace
+the subject, palette, and content to match the user's actual prompt.
+
+Reference id: ${FORCED_FALLBACK_REF.id}
+Reference category: ${FORCED_FALLBACK_REF.category} (forced default)
+
+\`\`\`tsx
+${truncated}
+\`\`\`
+
+============== END REFERENCE ==============
+`
+    : '';
+  return {
+    category: FORCED_FALLBACK_REF.category,
+    reference: FORCED_FALLBACK_REF,
+    addendum,
+    forced: true,
+  };
+}
