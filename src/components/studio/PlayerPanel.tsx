@@ -151,8 +151,13 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
 
   return (
     <div className="flex flex-col h-full bg-slate-900">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700">
-        <span className="text-xs text-slate-400 font-medium flex-1 truncate">
+      {/*
+        TM-98: toolbar must survive narrow widths (375 / 768). Wrap allowed
+        + min-w-0 on title so flex children can shrink, and the bg-swatch row
+        is hidden under sm to keep the row to one line on phones.
+      */}
+      <div className="flex items-center flex-wrap gap-2 px-3 py-2 border-b border-slate-700 min-w-0">
+        <span className="text-xs text-slate-400 font-medium flex-1 truncate min-w-0">
           {asset?.title || 'Preview'}
         </span>
         {asset && effectiveAsset && (
@@ -200,7 +205,7 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
             {autoDownsample ? 'Auto' : 'Original'}
           </button>
         )}
-        <div className="flex gap-1 ml-2">
+        <div className="hidden sm:flex gap-1 ml-2">
           {BACKGROUNDS.map(b => (
             <button
               key={b.value}

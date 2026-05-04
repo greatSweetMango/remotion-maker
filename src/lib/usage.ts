@@ -1,10 +1,10 @@
 import type { Tier } from '@/types';
 import { prisma } from '@/lib/db/prisma';
+import { TIER_LIMITS } from '@/lib/tier-limits';
 
-export const TIER_LIMITS = {
-  FREE: { monthlyGenerations: 3, editsPerAsset: 3, uploadImages: 5, uploadFonts: 3 },
-  PRO:  { monthlyGenerations: 200, editsPerAsset: Infinity, uploadImages: Infinity, uploadFonts: Infinity },
-} as const;
+// Re-exported for backwards compatibility — prefer importing from
+// `@/lib/tier-limits` in client components (TM-98).
+export { TIER_LIMITS };
 
 /**
  * TM-93 — assetId character whitelist for safe interpolation into a SQLite

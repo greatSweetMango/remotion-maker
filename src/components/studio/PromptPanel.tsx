@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List, AlertTriangle, X } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
 import { HistoryGraph } from './HistoryGraph';
-import { TIER_LIMITS } from '@/lib/usage';
+import { TIER_LIMITS } from '@/lib/tier-limits';
 import {
   CATEGORY_LABELS,
   pickDiversifiedSuggestions,
