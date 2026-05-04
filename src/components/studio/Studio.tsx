@@ -50,19 +50,25 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
 
   return (
     <ActiveSequenceProvider source={sequenceSource}>
-    <div className="flex flex-col h-screen bg-slate-950 overflow-hidden"style={{ maxWidth: '100vw' }}>
-      <header className="flex items-center gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-1.5">
+    <div className="flex flex-col h-screen bg-slate-950 overflow-hidden" style={{ maxWidth: '100vw' }}>
+      {/*
+        TM-98 responsive header. Below `lg` (<1024px) the brand/tier block can
+        wrap and the right cluster condenses (titles + dashboard link hidden
+        on small screens) so the toolbar never bleeds outside viewport on
+        iPad-portrait (768px). Tested at 375 / 768 / 1280.
+      */}
+      <header className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 border-b border-slate-800 bg-slate-900 flex-shrink-0 min-w-0">
+        <Link href="/" className="flex items-center gap-1.5 flex-shrink-0">
           <Zap className="h-5 w-5 text-violet-400" />
           <span className="font-bold text-white text-sm">EasyMake</span>
         </Link>
 
-        <div className="flex items-center gap-1.5 ml-3">
+        <div className="flex items-center gap-1.5 ml-1 sm:ml-3 flex-shrink-0">
           {tier === 'FREE' ? (
             <>
-              <span className="text-xs text-slate-400">Free Plan</span>
-              <Button asChild size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700 px-3">
-                <Link href="/pricing">Upgrade to Pro</Link>
+              <span className="text-xs text-slate-400 hidden sm:inline">Free Plan</span>
+              <Button asChild size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700 px-2 sm:px-3">
+                <Link href="/pricing">Upgrade<span className="hidden sm:inline">&nbsp;to Pro</span></Link>
               </Button>
             </>
           ) : (
@@ -70,10 +76,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 min-w-0 flex-shrink">
           {state.asset && (
             <>
-              <span className="text-xs text-slate-400 hidden sm:block truncate max-w-[200px]">
+              <span className="text-xs text-slate-400 hidden lg:block truncate max-w-[200px]">
                 {state.asset.title}
               </span>
               {templates.length > 0 && (
@@ -81,10 +87,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                   variant="ghost"
                   size="sm"
                   onClick={clearAsset}
-                  className="h-7 text-xs text-slate-400 hover:text-white gap-1.5"
+                  className="h-7 text-xs text-slate-400 hover:text-white gap-1.5 px-2"
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  Templates
+                  <span className="hidden sm:inline">Templates</span>
                 </Button>
               )}
               {state.asset.id && (
@@ -94,19 +100,25 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
           )}
           {userImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={userImage} alt="" className="w-7 h-7 rounded-full border border-slate-600" />
+            <img src={userImage} alt="" className="w-7 h-7 rounded-full border border-slate-600 flex-shrink-0" />
           ) : (
-            <div className="w-7 h-7 rounded-full bg-violet-700 flex items-center justify-center text-xs text-white">
+            <div className="w-7 h-7 rounded-full bg-violet-700 flex items-center justify-center text-xs text-white flex-shrink-0">
               {userName?.[0]?.toUpperCase() ?? 'U'}
             </div>
           )}
-          <Link href="/dashboard" className="text-xs text-slate-400 hover:text-white transition-colors hidden sm:block">
+          <Link href="/dashboard" className="text-xs text-slate-400 hover:text-white transition-colors hidden lg:block">
             Dashboard
           </Link>
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden hidden md:block">
+      {/*
+        TM-98: gate the 3-pane desktop layout on `lg` (>=1024px) — at 768px
+        (iPad portrait) the right panel was getting cropped because 22%+52%+26%
+        of 768 leaves no slack for resize handles + min-content of inner
+        toolbars. iPad now uses the mobile/tablet layout below.
+      */}
+      <div className="flex-1 overflow-hidden hidden lg:block">
         <PanelGroup orientation="horizontal" className="h-full">
           <Panel defaultSize="22" minSize="18" maxSize="35">
             <div className="h-full border-r border-slate-800">
@@ -187,59 +199,75 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
         </PanelGroup>
       </div>
 
-      <div className="flex-1 overflow-hidden md:hidden flex flex-col">
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {mobileTab === 'prompt' && (
-            <PromptPanel
-              onGenerate={generate}
-              onEdit={edit}
-              versions={state.versions}
-              currentVersionIndex={state.currentVersionIndex}
-              onRestoreVersion={restoreVersion}
-              isGenerating={state.isGenerating}
-              isEditing={state.isEditing}
-              hasAsset={!!state.asset}
-              tier={tier}
-              clarify={state.clarify}
-              onSubmitClarifyAnswers={submitClarifyAnswers}
-              onSkipClarify={skipClarify}
-              errorMessage={state.error}
-              canRetry={!!state.lastFailed}
-              onRetry={retry}
-              onDismissError={dismissError}
-            />
-          )}
-          {mobileTab === 'customize' && (
-            <>
-              <div className="h-64 border-b border-slate-800">
-                <PlayerPanel
-                  asset={state.asset}
-                  paramValues={state.paramValues as Record<string, unknown>}
+      {/*
+        TM-98 mobile/tablet stack (<1024px). Player is now persistently mounted
+        on top so its measured size is never 0×0 on first load (previous code
+        only rendered it under the Customize tab, which produced an unresponsive
+        Customize tab when the user landed there without any prior layout pass).
+        The bottom region swaps between Prompt / Customize / Export per tab.
+        TemplatePicker takes over when there's no asset and templates exist.
+      */}
+      <div className="flex-1 overflow-hidden lg:hidden flex flex-col min-h-0">
+        {!state.asset && templates.length > 0 ? (
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <TemplatePicker templates={templates} onSelect={initTemplate} />
+          </div>
+        ) : (
+          <>
+            <div className="flex-shrink-0 border-b border-slate-800 h-[40vh] sm:h-[45vh] min-h-[200px]">
+              <PlayerPanel
+                asset={state.asset}
+                paramValues={state.paramValues as Record<string, unknown>}
+                isGenerating={state.isGenerating}
+              />
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              {mobileTab === 'prompt' && (
+                <PromptPanel
+                  onGenerate={generate}
+                  onEdit={edit}
+                  versions={state.versions}
+                  currentVersionIndex={state.currentVersionIndex}
+                  onRestoreVersion={restoreVersion}
                   isGenerating={state.isGenerating}
-                />
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <CustomizePanel
-                  parameters={state.asset?.parameters ?? []}
-                  paramValues={state.paramValues}
-                  onParamChange={updateParam}
+                  isEditing={state.isEditing}
+                  hasAsset={!!state.asset}
                   tier={tier}
-                  onUndo={undo}
-                  onRedo={redo}
-                  canUndo={canUndo}
-                  canRedo={canRedo}
+                  clarify={state.clarify}
+                  onSubmitClarifyAnswers={submitClarifyAnswers}
+                  onSkipClarify={skipClarify}
+                  errorMessage={state.error}
+                  canRetry={!!state.lastFailed}
+                  onRetry={retry}
+                  onDismissError={dismissError}
                 />
-              </div>
-            </>
-          )}
-          {mobileTab === 'export' && (
-            <ExportPanel
-              asset={state.asset}
-              paramValues={state.paramValues}
-              tier={tier}
-            />
-          )}
-        </div>
+              )}
+              {mobileTab === 'customize' && (
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <CustomizePanel
+                    parameters={state.asset?.parameters ?? []}
+                    paramValues={state.paramValues}
+                    onParamChange={updateParam}
+                    tier={tier}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                  />
+                </div>
+              )}
+              {mobileTab === 'export' && (
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <ExportPanel
+                    asset={state.asset}
+                    paramValues={state.paramValues}
+                    tier={tier}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="flex border-t border-slate-800 bg-slate-900 flex-shrink-0">
           {[
