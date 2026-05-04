@@ -269,6 +269,46 @@ mode="clarify" and ask up to 3 short questions instead of returning a stub.
 `;
 
 /**
+ * TM-100: Final-attempt (3rd retry) reinforcement after two consecutive
+ * placeholder responses. Stricter and more directive than
+ * GENERATION_NON_EMPTY_REINFORCEMENT — quotes the failure modes verbatim
+ * and forbids the clarify-fallback escape hatch (the user has already
+ * waited for two retries; we MUST produce code now).
+ */
+export const GENERATION_NON_EMPTY_REINFORCEMENT_STRICT = `
+
+============== FINAL ATTEMPT — STRICT NON-EMPTY ENFORCEMENT (TM-100) ==============
+
+This is your THIRD and FINAL attempt. The previous TWO attempts both
+returned placeholder/empty stubs. The user is BLOCKED. You MUST produce
+working animation code now.
+
+ABSOLUTE REQUIREMENTS — every single one is mandatory:
+
+  1. The "code" string in the JSON response MUST be AT LEAST 200 characters
+     long (preferably 400-1500). Count characters before responding.
+  2. The code MUST contain the literal substring \`const PARAMS = {\` followed
+     by AT LEAST ONE customizable field (color / range / text / boolean /
+     select). \`const PARAMS = {} as const\` is FORBIDDEN.
+  3. The code MUST contain at least one JSX element. The component MUST
+     return \`<AbsoluteFill ...>...</AbsoluteFill>\` as the root element.
+  4. The component body MUST use AT LEAST ONE of: \`useCurrentFrame()\`,
+     \`interpolate(...)\`, or \`spring({...})\` — i.e. real animation logic.
+  5. Bare \`() => null\`, \`return null\`, or \`<></>\` empty fragment bodies
+     are FORBIDDEN.
+  6. mode="clarify" is FORBIDDEN on this attempt — you have ALREADY had two
+     chances to clarify. Make a reasonable assumption from the user's
+     prompt and produce concrete code. Pick sensible defaults (palette
+     #7C3AED + #0f0f17, fontSize 80-120, durationInFrames 150) when the
+     prompt is ambiguous.
+  7. If you reference the supplied REFERENCE TEMPLATE block above, you may
+     adapt its structure but MUST customize at least the colors, text,
+     and animation cadence to fit the user's prompt.
+
+Output the JSON object now. Verify each requirement before sending.
+`;
+
+/**
  * TM-67: Reinforcement appended when the first attempt produced TSX/JS that
  * failed to transpile (sucrase parse error). The previous code reached
  * `transpileTSX` but threw — usually due to mismatched brackets, missing
