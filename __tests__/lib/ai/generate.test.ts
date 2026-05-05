@@ -68,14 +68,66 @@ const stubClarifyJson = JSON.stringify({
 describe('generateAsset', () => {
   beforeEach(() => mockedChat.mockReset());
 
-  it('returns clarify response when LLM mode=clarify', async () => {
+  it('returns clarify response when LLM mode=clarify (TM-105 fallback when dynamic gen fails)', async () => {
+    // Primary call → clarify; second TM-105 dynamic call → unparseable, so we fall
+    // back to the primary's questions.
     mockedChat.mockResolvedValueOnce(stubClarifyJson);
+    mockedChat.mockResolvedValueOnce('not-json');
     const result = await generateAsset('애니메이션 만들어줘', 'haiku');
     expect(result.type).toBe('clarify');
     if (result.type === 'clarify') {
       expect(result.questions).toHaveLength(1);
       expect(result.questions[0].id).toBe('data_kind');
     }
+  });
+
+  it('TM-105 — replaces clarify questions with dynamic prompt-tailored set', async () => {
+    const tailored = JSON.stringify({
+      questions: [
+        {
+          id: 'style',
+          question: '스타일?',
+          choices: [
+            { id: 'casual', label: '캐주얼' },
+            { id: 'luxury', label: '럭셔리' },
+          ],
+        },
+        {
+          id: 'pacing',
+          question: '속도?',
+          choices: [
+            { id: 'slow', label: '느리게' },
+            { id: 'fast', label: '빠르게' },
+          ],
+        },
+        {
+          id: 'overlay',
+          question: '텍스트 오버레이?',
+          choices: [
+            { id: 'none', label: '없음' },
+            { id: 'caption', label: '캡션' },
+          ],
+        },
+      ],
+    });
+    mockedChat.mockResolvedValueOnce(stubClarifyJson); // primary
+    mockedChat.mockResolvedValueOnce(tailored);        // TM-105 dynamic
+    // Use a genuinely vague prompt so clarify-gate does not classify it as
+    // concrete and trigger the TM-52 forced-generate retry.
+    const result = await generateAsset('뭐 좀 멋진거', 'haiku');
+    expect(result.type).toBe('clarify');
+    if (result.type === 'clarify') {
+      expect(result.questions).toHaveLength(3);
+      expect(result.questions.map((q) => q.id)).toEqual(['style', 'pacing', 'overlay']);
+    }
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+  });
+
+  it('TM-105 — does NOT call dynamic clarify when answers are provided', async () => {
+    mockedChat.mockResolvedValueOnce(stubGenerateJson);
+    await generateAsset('애니메이션 만들어줘', 'haiku', { answers: { x: 'y' } });
+    // exactly one call (primary, which goes straight to generate)
+    expect(mockedChat).toHaveBeenCalledTimes(1);
   });
 
   it('returns generate response when LLM mode=generate', async () => {

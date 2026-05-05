@@ -10,6 +10,7 @@ import {
   FORCE_GENERATE_REINFORCEMENT,
   buildEntityCountReinforcement,
 } from './clarify-gate';
+import { generateClarifyQuestions } from './clarify-questions';
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
@@ -393,7 +394,30 @@ export async function generateAsset(
     }
   }
 
-  if (first.kind === 'response') return first.value;
+  if (first.kind === 'response') {
+    // TM-105 — dynamic clarify questions. If the primary call elected to
+    // clarify AND we did not over-trigger (handled above), regenerate the
+    // questions via a dedicated, prompt-tailored second call. Falls back to
+    // the original questions on any failure so we never block the user.
+    if (first.value.type === 'clarify' && !opts.answers) {
+      try {
+        const tailored = await generateClarifyQuestions(prompt, { model });
+        return {
+          ...first.value,
+          questions: tailored.questions,
+        };
+      } catch (err) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[generateAsset] TM-105 dynamic clarify failed, using primary questions:',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        // fall through with original questions
+      }
+    }
+    return first.value;
+  }
 
   // TM-67: transpile failure — retry once with a syntax-correctness reinforcement.
   if (first.kind === 'transpile_error') {
