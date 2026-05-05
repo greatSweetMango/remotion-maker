@@ -78,7 +78,19 @@ export const ParticlePhysics = ({
       colorPick < 0.34 ? primaryColor :
       colorPick < 0.68 ? secondaryColor :
       accentColor;
-    return { x, y, size, color: color as string, alpha: 0.55 + rnd(8) * 0.4 };
+    // TM-110: round to 3 decimals so server-rendered CSS strings (which React
+    // truncates to 3-decimal "px" values) byte-equal the client-side numeric
+    // reconciliation. Without this rounding the SSR output emits e.g.
+    // `left: 801.427px` while React's client renderer compares against the
+    // raw `801.4273423103696` and reports a hydration mismatch.
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return {
+      x: r3(x),
+      y: r3(y),
+      size: r3(size),
+      color: color as string,
+      alpha: r3(0.55 + rnd(8) * 0.4),
+    };
   });
 
   return (
@@ -97,7 +109,7 @@ export const ParticlePhysics = ({
           backgroundColor: p.color,
           opacity: p.alpha,
           filter: 'blur(0.5px)',
-          boxShadow: `0 0 ${p.size * 1.6}px ${p.color}`,
+          boxShadow: `0 0 ${Math.round(p.size * 1.6 * 1000) / 1000}px ${p.color}`,
         }} />
       ))}
       {/* ground glow */}
