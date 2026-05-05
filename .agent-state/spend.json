@@ -3,12 +3,12 @@
   "weekly_budget_usd": 200,
   "research_daily_budget_usd": 5,
   "openai_qa_cap_usd": 18,
-  "openai_total_usd": 0,
+  "openai_total_usd": 0.033159,
   "current": {
-    "date": null,
-    "tokens_input": 0,
-    "tokens_output": 0,
-    "cost_usd": 0,
+    "date": "2026-05-05",
+    "tokens_input": 6956,
+    "tokens_output": 3886,
+    "cost_usd": 0.033159,
     "research_cost_usd": 0
   },
   "history": []

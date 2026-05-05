@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { PromptPanel } from './PromptPanel';
 import { PlayerPanel } from './PlayerPanel';
@@ -42,6 +43,26 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     canRedo,
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
+
+  // TM-106 — when an edit on a template-backed asset materializes a fresh
+  // DB row, the reducer pivots `state.asset.id` from `template-…` to the
+  // real cuid (see useStudio.ts ADD_VERSION newAssetId path). Mirror that
+  // pivot in the URL so a refresh re-loads the edited row instead of
+  // re-bootstrapping the original template (which silently discarded the
+  // user's edits — the surface symptom of the P0 "edit doesn't work"
+  // report).
+  const router = useRouter();
+  const urlSearchParams = useSearchParams();
+  const currentAssetId = state.asset?.id;
+  useEffect(() => {
+    if (!currentAssetId) return;
+    if (currentAssetId.startsWith('template-')) return;
+    if (urlSearchParams?.get('asset') === currentAssetId) return;
+    const params = new URLSearchParams(urlSearchParams?.toString() ?? '');
+    params.delete('template');
+    params.set('asset', currentAssetId);
+    router.replace(`/studio?${params.toString()}`);
+  }, [currentAssetId, router, urlSearchParams]);
 
   // Sequence-aware sidebar context (TM-28). Source defaults to original code;
   // jsCode also works because the transpiler preserves Sequence JSX/createElement
