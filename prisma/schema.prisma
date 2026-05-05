@@ -106,6 +106,13 @@ model Asset {
   sourceAssetId    String?
   sourceAsset      Asset?         @relation("AssetForks", fields: [sourceAssetId], references: [id], onDelete: SetNull)
   forks            Asset[]        @relation("AssetForks")
+  // TM-109 — when an asset is materialized from a built-in template via the
+  // first edit on `template-<id>`, this stores that template id (e.g.
+  // `template-fluidblobs`). Used as a server-side guard so a buggy/malicious
+  // client that keeps re-sending `assetId: "template-…"` cannot create
+  // duplicate assets and burn `monthlyUsage` past the first materialization.
+  // Not a FK (templates are static code, not DB rows).
+  templateSourceId String?
   versions         AssetVersion[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -113,6 +120,7 @@ model Asset {
 
   @@index([sourceAssetId])
   @@index([userId, deletedAt])
+  @@index([userId, templateSourceId])
 }
 
 model AssetVersion {
