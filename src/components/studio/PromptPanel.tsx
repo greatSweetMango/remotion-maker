@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List, AlertTriangle, X } from 'lucide-react';
+import { Sparkles, Send, RotateCcw, ChevronDown, ChevronUp, Loader2, HelpCircle, Shuffle, Pencil, Plus, GitBranch, List, AlertTriangle, X, Link2 } from 'lucide-react';
 import type { AssetVersion, ClarifyAnswers, ClarifyQuestion, Tier } from '@/types';
+import type { IngestedContext } from '@/lib/ingest/format';
 import { HistoryGraph } from './HistoryGraph';
 import { TIER_LIMITS } from '@/lib/tier-limits';
 import {
@@ -37,6 +38,15 @@ interface PromptPanelProps {
   canRetry?: boolean;
   onRetry?: () => void;
   onDismissError?: () => void;
+  /**
+   * TM-103 — attached URL context (already fetched by the parent). When set,
+   * a preview chip is rendered and the parent will inject this into the
+   * outgoing prompt. `null` means "no attachment".
+   */
+  attachedContext?: IngestedContext | null;
+  onAttachUrl?: (url: string) => Promise<void> | void;
+  onDetachContext?: () => void;
+  isAttaching?: boolean;
 }
 
 const SUGGESTION_CARD_COUNT = 4;
@@ -147,8 +157,11 @@ export function PromptPanel({
   onRestoreVersion, isGenerating, isEditing, hasAsset, tier,
   clarify, onSubmitClarifyAnswers, onSkipClarify,
   errorMessage, canRetry, onRetry, onDismissError,
+  attachedContext, onAttachUrl, onDetachContext, isAttaching,
 }: PromptPanelProps) {
   const [prompt, setPrompt] = useState('');
+  const [urlDraft, setUrlDraft] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
   // User-explicit override; `null` means "follow default for current hasAsset state".
   // When hasAsset flips false→true we keep this as null so the default ('edit') applies;
   // when the user clicks New/Edit we record their intent here.
@@ -439,6 +452,103 @@ export function PromptPanel({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* TM-103 — URL attachment row (collapsed by default). */}
+      {onAttachUrl && (
+        <div className="px-4 py-2 border-b border-slate-700">
+          {attachedContext ? (
+            <div
+              data-testid="prompt-attached-context"
+              className="flex items-start gap-2 bg-slate-800/60 border border-slate-700 rounded-md px-2.5 py-2"
+            >
+              {attachedContext.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={attachedContext.image}
+                  alt=""
+                  className="h-10 w-10 rounded object-cover flex-shrink-0 bg-slate-700"
+                />
+              ) : (
+                <Link2 className="h-4 w-4 text-violet-300 mt-1" aria-hidden />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-200 truncate">
+                  {attachedContext.title ?? attachedContext.url}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {attachedContext.description ?? attachedContext.url}
+                </p>
+                {attachedContext.palette.length > 0 && (
+                  <div className="flex items-center gap-1 mt-1" aria-label="Palette">
+                    {attachedContext.palette.slice(0, 5).map((c) => (
+                      <span
+                        key={c}
+                        className="h-3 w-3 rounded-sm border border-slate-600"
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              {onDetachContext && (
+                <button
+                  type="button"
+                  aria-label="Remove attachment"
+                  onClick={onDetachContext}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              )}
+            </div>
+          ) : showUrlInput ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="url"
+                value={urlDraft}
+                onChange={(e) => setUrlDraft(e.target.value)}
+                placeholder="https://shop.example.com/product/..."
+                className="flex-1 text-xs bg-slate-800 border border-slate-600 rounded-md px-2 py-1.5 text-white placeholder:text-slate-500"
+                disabled={isAttaching}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={!urlDraft.trim() || isAttaching}
+                onClick={async () => {
+                  if (!urlDraft.trim() || !onAttachUrl) return;
+                  await onAttachUrl(urlDraft.trim());
+                  setUrlDraft('');
+                  setShowUrlInput(false);
+                }}
+                className="h-7 text-xs bg-violet-600 hover:bg-violet-700"
+              >
+                {isAttaching ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Attach'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => { setShowUrlInput(false); setUrlDraft(''); }}
+                disabled={isAttaching}
+                className="h-7 text-xs"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-violet-300 transition-colors"
+            >
+              <Link2 className="h-3 w-3" aria-hidden />
+              Attach a reference URL
+            </button>
+          )}
         </div>
       )}
 

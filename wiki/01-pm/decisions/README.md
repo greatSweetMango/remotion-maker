@@ -20,6 +20,7 @@ status: active
 - [[0017-capture-determinism|ADR-0017: capture-side determinism]]
 - [[0018-judge-determinism|ADR-0018: judge determinism]]
 - [[0019-rag-templates|ADR-0019: Reference 템플릿 RAG]]
+- [[0021-context-ingest|ADR-0021: URL/이미지 컨텍스트 ingest]]
 
 ## 새 ADR 만들기
 
