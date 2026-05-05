@@ -1,0 +1,244 @@
+/**
+ * TM-102 — Unit tests for the multi-step generation pipeline.
+ *
+ * We mock the AI client + sandbox + transpiler so the test stays
+ * deterministic and offline. Live smoke (5 baseline cases) is in
+ * `scripts/qa/tm-102-live-baseline.ts` — gated on $OPENAI_API_KEY.
+ */
+
+jest.mock('@/lib/ai/client', () => ({
+  chatComplete: jest.fn(),
+  getModels: () => ({ free: 'haiku', pro: 'sonnet' }),
+}));
+jest.mock('@/lib/remotion/transpiler', () => ({
+  transpileTSX: jest.fn(async (s: string) => `/*js*/${s}`),
+}));
+jest.mock('@/lib/remotion/sandbox', () => ({
+  validateCode: jest.fn(() => ({ valid: true, errors: [] })),
+  sanitizeCode: jest.fn((s: string) => s),
+}));
+jest.mock('@/lib/ai/extract-params', () => ({
+  extractParameters: jest.fn(() => []),
+}));
+
+import { chatComplete } from '@/lib/ai/client';
+import {
+  generateOutline,
+  generateSceneSpec,
+  generateSceneCode,
+  composeSceneCodes,
+  generateAssetMultiStep,
+  validateOutline,
+  projectedMultiStepCostRatio,
+  MULTI_STEP_COST_RATIO_WARN,
+  type Outline,
+} from '@/lib/ai/pipeline';
+
+const mockedChat = chatComplete as jest.MockedFunction<typeof chatComplete>;
+
+const VALID_OUTLINE: Outline = {
+  title: 'Demo Counter',
+  totalDurationInFrames: 150,
+  fps: 30,
+  width: 1920,
+  height: 1080,
+  palette: {
+    primary: '#7C3AED',
+    secondary: '#A78BFA',
+    accent: '#F472B6',
+    background: '#0f0f17',
+    rationale: 'fits prompt',
+  },
+  scenes: [
+    {
+      name: 'intro',
+      role: 'title-reveal',
+      durationInFrames: 60,
+      keyElements: ['title text'],
+      narrativeBeat: 'reveal title',
+    },
+    {
+      name: 'main',
+      role: 'data-viz',
+      durationInFrames: 90,
+      keyElements: ['counter'],
+      narrativeBeat: 'count from 0 to 100',
+    },
+  ],
+};
+
+const SCENE_CODE_BODY = `const Scene1Params = {
+  scene1_primaryColor: "#7C3AED", // type: color
+} as const;
+const Scene1 = ({ scene1_primaryColor = Scene1Params.scene1_primaryColor } = Scene1Params) => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 30], [0, 1]);
+  return (
+    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
+      <div style={{ color: scene1_primaryColor, opacity }}>Hello</div>
+    </AbsoluteFill>
+  );
+};`;
+
+describe('TM-102 pipeline — Stage 1 outline', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('parses a valid outline JSON', async () => {
+    mockedChat.mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE));
+    const out = await generateOutline('counter 0 to 100', 'sonnet');
+    expect(out.title).toBe('Demo Counter');
+    expect(out.scenes).toHaveLength(2);
+    expect(out.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(150);
+  });
+
+  it('throws when palette is missing', () => {
+    expect(() =>
+      validateOutline({ title: 'x', scenes: [{ name: 's', durationInFrames: 60 }] }),
+    ).toThrow(/palette/);
+  });
+
+  it('throws when scenes[] is empty', () => {
+    expect(() =>
+      validateOutline({
+        title: 'x',
+        palette: { primary: '#fff', background: '#000' },
+        scenes: [],
+      }),
+    ).toThrow(/non-empty/);
+  });
+
+  it('rescales scene durations so they sum to total', () => {
+    const out = validateOutline({
+      title: 'x',
+      totalDurationInFrames: 100,
+      palette: { primary: '#fff', background: '#000' },
+      scenes: [
+        { name: 'a', role: 'text-anim', durationInFrames: 60 },
+        { name: 'b', role: 'text-anim', durationInFrames: 60 },
+      ],
+    });
+    expect(out.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(100);
+  });
+
+  it('caps scenes at 4', () => {
+    expect(() =>
+      validateOutline({
+        title: 'x',
+        palette: { primary: '#fff', background: '#000' },
+        scenes: Array.from({ length: 5 }, (_, i) => ({
+          name: `s${i}`,
+          role: 'text-anim',
+          durationInFrames: 30,
+        })),
+      }),
+    ).toThrow(/capped at 4/);
+  });
+});
+
+describe('TM-102 pipeline — Stage 2 scene spec', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('back-fills palette from outline if scene spec omits it', async () => {
+    mockedChat.mockResolvedValueOnce(
+      JSON.stringify({
+        name: 'intro',
+        description: 'short title',
+        animationType: 'spring',
+        elements: [],
+      }),
+    );
+    const spec = await generateSceneSpec(VALID_OUTLINE, 0, 'sonnet');
+    expect(spec.palette).toEqual(VALID_OUTLINE.palette);
+  });
+
+  it('rejects an out-of-range scene index', async () => {
+    await expect(generateSceneSpec(VALID_OUTLINE, 99, 'sonnet')).rejects.toThrow(/out of range/);
+  });
+});
+
+describe('TM-102 pipeline — Stage 3 scene code', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('returns the sanitized code body', async () => {
+    mockedChat.mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    const tsx = await generateSceneCode(
+      VALID_OUTLINE,
+      { name: 'intro' } as never,
+      0,
+      'sonnet',
+    );
+    expect(tsx).toContain('Scene1');
+    expect(tsx.length).toBeGreaterThan(100);
+  });
+
+  it('rejects code that is too short', async () => {
+    mockedChat.mockResolvedValueOnce(JSON.stringify({ code: 'const x = 1;' }));
+    await expect(
+      generateSceneCode(VALID_OUTLINE, { name: 'intro' } as never, 0, 'sonnet'),
+    ).rejects.toThrow(/too short/);
+  });
+});
+
+describe('TM-102 pipeline — Stage 4 composition', () => {
+  it('emits a top-level PARAMS spreading per-scene params', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_CODE_BODY, SCENE_CODE_BODY]);
+    expect(composed).toContain('const PARAMS');
+    expect(composed).toContain('...Scene1Params');
+    expect(composed).toContain('...Scene2Params');
+    // Sequence offsets correct
+    expect(composed).toContain('from={0}');
+    expect(composed).toContain('from={60}');
+    expect(composed).toContain('durationInFrames={60}');
+    expect(composed).toContain('durationInFrames={90}');
+  });
+
+  it('refuses mismatched code count', () => {
+    expect(() => composeSceneCodes(VALID_OUTLINE, [SCENE_CODE_BODY])).toThrow(/scene code count/);
+  });
+});
+
+describe('TM-102 pipeline — orchestrator', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('runs all four stages end-to-end', async () => {
+    // 1× outline + 2× scene-spec + 2× scene-code = 5 calls total
+    mockedChat
+      .mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'intro', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'main', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    const result = await generateAssetMultiStep('counter 0 to 100', 'sonnet');
+    expect(result.outline.title).toBe('Demo Counter');
+    expect(result.sceneSpecs).toHaveLength(2);
+    expect(result.composedCode).toContain('GeneratedAsset');
+    expect(result.asset.durationInFrames).toBe(150);
+    expect(mockedChat).toHaveBeenCalledTimes(5);
+  });
+
+  it('attaches a cost warning above the threshold', async () => {
+    mockedChat
+      .mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'intro' }))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'main' }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    const result = await generateAssetMultiStep('counter 0 to 100', 'sonnet');
+    // 2 scenes → 1.75× ≥ MULTI_STEP_COST_RATIO_WARN (1.7).
+    expect(result.costRatio).toBeGreaterThanOrEqual(MULTI_STEP_COST_RATIO_WARN);
+    expect(result.costWarning).toMatch(/multi-step/i);
+  });
+});
+
+describe('TM-102 — cost projection', () => {
+  it('grows monotonically with scene count', () => {
+    const r1 = projectedMultiStepCostRatio(1);
+    const r2 = projectedMultiStepCostRatio(2);
+    const r3 = projectedMultiStepCostRatio(3);
+    expect(r1).toBeLessThan(r2);
+    expect(r2).toBeLessThan(r3);
+    // sanity bounds anchored to ADR docstring (1 ≈ 1.4×, 3 ≈ 2.0×)
+    expect(r1).toBeCloseTo(1.35, 1);
+    expect(r3).toBeCloseTo(2.15, 1);
+  });
+});
