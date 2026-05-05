@@ -223,9 +223,13 @@ async function main() {
     }
   }
 
-  const outDir = path.join(__dirname, 'results', 'tm-46');
+  // TM-46 r7: allow overriding output path so RAG-ON / RAG-OFF runs can be
+  // judged into separate score files without collision.
+  const outIdx = args.indexOf('--out');
+  const outPathArg = outIdx >= 0 ? args[outIdx + 1] : null;
+  const outDir = outPathArg ? path.dirname(outPathArg) : path.join(__dirname, 'results', 'tm-46');
   fs.mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, smoke ? 'scores-smoke.json' : 'scores.json');
+  const outPath = outPathArg ?? path.join(outDir, smoke ? 'scores-smoke.json' : 'scores.json');
   fs.writeFileSync(
     outPath,
     JSON.stringify(
