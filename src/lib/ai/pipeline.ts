@@ -25,6 +25,96 @@ import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import type { GeneratedAsset, GenerateApiResponse } from '@/types';
 
 /* ------------------------------------------------------------------ */
+/* TM-111 — Forbidden-token sanitizer (gpt-4o failure modes)           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * TM-111: gpt-4o has a strong tendency to emit Node-isms (`require(...)`,
+ * `globalThis.X`, dynamic `import(...)`, `new Function(...)`) inside
+ * scene-code fragments even when the system prompt forbids them. The
+ * sandbox validator (defense-in-depth) then rejects the entire scene,
+ * causing 4/5 cases in the TM-108 benchmark to 500.
+ *
+ * This pre-validation pass scrubs the most common, structurally-safe
+ * token patterns before `validateCode` runs. The transformation is
+ * conservative — when in doubt we drop the offending statement rather
+ * than rewrite it (the LLM virtually never *needs* these tokens for a
+ * Remotion component, so removing them produces working code in
+ * practice).
+ *
+ * Returns the sanitized source plus a list of `notes` describing what
+ * was changed (for telemetry / retro). When `notes` is non-empty the
+ * caller should still re-run `validateCode` to catch anything missed.
+ */
+export interface ForbiddenSanitizeResult {
+  code: string;
+  notes: string[];
+}
+
+export function sanitizeForbiddenTokens(input: string): ForbiddenSanitizeResult {
+  const notes: string[] = [];
+  let code = input;
+
+  // 1. `const X = require('...')` / `const { a } = require('...')` —
+  //    drop the whole declaration. Remotion runtime injects all
+  //    React/Remotion globals so a CJS require is never legitimate.
+  const requireDecl = /^[ \t]*(?:const|let|var)\s+[^;\n]*=\s*require\s*\([^)]*\)\s*;?\s*$/gm;
+  if (requireDecl.test(code)) {
+    code = code.replace(requireDecl, '');
+    notes.push('stripped `const … = require(...)` declarations');
+  }
+  // Bare `require(...)` calls anywhere → comment out the rest of the line.
+  const bareRequire = /\brequire\s*\([^)]*\)/g;
+  if (bareRequire.test(code)) {
+    code = code.replace(bareRequire, 'undefined /* TM-111: require stripped */');
+    notes.push('replaced bare require(...) with undefined');
+  }
+
+  // 2. `globalThis.X` / `globalThis['X']` — rewrite to plain `X` so the
+  //    code still references the runtime-injected global. TM-108 saw
+  //    `globalThis.useCurrentFrame()` etc.
+  if (/\bglobalThis\b/.test(code)) {
+    code = code
+      .replace(/\bglobalThis\s*\?\.\s*/g, '')
+      .replace(/\bglobalThis\s*\.\s*/g, '')
+      .replace(/\bglobalThis\s*\[\s*['"]([A-Za-z_$][\w$]*)['"]\s*\]/g, '$1')
+      // Standalone `globalThis` identifier (rare) → `undefined`
+      .replace(/\bglobalThis\b/g, 'undefined');
+    notes.push('rewrote globalThis.X / globalThis["X"] to bare identifiers');
+  }
+
+  // 3. Dynamic `import(...)` expressions → drop. The runtime cannot
+  //    serve them anyway. We coerce to `undefined` so `await import(...)`
+  //    becomes `await undefined` which is harmless at module-eval.
+  if (/\bimport\s*\(/.test(code)) {
+    code = code.replace(/\bimport\s*\(\s*[^)]*\)/g, 'undefined /* TM-111: dynamic import stripped */');
+    notes.push('replaced dynamic import(...) with undefined');
+  }
+
+  // 4. `new Function(...)` / `Function('...')` — drop entire RHS.
+  if (/\b(?:new\s+)?Function\s*\(/.test(code)) {
+    code = code.replace(/\bnew\s+Function\s*\([^)]*\)/g, '(() => null)');
+    code = code.replace(/(?<!\w)Function\s*\(\s*['"`][^'"`]*['"`]\s*(?:,\s*['"`][^'"`]*['"`]\s*)*\)/g, '(() => null)');
+    notes.push('replaced Function(...) constructor with (() => null)');
+  }
+
+  // 5. `process.X` references inside scene code → drop. Remotion code
+  //    has no business reading process state.
+  if (/\bprocess\s*\./.test(code)) {
+    code = code.replace(/\bprocess\s*\.\s*[A-Za-z_$][\w$]*/g, 'undefined');
+    notes.push('replaced process.X with undefined');
+  }
+
+  // 6. Module loaders smuggled via `import.meta` → strip.
+  if (/import\.meta\b/.test(code)) {
+    code = code.replace(/\bimport\.meta\b/g, 'undefined');
+    notes.push('replaced import.meta with undefined');
+  }
+
+  return { code, notes };
+}
+
+/* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -464,18 +554,42 @@ export async function generateSceneCode(
   if (!parsed) {
     throw new Error(`TM-102 scene-code[${sceneIdx}]: AI did not return valid JSON`);
   }
-  const code = parsed.code as string | undefined;
-  if (!code || code.trim().length < 100) {
+  const rawCode = parsed.code as string | undefined;
+  if (!rawCode || rawCode.trim().length < 100) {
     throw new Error(`TM-102 scene-code[${sceneIdx}]: too short or missing`);
   }
-  // Same validate+sanitize gate as single-shot.
-  const validation = validateCode(code);
+  // TM-111 — pre-scrub gpt-4o failure tokens (require / globalThis /
+  // dynamic import / Function ctor / process / import.meta) BEFORE the
+  // sandbox validator runs. This converts ~80% of multi-step 500s into
+  // valid scenes without dropping the LLM output entirely.
+  const { code: scrubbed, notes } = sanitizeForbiddenTokens(rawCode);
+  if (notes.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn(`[TM-111] scene-code[${sceneIdx}] auto-sanitized:`, notes);
+  }
+  const validation = validateCode(scrubbed);
   if (!validation.valid) {
-    throw new Error(
-      `TM-102 scene-code[${sceneIdx}] failed sandbox validation: ${validation.errors.join(', ')}`,
+    throw new SceneSandboxError(
+      `TM-102 scene-code[${sceneIdx}] failed sandbox validation after TM-111 sanitize: ${validation.errors.join(', ')}`,
+      sceneIdx,
+      validation.errors,
     );
   }
-  return sanitizeCode(code);
+  return sanitizeCode(scrubbed);
+}
+
+/**
+ * TM-111 — distinct error class so the orchestrator can catch sandbox
+ * rejections specifically and decide whether to fall back to single-shot.
+ */
+export class SceneSandboxError extends Error {
+  readonly sceneIdx: number;
+  readonly sandboxErrors: string[];
+  constructor(message: string, sceneIdx: number, sandboxErrors: string[]) {
+    super(message);
+    this.name = 'SceneSandboxError';
+    this.sceneIdx = sceneIdx;
+    this.sandboxErrors = sandboxErrors;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -565,21 +679,31 @@ export async function generateAssetMultiStep(
 
   const composedCode = composeSceneCodes(outline, sceneCodes);
 
+  // TM-111 — apply forbidden-token sanitizer to the COMPOSED module too,
+  // so any token introduced by the wrapper (or surviving sub-fragments)
+  // is scrubbed before the final validator runs.
+  const { code: composedScrubbed, notes: composeNotes } = sanitizeForbiddenTokens(composedCode);
+  if (composeNotes.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[TM-111] composed code auto-sanitized:', composeNotes);
+  }
+
   // Validate the composed module as a whole.
-  const validation = validateCode(composedCode);
+  const validation = validateCode(composedScrubbed);
   if (!validation.valid) {
     throw new Error(
-      `TM-102 composed code failed sandbox validation: ${validation.errors.join(', ')}`,
+      `TM-102 composed code failed sandbox validation after TM-111 sanitize: ${validation.errors.join(', ')}`,
     );
   }
-  const sanitized = sanitizeCode(composedCode);
+  const sanitized = sanitizeCode(composedScrubbed);
   const jsCode = await transpileTSX(sanitized);
-  const parameters = extractParameters(composedCode);
+  const parameters = extractParameters(composedScrubbed);
 
   const asset: GeneratedAsset = {
     id: crypto.randomUUID(),
     title: outline.title,
-    code: composedCode,
+    // TM-111: persist the SCRUBBED composed source so re-renders/edits
+    // operate on code that already passes the sandbox validator.
+    code: composedScrubbed,
     jsCode,
     parameters,
     durationInFrames: outline.totalDurationInFrames,
@@ -594,7 +718,7 @@ export async function generateAssetMultiStep(
       ? `Multi-step generation projected to consume ~${costRatio.toFixed(1)}× the tokens of a single-shot run for this prompt (${outline.scenes.length} scenes). Set AI_MULTI_STEP=0 to fall back to single-shot.`
       : null;
 
-  return { outline, sceneSpecs, composedCode, asset, costRatio, costWarning };
+  return { outline, sceneSpecs, composedCode: composedScrubbed, asset, costRatio, costWarning };
 }
 
 /**
@@ -605,12 +729,53 @@ export async function generateAssetMultiStep(
 export async function generateAssetMultiStepAsApiResponse(
   prompt: string,
   model?: string,
-): Promise<GenerateApiResponse & { multiStep: { costRatio: number } }> {
-  const result = await generateAssetMultiStep(prompt, model);
-  return {
-    type: 'generate',
-    asset: result.asset,
-    ...(result.costWarning ? { warning: result.costWarning } : {}),
-    multiStep: { costRatio: result.costRatio },
-  };
+): Promise<GenerateApiResponse & { multiStep?: { costRatio: number; fallback?: 'single-shot' } }> {
+  try {
+    const result = await generateAssetMultiStep(prompt, model);
+    return {
+      type: 'generate',
+      asset: result.asset,
+      ...(result.costWarning ? { warning: result.costWarning } : {}),
+      multiStep: { costRatio: result.costRatio },
+    };
+  } catch (err) {
+    // TM-111 — single-shot fallback for any sandbox / transpile / structural
+    // failure inside the multi-step pipeline. Rationale (TM-108): gpt-4o
+    // emits Forbidden tokens in 4/5 cases; sanitizer catches most but not
+    // all. Rather than 500 the user, retry on the proven single-shot path.
+    const message = err instanceof Error ? err.message : String(err);
+    const isPipelineFailure =
+      err instanceof SceneSandboxError ||
+      /TM-102|sandbox validation|failed to transpile|did not return valid JSON/i.test(message);
+    if (!isPipelineFailure) throw err;
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[TM-111] multi-step pipeline failed, falling back to single-shot:',
+        message,
+      );
+    }
+    // Dynamic import to avoid a circular dep with generate.ts.
+    const { generateAsset } = await import('./generate');
+    // Force the single-shot path by clearing the AI_MULTI_STEP flag for
+    // this call only (process.env mutation in Node is process-local).
+    const prev = process.env.AI_MULTI_STEP;
+    process.env.AI_MULTI_STEP = '0';
+    try {
+      const fallback = await generateAsset(prompt, model);
+      const fallbackWarning =
+        `TM-111: multi-step pipeline failed (${message.split('\n')[0].slice(0, 160)}); served single-shot result.`;
+      if (fallback.type === 'generate') {
+        return {
+          ...fallback,
+          warning: fallback.warning ? `${fallback.warning} | ${fallbackWarning}` : fallbackWarning,
+          multiStep: { costRatio: 1, fallback: 'single-shot' },
+        };
+      }
+      // Clarify fallback — surface as-is (no warning slot in clarify shape).
+      return { ...fallback, multiStep: { costRatio: 1, fallback: 'single-shot' } };
+    } finally {
+      if (prev === undefined) delete process.env.AI_MULTI_STEP;
+      else process.env.AI_MULTI_STEP = prev;
+    }
+  }
 }
