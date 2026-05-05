@@ -1,11 +1,11 @@
 ---
-title: ADR-PENDING-TM-103 — URL/이미지 컨텍스트 인제스트
+title: ADR-0021 — URL/이미지 컨텍스트 인제스트
 status: accepted
 date: 2026-04-27
 tags: [adr, ingest, prompt, ai]
 ---
 
-# ADR-PENDING-TM-103: URL/이미지 컨텍스트 인제스트
+# ADR-0021: URL/이미지 컨텍스트 인제스트
 
 ## Context
 
