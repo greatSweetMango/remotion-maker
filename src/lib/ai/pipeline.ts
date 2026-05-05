@@ -597,12 +597,77 @@ export class SceneSandboxError extends Error {
 /* ------------------------------------------------------------------ */
 
 /**
+ * TM-112 — Introspect a single scene fragment to discover the identifiers
+ * the LLM actually used. The scene-code system prompt asks for
+ * `Scene{N}Params` + `Scene{N}`, but gpt-4o reliably drifts (e.g. emits
+ * `Scene1Params` for every scene, omits the params const entirely, or
+ * names the component `SceneOne`). The composer must not assume the
+ * canonical names exist — instead it discovers what the fragment defines
+ * and references those identifiers verbatim.
+ *
+ * Strategy:
+ *   - Component: prefer `Scene{N}` if present, else first top-level
+ *     PascalCase const/function whose name starts with `Scene`, else
+ *     first PascalCase identifier defined in the fragment, else `null`.
+ *   - Params: prefer `Scene{N}Params`, else first top-level
+ *     `const \\w*Params\\b`, else `null` (caller falls back to `{}`).
+ *
+ * "Top-level" here means the regex matches a declaration at column 0 (or
+ * after only whitespace). This is a heuristic but it avoids picking up
+ * `Scene1Params` references that appear *inside* a function body —
+ * exactly the failure mode that caused TM-108 r2's 5/5 ReferenceError.
+ */
+function findSceneIdentifiers(
+  fragment: string,
+  sceneNumber: number,
+): { component: string | null; params: string | null } {
+  const expectedComponent = `Scene${sceneNumber}`;
+  const expectedParams = `Scene${sceneNumber}Params`;
+
+  const topLevelDecls = [
+    ...fragment.matchAll(/(?:^|\n)\s*(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)\s*[=(:]/g),
+  ].map(m => m[1]);
+  const declSet = new Set(topLevelDecls);
+
+  // Component preference order.
+  let component: string | null = null;
+  if (declSet.has(expectedComponent)) component = expectedComponent;
+  if (!component) {
+    component =
+      topLevelDecls.find(n => n.startsWith('Scene') && /[a-z]/.test(n) && !n.endsWith('Params')) ||
+      null;
+  }
+  if (!component) {
+    // Last-ditch: any PascalCase non-PARAMS identifier.
+    component =
+      topLevelDecls.find(
+        n => /^[A-Z][a-zA-Z0-9]*$/.test(n) && /[a-z]/.test(n) && !/Params$/.test(n),
+      ) || null;
+  }
+
+  // Params preference order.
+  let params: string | null = null;
+  if (declSet.has(expectedParams)) params = expectedParams;
+  if (!params) {
+    params = topLevelDecls.find(n => /Params$/.test(n)) || null;
+  }
+
+  return { component, params };
+}
+
+/**
  * Stitches per-scene TSX fragments into one self-contained
- * `GeneratedAsset` module. Each fragment is expected to define a
+ * `GeneratedAsset` module. Each fragment is *expected* to define a
  * `Scene{N}Params` const + a `Scene{N}` component (per
- * SCENE_CODE_SYSTEM_PROMPT). We wrap each in a `<Sequence>` at the
- * correct frame offset, then export a top-level `PARAMS` const that
- * merges the per-scene params (preserving ADR-0002).
+ * SCENE_CODE_SYSTEM_PROMPT) but we never trust that contract — we
+ * introspect each fragment (see `findSceneIdentifiers`) and reference
+ * the names the LLM actually emitted. If a fragment defines no params
+ * const, the spread for that scene is omitted; if it defines no
+ * recognisable component, a no-op placeholder is rendered (so other
+ * scenes still play).
+ *
+ * This is the TM-112 fix for the `ReferenceError: SceneNParams is not
+ * defined` runtime crash that hit 5/5 multi-step cases in TM-108 r2.
  */
 export function composeSceneCodes(outline: Outline, sceneCodes: string[]): string {
   if (sceneCodes.length !== outline.scenes.length) {
@@ -617,20 +682,58 @@ export function composeSceneCodes(outline: Outline, sceneCodes: string[]): strin
     offset += s.durationInFrames;
   }
 
-  const fragments = sceneCodes.join('\n\n');
+  // Discover identifiers per fragment. If the LLM drifted off the naming
+  // contract we rename their decls to the canonical Scene{N}/Scene{N}Params
+  // form so downstream wiring (Sequence + PARAMS spread) is uniform.
+  const renamedFragments: string[] = [];
+  const canonicalNames: { component: string; params: string | null }[] = [];
+  for (let i = 0; i < sceneCodes.length; i++) {
+    const n = i + 1;
+    const expectedComponent = `Scene${n}`;
+    const expectedParams = `Scene${n}Params`;
+    const { component, params } = findSceneIdentifiers(sceneCodes[i], n);
+    let frag = sceneCodes[i];
+    // Rename component if present and not already canonical.
+    if (component && component !== expectedComponent) {
+      const re = new RegExp(`\\b${component}\\b`, 'g');
+      frag = frag.replace(re, expectedComponent);
+    }
+    // Rename params if present and not already canonical.
+    if (params && params !== expectedParams) {
+      const re = new RegExp(`\\b${params}\\b`, 'g');
+      frag = frag.replace(re, expectedParams);
+    }
+    renamedFragments.push(frag);
+    canonicalNames.push({
+      component: component ? expectedComponent : expectedComponent, // always render canonical; placeholder injected below if missing
+      params: params ? expectedParams : null,
+    });
+    // If no component was discovered, append a tiny placeholder so the
+    // <Sequence> still mounts something and the other scenes can render.
+    if (!component) {
+      renamedFragments.push(
+        `const ${expectedComponent} = () => <AbsoluteFill style={{ backgroundColor: 'transparent' }} />;`,
+      );
+    }
+  }
+
+  const fragments = renamedFragments.join('\n\n');
 
   const sequences = outline.scenes
     .map((s, i) => {
       const from = offsets[i];
       const dur = s.durationInFrames;
-      return `      <Sequence from={${from}} durationInFrames={${dur}}><Scene${i + 1} /></Sequence>`;
+      const compName = canonicalNames[i].component;
+      return `      <Sequence from={${from}} durationInFrames={${dur}}><${compName} /></Sequence>`;
     })
     .join('\n');
 
   // Merge per-scene params into top-level PARAMS via spread so the
-  // customize UI auto-extract (ADR-0002) sees them in one place.
-  const paramsSpreads = outline.scenes
-    .map((_, i) => `  ...Scene${i + 1}Params,`)
+  // customize UI auto-extract (ADR-0002) sees them in one place. Skip
+  // any scene that didn't define a recognisable params const.
+  const paramsSpreads = canonicalNames
+    .map(c => (c.params ? `  ...${c.params},` : null))
+    .filter((s): s is string => s !== null)
     .join('\n');
 
   return `${fragments}
