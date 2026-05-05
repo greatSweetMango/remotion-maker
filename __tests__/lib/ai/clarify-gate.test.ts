@@ -143,9 +143,14 @@ describe('generateAsset — TM-52 clarify-override wiring', () => {
 
   it('does NOT override clarify when prompt is genuinely vague', async () => {
     mockedChat.mockResolvedValueOnce(clarifyJson);
+    // TM-105 — vague + clarify path now also fires the dynamic question
+    // generator. We mock it to return non-JSON so the code falls back to the
+    // primary's questions. End-result must still be a clarify response.
+    mockedChat.mockResolvedValueOnce('not-json');
     const result = await generateAsset('애니메이션 만들어줘', 'haiku');
     expect(result.type).toBe('clarify');
-    expect(mockedChat).toHaveBeenCalledTimes(1); // no forced retry
+    // 1 primary + 1 dynamic clarify-questions call (TM-105). No forced retry.
+    expect(mockedChat).toHaveBeenCalledTimes(2);
   });
 
   it('does NOT override clarify when caller already supplied answers', async () => {
