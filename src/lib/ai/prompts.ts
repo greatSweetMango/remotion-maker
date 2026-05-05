@@ -392,8 +392,11 @@ OUTPUT (JSON only, no prose, no fences):
 }
 
 RULES:
-1. Pick 1–4 scenes. Sum of \`durationInFrames\` MUST equal \`totalDurationInFrames\`.
-2. Default total = 150 frames @ 30fps (5s) unless prompt implies otherwise.
+1. Pick 1–12 scenes. Sum of \`durationInFrames\` MUST equal \`totalDurationInFrames\`.
+   - Short prompt (≤10s): 1–2 scenes.
+   - Medium prompt (10–30s): 2–4 scenes.
+   - Long prompt (30–120s, e.g. "60초 마케팅 영상"): split into ~10–20s scenes (4–12 scenes total).
+2. Default total = 150 frames @ 30fps (5s) unless prompt implies otherwise. If a DURATION DIRECTIVE is appended to the user message, follow its totalDurationInFrames / fps / scene count exactly.
 3. Palette MUST honor the user's color cue ("보라색", "neon", "pastel", etc.).
    If the user gave no cue, choose ONE deliberate palette and stick with it
    for every scene — no per-scene palette drift.

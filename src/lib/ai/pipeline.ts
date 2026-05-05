@@ -95,6 +95,124 @@ export interface SceneSpec {
 }
 
 /* ------------------------------------------------------------------ */
+/* TM-104 — Long-form duration handling                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Default fps when the prompt gives no cue.
+ */
+export const DEFAULT_FPS = 30;
+
+/**
+ * Hard cap on scene count. TM-102 originally capped at 4 (≤ 5s output).
+ * TM-104 raises this to 12 so a 120s prompt can be split into ~10s scenes
+ * without overflowing the parallel scene-spec / scene-code fan-out.
+ */
+export const MAX_SCENES = 12;
+
+/**
+ * Target seconds per scene when auto-splitting a long-form prompt. Picked
+ * so that:
+ *   - 5s prompt  → 1 scene
+ *   - 10s prompt → 1 scene
+ *   - 15s prompt → 2 scenes (~7.5s each)
+ *   - 30s prompt → 3 scenes (~10s each)
+ *   - 60s prompt → 4 scenes (~15s each)
+ *   - 120s prompt → 8 scenes (~15s each)
+ */
+const TARGET_SECONDS_PER_SCENE = 15;
+const MIN_SECONDS_PER_SCENE = 5;
+
+export interface DurationHint {
+  /** Total seconds extracted from the prompt. null if no hint. */
+  seconds: number | null;
+  /** The matched substring (for telemetry / debug). */
+  matched?: string;
+}
+
+/**
+ * Heuristic extractor for duration cues in the user prompt. Recognizes:
+ *   - Korean: "60초", "2분", "1분 30초"
+ *   - English: "60 seconds", "60s", "2 minutes", "2 min", "1m30s"
+ *   - Bare numerals followed by a unit token.
+ * Returns null when no hint is present (caller falls back to LLM default).
+ */
+export function extractDurationHint(prompt: string): DurationHint {
+  const text = prompt.toLowerCase();
+
+  // 1m30s / 1m 30s
+  const mmss = text.match(/(\d+)\s*m(?:in(?:ute)?s?)?\s*(\d+)\s*s(?:ec(?:ond)?s?)?/);
+  if (mmss) {
+    const sec = Number(mmss[1]) * 60 + Number(mmss[2]);
+    return { seconds: sec, matched: mmss[0] };
+  }
+
+  // Korean compound: 1분 30초 / 2분 0초
+  const krCompound = prompt.match(/(\d+)\s*분\s*(\d+)\s*초/);
+  if (krCompound) {
+    return {
+      seconds: Number(krCompound[1]) * 60 + Number(krCompound[2]),
+      matched: krCompound[0],
+    };
+  }
+
+  // Korean minutes only: 2분
+  const krMin = prompt.match(/(\d+)\s*분(?!\s*\d)/);
+  if (krMin) return { seconds: Number(krMin[1]) * 60, matched: krMin[0] };
+
+  // Korean seconds: 60초
+  const krSec = prompt.match(/(\d+)\s*초/);
+  if (krSec) return { seconds: Number(krSec[1]), matched: krSec[0] };
+
+  // English minutes: "2 minutes", "2 min", "2m"
+  const enMin = text.match(/(\d+)\s*(?:minutes?|mins?|m)\b(?!\s*\d)/);
+  if (enMin) return { seconds: Number(enMin[1]) * 60, matched: enMin[0] };
+
+  // English seconds: "60 seconds", "60 sec", "60s"
+  const enSec = text.match(/(\d+)\s*(?:seconds?|secs?|s)\b/);
+  if (enSec) return { seconds: Number(enSec[1]), matched: enSec[0] };
+
+  return { seconds: null };
+}
+
+/**
+ * Decide how many scenes to use given a target duration in seconds. The
+ * result is clamped to [1, MAX_SCENES].
+ */
+export function planSceneCount(seconds: number): number {
+  if (seconds <= 10) return 1;
+  const raw = Math.round(seconds / TARGET_SECONDS_PER_SCENE);
+  return Math.max(1, Math.min(MAX_SCENES, raw));
+}
+
+/**
+ * Build an evenly-distributed scene duration plan (in frames) that always
+ * sums exactly to `seconds * fps`. Last scene absorbs any rounding drift.
+ */
+export function planSceneDurations(
+  seconds: number,
+  fps: number = DEFAULT_FPS,
+  sceneCount?: number,
+): { fps: number; totalFrames: number; sceneFrames: number[] } {
+  const safeSeconds = Math.max(MIN_SECONDS_PER_SCENE, Math.round(seconds));
+  const safeFps = fps > 0 ? Math.round(fps) : DEFAULT_FPS;
+  const n = sceneCount ?? planSceneCount(safeSeconds);
+  const totalFrames = safeSeconds * safeFps;
+  const baseFrames = Math.floor(totalFrames / n);
+  const sceneFrames: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    if (i === n - 1) {
+      sceneFrames.push(totalFrames - acc);
+    } else {
+      sceneFrames.push(baseFrames);
+      acc += baseFrames;
+    }
+  }
+  return { fps: safeFps, totalFrames, sceneFrames };
+}
+
+/* ------------------------------------------------------------------ */
 /* Cost guard (ADR-0020 §"Cost / latency tradeoff")          */
 /* ------------------------------------------------------------------ */
 
@@ -112,6 +230,7 @@ export const MULTI_STEP_COST_RATIO_WARN = 1.7;
  *
  * Empirical (TM-102 live smoke):
  *   1 scene  ≈ 1.4×  | 2 scenes ≈ 1.7×  | 3 scenes ≈ 2.0×  | 4 ≈ 2.4×
+ *   TM-104 extrapolation: 8 scenes ≈ 4.0×, 12 scenes ≈ 5.6×.
  */
 export function projectedMultiStepCostRatio(sceneCount: number): number {
   if (sceneCount <= 0) return 1;
@@ -167,14 +286,62 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 /* ------------------------------------------------------------------ */
 
 export async function generateOutline(prompt: string, model: string): Promise<Outline> {
+  // TM-104 — extract duration hint up-front so we can:
+  //   (a) inject a hard directive into the outline prompt,
+  //   (b) post-fix the LLM result if it ignores the directive.
+  const hint = extractDurationHint(prompt);
+  let userMessage = prompt;
+  let plan: ReturnType<typeof planSceneDurations> | null = null;
+  if (hint.seconds && hint.seconds > 10) {
+    plan = planSceneDurations(hint.seconds, DEFAULT_FPS);
+    const directive =
+      `\n\n---\nDURATION DIRECTIVE (TM-104): The user asked for a ~${hint.seconds}s video. ` +
+      `Target totalDurationInFrames=${plan.totalFrames} at fps=${plan.fps}. ` +
+      `Use ${plan.sceneFrames.length} scenes with durations [${plan.sceneFrames.join(', ')}] frames respectively.`;
+    userMessage = prompt + directive;
+  }
   const text = await chatComplete({
     model,
     system: OUTLINE_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content: userMessage }],
   });
   const parsed = extractJsonObject(text);
   if (!parsed) throw new Error('TM-102 outline: AI did not return valid JSON');
-  return validateOutline(parsed);
+  const outline = validateOutline(parsed);
+  // Post-fix: if the LLM ignored the duration directive, force the plan.
+  if (plan && Math.abs(outline.totalDurationInFrames - plan.totalFrames) > plan.fps) {
+    return enforceScenePlan(outline, plan);
+  }
+  return outline;
+}
+
+/**
+ * Force-apply a scene plan to an outline. Preserves narrative content
+ * (names, roles, beats) but rewrites durations so the final composition
+ * matches the user's requested length exactly. Pads or trims scenes.
+ */
+export function enforceScenePlan(
+  outline: Outline,
+  plan: { fps: number; totalFrames: number; sceneFrames: number[] },
+): Outline {
+  const targetCount = plan.sceneFrames.length;
+  const scenes: OutlineScene[] = [];
+  for (let i = 0; i < targetCount; i++) {
+    const src = outline.scenes[i % outline.scenes.length];
+    scenes.push({
+      name: outline.scenes[i]?.name ?? `${src.name}-${i + 1}`,
+      role: outline.scenes[i]?.role ?? src.role,
+      durationInFrames: plan.sceneFrames[i],
+      keyElements: outline.scenes[i]?.keyElements ?? src.keyElements,
+      narrativeBeat: outline.scenes[i]?.narrativeBeat ?? src.narrativeBeat,
+    });
+  }
+  return {
+    ...outline,
+    fps: plan.fps,
+    totalDurationInFrames: plan.totalFrames,
+    scenes,
+  };
 }
 
 export function validateOutline(raw: Record<string, unknown>): Outline {
@@ -191,8 +358,10 @@ export function validateOutline(raw: Record<string, unknown>): Outline {
   if (!Array.isArray(scenesRaw) || scenesRaw.length === 0) {
     throw new Error('TM-102 outline: scenes[] must be a non-empty array');
   }
-  if (scenesRaw.length > 4) {
-    throw new Error('TM-102 outline: scenes[] capped at 4 (got ' + scenesRaw.length + ')');
+  if (scenesRaw.length > MAX_SCENES) {
+    throw new Error(
+      'TM-104 outline: scenes[] capped at ' + MAX_SCENES + ' (got ' + scenesRaw.length + ')',
+    );
   }
   const scenes: OutlineScene[] = scenesRaw.map((s, i) => {
     const o = s as Record<string, unknown>;
