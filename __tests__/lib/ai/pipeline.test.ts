@@ -22,6 +22,7 @@ jest.mock('@/lib/ai/extract-params', () => ({
 }));
 
 import { chatComplete } from '@/lib/ai/client';
+import { validateCode as mockedValidateCode } from '@/lib/remotion/sandbox';
 import {
   generateOutline,
   generateSceneSpec,
@@ -397,6 +398,160 @@ describe('TM-104 — enforceScenePlan', () => {
     expect(fixed.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(1800);
     // First scene retains narrative
     expect(fixed.scenes[0].name).toBe('intro');
+  });
+});
+
+describe('TM-111 — generateSceneCode auto-sanitize', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  // Sample gpt-4o failure mode: emits `const fs = require('fs');` plus a
+  // `globalThis.useCurrentFrame()` call inside a Scene1 component.
+  const GPT4O_BAD_CODE = `const fs = require('fs');
+const Scene1Params = { scene1_color: "#7C3AED" } as const;
+const Scene1 = ({ scene1_color = Scene1Params.scene1_color } = Scene1Params) => {
+  const frame = globalThis.useCurrentFrame();
+  const opacity = interpolate(frame, [0, 30], [0, 1]);
+  return (
+    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
+      <div style={{ color: scene1_color, opacity }}>Hello</div>
+    </AbsoluteFill>
+  );
+};`;
+
+  it('passes after stripping require / globalThis (would fail real sandbox unscrubbed)', async () => {
+    // Simulate REAL sandbox: invalid if require/globalThis present, else valid.
+    (mockedValidateCode as jest.Mock).mockImplementation((code: string) => {
+      const errors: string[] = [];
+      if (/\brequire\s*\(/.test(code)) errors.push('Forbidden: require');
+      if (/\bglobalThis\b/.test(code)) errors.push('Forbidden: globalThis');
+      return { valid: errors.length === 0, errors };
+    });
+
+    mockedChat.mockResolvedValueOnce(JSON.stringify({ code: GPT4O_BAD_CODE }));
+    const tsx = await generateSceneCode(
+      VALID_OUTLINE,
+      { name: 'intro' } as never,
+      0,
+      'gpt-4o',
+    );
+    expect(tsx).not.toMatch(/\brequire\s*\(/);
+    expect(tsx).not.toMatch(/\bglobalThis\b/);
+    expect(tsx).toMatch(/Scene1/);
+
+    // Reset to default for subsequent tests.
+    (mockedValidateCode as jest.Mock).mockImplementation(() => ({ valid: true, errors: [] }));
+  });
+
+  it('still throws SceneSandboxError when the sanitizer cannot remove the violation', async () => {
+    const { SceneSandboxError } = await import('@/lib/ai/pipeline');
+
+    (mockedValidateCode as jest.Mock).mockImplementation(() => ({
+      valid: false,
+      errors: ['Forbidden: eval'],
+    }));
+
+    const codeWithEval = `${SCENE_CODE_BODY}\n// eval('1+1');`;
+    mockedChat.mockResolvedValueOnce(JSON.stringify({ code: codeWithEval }));
+    await expect(
+      generateSceneCode(VALID_OUTLINE, { name: 'intro' } as never, 0, 'gpt-4o'),
+    ).rejects.toBeInstanceOf(SceneSandboxError);
+
+    (mockedValidateCode as jest.Mock).mockImplementation(() => ({ valid: true, errors: [] }));
+  });
+});
+
+describe('TM-111 — generateAssetMultiStepAsApiResponse single-shot fallback', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('falls back to single-shot generate when multi-step throws a sandbox error', async () => {
+    // Force the multi-step pipeline to fail on the FIRST stage (outline)
+    // so we don't need to mock the entire fan-out. The fallback path
+    // should kick in regardless of which stage failed.
+    mockedChat.mockRejectedValueOnce(new Error('TM-102 outline: AI did not return valid JSON'));
+
+    // Fallback path calls generateAsset → which dynamically imports
+    // from generate.ts. We mock generateAsset by intercepting the
+    // dynamic import via Jest's module registry.
+    const fakeFallback = {
+      type: 'generate' as const,
+      asset: {
+        id: 'fallback-id',
+        title: 'Fallback Asset',
+        code: 'const PARAMS = {} as const;\nconst GeneratedAsset = () => <AbsoluteFill />;',
+        jsCode: '/*js*/',
+        parameters: [],
+        durationInFrames: 150,
+        fps: 30,
+        width: 1920,
+        height: 1080,
+      },
+    };
+    jest.doMock('@/lib/ai/generate', () => ({
+      generateAsset: jest.fn(async () => fakeFallback),
+    }));
+
+    const { generateAssetMultiStepAsApiResponse } = await import('@/lib/ai/pipeline');
+    const result = await generateAssetMultiStepAsApiResponse('counter 0 to 100', 'gpt-4o');
+    expect(result.type).toBe('generate');
+    if (result.type !== 'generate') throw new Error('expected generate');
+    expect(result.asset.id).toBe('fallback-id');
+    expect(result.warning).toMatch(/TM-111/);
+    expect(result.multiStep?.fallback).toBe('single-shot');
+
+    jest.dontMock('@/lib/ai/generate');
+  });
+});
+
+describe('TM-111 — sanitizeForbiddenTokens', () => {
+  // sanitizeForbiddenTokens is exported from pipeline.ts at the top of this file;
+  // import via dynamic import to keep it co-located with the rest of TM-111 tests.
+  let sanitizeForbiddenTokens: typeof import('@/lib/ai/pipeline').sanitizeForbiddenTokens;
+  beforeAll(async () => {
+    ({ sanitizeForbiddenTokens } = await import('@/lib/ai/pipeline'));
+  });
+
+  it('strips `const x = require(...)` declarations', () => {
+    const input = `const fs = require('fs');\nconst Scene1 = () => null;`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/require\s*\(/);
+    expect(notes.join(' ')).toMatch(/require/);
+  });
+
+  it('rewrites `globalThis.X` to bare X', () => {
+    const input = `const f = globalThis.useCurrentFrame();\nconst v = globalThis['interpolate'];`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/globalThis/);
+    expect(code).toMatch(/useCurrentFrame\(\)/);
+    expect(code).toMatch(/=\s*interpolate;/);
+    expect(notes.join(' ')).toMatch(/globalThis/);
+  });
+
+  it('replaces dynamic import(...) with undefined', () => {
+    const input = `const m = await import('react');`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/\bimport\s*\(/);
+    expect(code).toMatch(/undefined/);
+  });
+
+  it('replaces new Function(...) with arrow null', () => {
+    const input = `const fn = new Function('return 1');`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/new\s+Function\s*\(/);
+    expect(code).toMatch(/=>\s*null/);
+  });
+
+  it('strips process.env references', () => {
+    const input = `const env = process.env;`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/\bprocess\s*\./);
+    expect(code).toMatch(/undefined/);
+  });
+
+  it('returns empty notes on clean code (no-op path)', () => {
+    const input = `const Scene1 = () => <AbsoluteFill />;`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe(input);
+    expect(notes).toEqual([]);
   });
 });
 
