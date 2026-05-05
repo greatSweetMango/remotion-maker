@@ -5,7 +5,12 @@
 #   bash scripts/setup-worktree.sh <worktree_path> <dev_port> [hostname]
 #
 # What it does (idempotent):
-#   1) Copies main repo's .env.local into <worktree_path>/.env.local
+#   1) On FIRST run: copies main repo's .env.local into <worktree_path>/.env.local.
+#      On RE-RUN: leaves <worktree_path>/.env.local intact (any local edits — e.g. a
+#      worktree-specific OPENAI_API_KEY, feature flags, debug toggles — are preserved).
+#      Only NEXTAUTH_URL and DATABASE_URL lines are rewritten in-place to match the
+#      provided port/host. (TM-113 — TM-112 retro: re-running setup-worktree blew away
+#      a per-worktree env tweak; idempotency must be value-preserving, not source-replacing.)
 #   2) Sets NEXTAUTH_URL=http://<hostname>:<dev_port>.
 #      hostname defaults to `127.0.0.1` (NOT `localhost`) — see TM-65 below.
 #   3) Runs `npx prisma db push --schema <worktree_path>/prisma/schema.prisma --skip-generate`
@@ -18,8 +23,9 @@
 #   5) Prints a completion banner with paths/ports.
 #
 # Notes:
-#   - Re-running on an already-bootstrapped worktree is safe (overwrites .env.local, db push is idempotent,
-#     prisma generate is idempotent — re-emits the same client into node_modules).
+#   - Re-running on an already-bootstrapped worktree is safe and value-preserving: existing
+#     .env.local is kept (only NEXTAUTH_URL/DATABASE_URL refreshed), db push is idempotent,
+#     prisma generate is idempotent — re-emits the same client into node_modules.
 #   - New deps are NOT installed here; assume the worktree was created from main with node_modules linked or
 #     a separate `npm install` already run.
 #   - Discovery context: TM-42/43/45 retros surfaced repeated manual env+db setup pain;
@@ -96,8 +102,14 @@ echo "[setup-worktree] worktree:    $WORKTREE_PATH"
 echo "[setup-worktree] dev host:    $DEV_HOST"
 echo "[setup-worktree] dev port:    $DEV_PORT"
 
-# 1) Copy .env.local
-cp "$MAIN_REPO/.env.local" "$WORKTREE_PATH/.env.local"
+# 1) Seed .env.local from main ONLY on first run. On re-run keep the worktree's existing
+#    file so per-worktree edits aren't clobbered (TM-113).
+if [[ -f "$WORKTREE_PATH/.env.local" ]]; then
+  echo "[setup-worktree] .env.local already present — preserving (only NEXTAUTH_URL/DATABASE_URL will be refreshed)"
+else
+  cp "$MAIN_REPO/.env.local" "$WORKTREE_PATH/.env.local"
+  echo "[setup-worktree] .env.local seeded from $MAIN_REPO/.env.local"
+fi
 
 # 2) Substitute NEXTAUTH_URL host+port AND pin DATABASE_URL to an ABSOLUTE worktree-local
 #    path. The relative `file:./dev.db` form is dangerous in worktrees: Next 16 + turbopack
@@ -126,7 +138,7 @@ awk -v host="$DEV_HOST" -v port="$DEV_PORT" -v dburl="$ABS_DB_URL" '
 ' "$WORKTREE_PATH/.env.local" > "$TMP_ENV"
 mv "$TMP_ENV" "$WORKTREE_PATH/.env.local"
 
-echo "[setup-worktree] .env.local copied + NEXTAUTH_URL pinned to http://$DEV_HOST:$DEV_PORT + DATABASE_URL pinned to $ABS_DB_URL"
+echo "[setup-worktree] NEXTAUTH_URL pinned to http://$DEV_HOST:$DEV_PORT + DATABASE_URL pinned to $ABS_DB_URL"
 
 # 3) Prisma db push (worktree-local SQLite at <worktree>/prisma/dev.db via DATABASE_URL=file:./dev.db).
 #    The schema file in the worktree controls the migration; --skip-generate avoids regenerating client
