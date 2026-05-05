@@ -311,13 +311,21 @@ export async function generateAsset(
   // TM-74 — Reference-template RAG. We resolve a reference once for this
   // prompt and append it to the system prompt for all attempts. Stable
   // across retries to preserve prompt-cache key (ADR-0003).
-  const rag = retrieveReferenceForPrompt(prompt);
+  // TM-46 r7 — RAG ablation: setting `RAG_DISABLE=1` skips reference
+  // retrieval to measure RAG-ON vs RAG-OFF visual quality.
+  const ragDisabled = process.env.RAG_DISABLE === '1';
+  const rag = ragDisabled
+    ? { addendum: '', reference: null, category: null }
+    : retrieveReferenceForPrompt(prompt);
   const baseSystemPrompt = GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + rag.addendum;
   if (process.env.NODE_ENV !== 'production' && rag.reference) {
     console.warn(
       '[generateAsset] TM-74 RAG hit:',
       { category: rag.category, ref: rag.reference.id },
     );
+  }
+  if (process.env.NODE_ENV !== 'production' && ragDisabled) {
+    console.warn('[generateAsset] TM-46 r7 RAG_DISABLE=1 — skipping retrieval');
   }
 
   // First attempt: standard system prompt + RAG reference (when present).
