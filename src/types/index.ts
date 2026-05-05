@@ -127,7 +127,20 @@ export type StudioAction =
   | { type: 'SET_ERROR'; payload: { message: string | null; lastFailed?: LastFailed | null } | string | null }
   | { type: 'CLEAR_ERROR' }
   | { type: 'UPDATE_PARAM'; payload: { key: string; value: string | number | boolean } }
-  | { type: 'ADD_VERSION'; payload: AssetVersion }
+  | {
+      type: 'ADD_VERSION';
+      payload: AssetVersion;
+      /**
+       * TM-106 — when an edit on a template-backed asset materializes a new
+       * DB row (server returns `id` !== `template-...`), the client must
+       * adopt that id so subsequent edits route to the materialized asset
+       * instead of re-creating a fresh DB row + double-debiting quota on
+       * every call. Optional newAssetId/newTitle let the reducer pivot
+       * `state.asset` without losing the version stack.
+       */
+      newAssetId?: string;
+      newTitle?: string;
+    }
   | { type: 'RESTORE_VERSION'; payload: number }
   | { type: 'CLEAR_ASSET' }
   | { type: 'SET_CLARIFY'; payload: { questions: ClarifyQuestion[]; prompt: string } }

@@ -136,6 +136,14 @@ export function studioReducer(state: StudioState, action: StudioAction): StudioS
         ...state,
         asset: state.asset ? {
           ...state.asset,
+          // TM-106 — adopt server-side id/title when an edit on a template
+          // materialized a fresh DB row. Without this the next edit would
+          // ship `assetId: "template-..."` again, the server would create
+          // yet another orphan asset, and editUsage would accumulate under
+          // the template path-key (hitting the per-asset cap after 3 edits
+          // even though each landed in a distinct DB row).
+          ...(action.newAssetId ? { id: action.newAssetId } : {}),
+          ...(action.newTitle ? { title: action.newTitle } : {}),
           code: action.payload.code,
           jsCode: action.payload.jsCode,
           parameters: action.payload.parameters,
@@ -297,6 +305,18 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Edit failed');
 
+      // TM-106 — when the current asset is template-backed, the server
+      // materialized a fresh DB row and returned its id. Pivot
+      // `state.asset.id` to that id so subsequent edits target the same DB
+      // row (instead of repeatedly re-materializing fresh template rows
+      // and burning the per-template editUsage cap).
+      const serverId: string | undefined =
+        typeof data.id === 'string' ? data.id : undefined;
+      const currentId = state.asset?.id;
+      const idChanged = !!serverId && !!currentId && serverId !== currentId;
+      const serverTitle: string | undefined =
+        typeof data.title === 'string' && data.title.length > 0 ? data.title : undefined;
+
       dispatch({
         type: 'ADD_VERSION',
         payload: {
@@ -307,6 +327,8 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
           prompt,
           createdAt: new Date().toISOString(),
         },
+        ...(idChanged ? { newAssetId: serverId } : {}),
+        ...(idChanged && serverTitle ? { newTitle: serverTitle } : {}),
       });
       toast.success('Animation updated!');
     } catch (err: unknown) {
