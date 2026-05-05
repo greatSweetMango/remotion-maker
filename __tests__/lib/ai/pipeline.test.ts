@@ -218,6 +218,80 @@ describe('TM-102 pipeline — Stage 4 composition', () => {
   });
 });
 
+describe('TM-112 — composer name discovery (scene-params crash fix)', () => {
+  // Baseline-good fragment for scene 1.
+  const SCENE1_GOOD = `const Scene1Params = {
+  scene1_color: "#7C3AED", // type: color
+} as const;
+const Scene1 = ({ scene1_color = Scene1Params.scene1_color } = Scene1Params) => {
+  const frame = useCurrentFrame();
+  const o = interpolate(frame, [0, 30], [0, 1]);
+  return (<AbsoluteFill style={{ opacity: o, backgroundColor: scene1_color }} />);
+};`;
+
+  // gpt-4o failure mode 1: emits Scene1Params for *every* scene (verbatim
+  // template substitution failure). Composer must rename to Scene2Params.
+  const SCENE_REUSED_NAME = SCENE1_GOOD;
+
+  // gpt-4o failure mode 2: omits the params const entirely.
+  const SCENE_NO_PARAMS = `const Scene1 = () => {
+  const frame = useCurrentFrame();
+  const o = interpolate(frame, [0, 30], [0, 1]);
+  return (<AbsoluteFill style={{ opacity: o, backgroundColor: '#000' }} />);
+};`;
+
+  // gpt-4o failure mode 3: uses non-canonical params name.
+  const SCENE_OFFNAME_PARAMS = `const myParams = { scene1_color: "#fff" } as const;
+const Scene1 = () => {
+  return (<AbsoluteFill style={{ backgroundColor: myParams.scene1_color }} />);
+};`;
+
+  it('renames a duplicated Scene1Params from a later scene to Scene{N}Params', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE1_GOOD, SCENE_REUSED_NAME]);
+    // Expect spread for both canonical names.
+    expect(composed).toContain('...Scene1Params');
+    expect(composed).toContain('...Scene2Params');
+    // Verify the redeclaration was renamed (no duplicate top-level Scene1Params).
+    const firstDecl = composed.indexOf('const Scene1Params');
+    const secondDecl = composed.indexOf('const Scene1Params', firstDecl + 1);
+    expect(secondDecl).toBe(-1);
+    // Scene2Params should now be present as a const.
+    expect(composed).toContain('const Scene2Params');
+  });
+
+  it('omits the spread for a scene that defines no Params const', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE1_GOOD, SCENE_NO_PARAMS]);
+    expect(composed).toContain('...Scene1Params');
+    expect(composed).not.toContain('...Scene2Params');
+    // PARAMS object must still be syntactically valid (no dangling commas
+    // referencing a missing identifier).
+    expect(composed).toMatch(/const PARAMS = \{[\s\S]*?\.\.\.Scene1Params,[\s\S]*?\} as const;/);
+    // Scene2 sequence still references the canonical component name.
+    expect(composed).toMatch(/<Scene2 \/>/);
+  });
+
+  it('renames an off-spec params identifier (e.g. myParams) to Scene{N}Params', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_OFFNAME_PARAMS, SCENE1_GOOD]);
+    // myParams should have been rewritten everywhere it appeared.
+    expect(composed).not.toContain('myParams');
+    expect(composed).toContain('const Scene1Params');
+    expect(composed).toContain('...Scene1Params');
+  });
+
+  it('produces a composed module whose PARAMS spread targets only defined idents', () => {
+    // Smoke: build a module from two scenes — none should reference an
+    // undefined identifier when evaluated as a JS string. We do not
+    // execute it (Sequence/AbsoluteFill come from remotion globals at
+    // runtime) but we validate that every `...XYZ,` in the PARAMS object
+    // has a matching `const XYZ` declaration above it.
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE1_GOOD, SCENE_NO_PARAMS]);
+    const spreadIdents = [...composed.matchAll(/\.\.\.([A-Za-z_$][\w$]*),/g)].map(m => m[1]);
+    for (const id of spreadIdents) {
+      expect(composed).toMatch(new RegExp(`(?:const|let|var)\\s+${id}\\b`));
+    }
+  });
+});
+
 describe('TM-102 pipeline — orchestrator', () => {
   beforeEach(() => mockedChat.mockReset());
 
