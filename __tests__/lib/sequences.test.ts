@@ -3,6 +3,8 @@ import {
   activeSequenceAt,
   inferParamSequences,
   filterParamsForSequence,
+  countParamsBySequence,
+  activeSequenceLabel,
   GLOBAL_SEQUENCE_ID,
   ALL_MODE_ID,
 } from '@/lib/sequences';
@@ -141,5 +143,58 @@ describe('filterParamsForSequence', () => {
   it('no segments → no filtering (degenerate template)', () => {
     const out = filterParamsForSequence(params, [], 'feature-1');
     expect(out).toEqual(params);
+  });
+});
+
+describe('countParamsBySequence (TM-107)', () => {
+  const segs = extractSequences(PRODUCT_INTRO);
+  const params: Parameter[] = [
+    { key: 'productName', label: 'P', group: 'text', type: 'text', value: 'X', sequenceIds: ['intro', 'outro'] },
+    { key: 'feature1Title', label: 'F1', group: 'text', type: 'text', value: 'X', sequenceIds: ['feature-1'] },
+    { key: 'feature1Body', label: 'F1B', group: 'text', type: 'text', value: 'X', sequenceIds: ['feature-1'] },
+    { key: 'feature2Title', label: 'F2', group: 'text', type: 'text', value: 'X', sequenceIds: ['feature-2'] },
+    { key: 'primaryColor', label: 'C', group: 'color', type: 'color', value: '#fff', sequenceIds: ['global'] },
+    { key: 'accentColor', label: 'C2', group: 'color', type: 'color', value: '#000' }, // inferred → global
+  ];
+
+  it('counts segment-specific + globals (globals included in each seg count)', () => {
+    const counts = countParamsBySequence(params, segs);
+    // 2 globals (primaryColor, accentColor) included in every seg.
+    expect(counts.global).toBe(2);
+    // intro: productName (intro) + 2 globals = 3
+    expect(counts.intro).toBe(3);
+    // feature-1: feature1Title + feature1Body + 2 globals = 4
+    expect(counts['feature-1']).toBe(4);
+    // feature-2: feature2Title + 2 globals = 3
+    expect(counts['feature-2']).toBe(3);
+    // feature-3: 0 + 2 globals = 2
+    expect(counts['feature-3']).toBe(2);
+    // outro: productName + 2 globals = 3
+    expect(counts.outro).toBe(3);
+  });
+
+  it('matches filterParamsForSequence length for each segment', () => {
+    const counts = countParamsBySequence(params, segs);
+    for (const seg of segs) {
+      const filtered = filterParamsForSequence(params, segs, seg.id);
+      expect(filtered).toHaveLength(counts[seg.id]);
+    }
+  });
+});
+
+describe('activeSequenceLabel (TM-107)', () => {
+  const segs = extractSequences(PRODUCT_INTRO);
+
+  it('returns label for known id', () => {
+    expect(activeSequenceLabel(segs, 'feature-1')).toBe('Feature 1');
+  });
+  it('returns null for ALL mode', () => {
+    expect(activeSequenceLabel(segs, ALL_MODE_ID)).toBeNull();
+  });
+  it('returns null when no segments', () => {
+    expect(activeSequenceLabel([], 'intro')).toBeNull();
+  });
+  it('returns null for unknown id', () => {
+    expect(activeSequenceLabel(segs, 'does-not-exist')).toBeNull();
   });
 });

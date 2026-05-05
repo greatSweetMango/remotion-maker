@@ -2,6 +2,13 @@
 import React from 'react';
 import { useActiveSequence } from '@/hooks/useActiveSequence';
 import { Layers, Eye } from 'lucide-react';
+import { countParamsBySequence } from '@/lib/sequences';
+import type { Parameter } from '@/types';
+
+interface SequenceTimelineProps {
+  /** TM-107: when provided, each segment tab shows the # of editable params. */
+  parameters?: Parameter[];
+}
 
 /**
  * Compact horizontal sequence map shown above CustomizePanel content.
@@ -10,7 +17,7 @@ import { Layers, Eye } from 'lucide-react';
  * - "All" toggle on the right shows every PARAM regardless of segment.
  * - Returns `null` when the asset has no Sequence segments (single-shot template).
  */
-export function SequenceTimeline() {
+export function SequenceTimeline({ parameters }: SequenceTimelineProps = {}) {
   const {
     segments,
     activeSequenceId,
@@ -23,6 +30,10 @@ export function SequenceTimeline() {
   } = useActiveSequence();
 
   if (segments.length <= 1) return null; // Nothing to navigate.
+
+  const counts = parameters && parameters.length > 0
+    ? countParamsBySequence(parameters, segments)
+    : null;
 
   const total = segments.reduce((acc, s) => Math.max(acc, s.from + s.durationInFrames), 0);
   const playheadPct = total > 0 ? Math.min(100, Math.max(0, (currentFrame / total) * 100)) : 0;
@@ -65,12 +76,16 @@ export function SequenceTimeline() {
           {segments.map(seg => {
             const isActive = !isAllMode && seg.id === activeSequenceId;
             const widthPct = total > 0 ? (seg.durationInFrames / total) * 100 : 100 / segments.length;
+            const cnt = counts?.[seg.id];
+            const titleSuffix = cnt != null ? ` · ${cnt} params` : '';
             return (
               <button
                 key={seg.id}
                 type="button"
                 onClick={() => seekToSequence(seg.id)}
-                title={`${seg.label} — ${seg.durationInFrames}f`}
+                title={`${seg.label} — ${seg.durationInFrames}f${titleSuffix}`}
+                data-sequence-id={seg.id}
+                data-active={isActive ? 'true' : 'false'}
                 style={{ width: `${widthPct}%` }}
                 className={`text-[10px] font-medium px-1 truncate border-r border-slate-700 last:border-r-0 transition-colors ${
                   isActive
@@ -79,6 +94,11 @@ export function SequenceTimeline() {
                 }`}
               >
                 {seg.label}
+                {cnt != null && (
+                  <span className={`ml-1 text-[9px] ${isActive ? 'text-violet-100' : 'text-slate-500'}`}>
+                    {cnt}
+                  </span>
+                )}
               </button>
             );
           })}
