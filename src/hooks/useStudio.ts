@@ -1,5 +1,5 @@
 'use client';
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useState } from 'react';
 import type {
   AssetVersion,
   GeneratedAsset,
@@ -9,6 +9,10 @@ import type {
   ClarifyAnswers,
 } from '@/types';
 import { toast } from 'sonner';
+import {
+  formatIngestForPrompt,
+  type IngestedContext,
+} from '@/lib/ingest/format';
 
 /**
  * Maximum number of undo steps retained for customize-panel parameter edits.
@@ -232,14 +236,48 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       : {}),
   });
 
+  // TM-103 — attached URL context. Held outside the reducer because it's UX
+  // ephemera (not undoable) and only impacts the next outgoing prompt.
+  const [attachedContext, setAttachedContext] = useState<IngestedContext | null>(null);
+  const [isAttaching, setIsAttaching] = useState(false);
+
+  const attachUrl = useCallback(async (url: string) => {
+    setIsAttaching(true);
+    try {
+      const res = await fetch('/api/ingest/url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not load that URL');
+      setAttachedContext(data as IngestedContext);
+      toast.success('Reference attached');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not load that URL';
+      toast.error(message);
+    } finally {
+      setIsAttaching(false);
+    }
+  }, []);
+
+  const detachContext = useCallback(() => setAttachedContext(null), []);
+
   const generate = useCallback(async (prompt: string, answers?: ClarifyAnswers) => {
     dispatch({ type: 'SET_GENERATING', payload: true });
     dispatch({ type: 'CLEAR_CLARIFY' });
+    // TM-103 — augment prompt with attached URL context (if any). The
+    // server treats this as a single user message; the LLM is steered by
+    // the leading prose, with the [ATTACHED CONTEXT] block as supplementary
+    // grounding.
+    const augmentedPrompt = attachedContext
+      ? `${prompt}\n\n${formatIngestForPrompt(attachedContext)}`
+      : prompt;
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, ...(answers ? { answers } : {}) }),
+        body: JSON.stringify({ prompt: augmentedPrompt, ...(answers ? { answers } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -271,7 +309,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       });
       toast.error(message);
     }
-  }, []);
+  }, [attachedContext]);
 
   const submitClarifyAnswers = useCallback(
     async (answers: ClarifyAnswers) => {
@@ -445,5 +483,10 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     redo,
     canUndo,
     canRedo,
+    // TM-103
+    attachedContext,
+    isAttaching,
+    attachUrl,
+    detachContext,
   };
 }

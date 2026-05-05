@@ -41,6 +41,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     redo,
     canUndo,
     canRedo,
+    attachedContext,
+    isAttaching,
+    attachUrl,
+    detachContext,
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
@@ -160,6 +164,10 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                 canRetry={!!state.lastFailed}
                 onRetry={retry}
                 onDismissError={dismissError}
+                attachedContext={attachedContext}
+                isAttaching={isAttaching}
+                onAttachUrl={attachUrl}
+                onDetachContext={detachContext}
               />
             </div>
           </Panel>
