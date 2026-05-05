@@ -11,7 +11,7 @@ import { ResourcePanel } from './ResourcePanel';
 import type { Parameter, Tier } from '@/types';
 import Link from 'next/link';
 import { useActiveSequenceOptional } from '@/hooks/useActiveSequence';
-import { ALL_MODE_ID, filterParamsForSequence } from '@/lib/sequences';
+import { ALL_MODE_ID, activeSequenceLabel, filterParamsForSequence } from '@/lib/sequences';
 
 interface CustomizePanelProps {
   parameters: Parameter[];
@@ -50,6 +50,11 @@ export function CustomizePanel({
   const sequenceCtx = useActiveSequenceOptional();
   const segments = sequenceCtx?.segments;
   const activeSequenceId = sequenceCtx?.activeSequenceId ?? ALL_MODE_ID;
+  // TM-107: header label shows current sequence so the user always knows
+  // *which* sequence's params they're editing (in multi-sequence mode).
+  const activeLabel = segments && segments.length > 1
+    ? activeSequenceLabel(segments, activeSequenceId)
+    : null;
 
   // Apply sequence-aware filter. With <2 sequences or no provider, returns the
   // full list (degenerate case — single-shot template, no filtering needed).
@@ -79,7 +84,15 @@ export function CustomizePanel({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 gap-2">
-        <span className="text-sm font-semibold text-white">Customize</span>
+        <span className="text-sm font-semibold text-white truncate" data-testid="customize-header">
+          Customize
+          {activeLabel && (
+            <>
+              <span className="text-slate-500 mx-1.5" aria-hidden>·</span>
+              <span className="text-violet-300">{activeLabel}</span>
+            </>
+          )}
+        </span>
         <div className="flex items-center gap-1">
           {onUndo && (
             <Button
@@ -117,7 +130,7 @@ export function CustomizePanel({
         </div>
       </div>
 
-      <SequenceTimelineSlot />
+      <SequenceTimelineSlot parameters={parameters} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         <details className="group" open={visibleParams.some(p => p.type === 'image' || p.type === 'font')}>
@@ -197,8 +210,8 @@ export function CustomizePanel({
  * is mounted in the tree (so CustomizePanel still works in isolation, e.g.
  * single-template tests or the legacy mobile layout without sequence context).
  */
-function SequenceTimelineSlot() {
+function SequenceTimelineSlot({ parameters }: { parameters: Parameter[] }) {
   const ctx = useActiveSequenceOptional();
   if (!ctx) return null;
-  return <SequenceTimeline />;
+  return <SequenceTimeline parameters={parameters} />;
 }

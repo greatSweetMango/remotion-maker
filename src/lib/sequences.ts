@@ -147,3 +147,45 @@ export function filterParamsForSequence(
     return ids.includes(GLOBAL_SEQUENCE_ID) || ids.includes(activeId);
   });
 }
+
+/**
+ * TM-107: pre-compute the number of parameters that each sequence (plus
+ * `global`) owns. Used by SequenceTimeline to show a count badge so users
+ * can see at a glance which segments have editable knobs.
+ *
+ * Globals count toward every sequence (they're shown alongside seq-specific
+ * params), but we also expose the raw global count under the `global` key
+ * for callers that want it separately.
+ */
+export function countParamsBySequence(
+  parameters: Parameter[],
+  segments: SequenceSegment[],
+): Record<string, number> {
+  const counts: Record<string, number> = { [GLOBAL_SEQUENCE_ID]: 0 };
+  for (const seg of segments) counts[seg.id] = 0;
+
+  for (const p of parameters) {
+    const ids = (p.sequenceIds && p.sequenceIds.length > 0)
+      ? p.sequenceIds
+      : inferParamSequences(p, segments);
+    if (ids.includes(GLOBAL_SEQUENCE_ID)) {
+      counts[GLOBAL_SEQUENCE_ID] += 1;
+      // Globals are visible in every sequence panel, so add to each segment count too.
+      for (const seg of segments) counts[seg.id] += 1;
+      continue;
+    }
+    for (const id of ids) {
+      if (id in counts) counts[id] += 1;
+    }
+  }
+  return counts;
+}
+
+/** Active sequence's human label, or null when in ALL mode / no segments. */
+export function activeSequenceLabel(
+  segments: SequenceSegment[],
+  activeId: string,
+): string | null {
+  if (activeId === ALL_MODE_ID || segments.length === 0) return null;
+  return segments.find(s => s.id === activeId)?.label ?? null;
+}
