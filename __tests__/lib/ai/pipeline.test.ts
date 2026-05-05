@@ -31,6 +31,12 @@ import {
   validateOutline,
   projectedMultiStepCostRatio,
   MULTI_STEP_COST_RATIO_WARN,
+  extractDurationHint,
+  planSceneCount,
+  planSceneDurations,
+  enforceScenePlan,
+  MAX_SCENES,
+  DEFAULT_FPS,
   type Outline,
 } from '@/lib/ai/pipeline';
 
@@ -120,18 +126,32 @@ describe('TM-102 pipeline — Stage 1 outline', () => {
     expect(out.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(100);
   });
 
-  it('caps scenes at 4', () => {
+  it('caps scenes at 12 (TM-104)', () => {
+    // 12 scenes is the new ceiling — should pass.
     expect(() =>
       validateOutline({
         title: 'x',
+        totalDurationInFrames: 360,
         palette: { primary: '#fff', background: '#000' },
-        scenes: Array.from({ length: 5 }, (_, i) => ({
+        scenes: Array.from({ length: 12 }, (_, i) => ({
           name: `s${i}`,
           role: 'text-anim',
           durationInFrames: 30,
         })),
       }),
-    ).toThrow(/capped at 4/);
+    ).not.toThrow();
+    // 13 scenes should throw.
+    expect(() =>
+      validateOutline({
+        title: 'x',
+        palette: { primary: '#fff', background: '#000' },
+        scenes: Array.from({ length: 13 }, (_, i) => ({
+          name: `s${i}`,
+          role: 'text-anim',
+          durationInFrames: 30,
+        })),
+      }),
+    ).toThrow(/capped at 12/);
   });
 });
 
@@ -227,6 +247,156 @@ describe('TM-102 pipeline — orchestrator', () => {
     // 2 scenes → 1.75× ≥ MULTI_STEP_COST_RATIO_WARN (1.7).
     expect(result.costRatio).toBeGreaterThanOrEqual(MULTI_STEP_COST_RATIO_WARN);
     expect(result.costWarning).toMatch(/multi-step/i);
+  });
+});
+
+describe('TM-104 — duration hint extraction', () => {
+  it('extracts Korean 초 (seconds)', () => {
+    expect(extractDurationHint('60초 마케팅 영상').seconds).toBe(60);
+    expect(extractDurationHint('짧은 10초 인트로').seconds).toBe(10);
+  });
+
+  it('extracts Korean 분 (minutes)', () => {
+    expect(extractDurationHint('2분짜리 광고').seconds).toBe(120);
+    expect(extractDurationHint('1분 30초 트레일러').seconds).toBe(90);
+  });
+
+  it('extracts English seconds', () => {
+    expect(extractDurationHint('60 seconds intro').seconds).toBe(60);
+    expect(extractDurationHint('a 30s loop').seconds).toBe(30);
+    expect(extractDurationHint('120 sec marketing').seconds).toBe(120);
+  });
+
+  it('extracts English minutes', () => {
+    expect(extractDurationHint('a 2 minute video').seconds).toBe(120);
+    expect(extractDurationHint('2min ad').seconds).toBe(120);
+  });
+
+  it('extracts mixed mm ss', () => {
+    expect(extractDurationHint('1m30s teaser').seconds).toBe(90);
+    expect(extractDurationHint('2m 0s spot').seconds).toBe(120);
+  });
+
+  it('returns null when no hint', () => {
+    expect(extractDurationHint('counter 0 to 100').seconds).toBeNull();
+    expect(extractDurationHint('purple bar chart').seconds).toBeNull();
+  });
+});
+
+describe('TM-104 — scene planning', () => {
+  it('uses 1 scene for short prompts', () => {
+    expect(planSceneCount(5)).toBe(1);
+    expect(planSceneCount(10)).toBe(1);
+  });
+
+  it('scales scene count with duration', () => {
+    expect(planSceneCount(30)).toBe(2);
+    expect(planSceneCount(60)).toBe(4);
+    expect(planSceneCount(120)).toBe(8);
+  });
+
+  it('caps at MAX_SCENES', () => {
+    expect(planSceneCount(600)).toBe(MAX_SCENES);
+    expect(planSceneCount(99999)).toBe(MAX_SCENES);
+  });
+
+  it('produces frame plan that sums to total exactly', () => {
+    const plan = planSceneDurations(60, 30);
+    expect(plan.totalFrames).toBe(60 * 30);
+    expect(plan.fps).toBe(30);
+    expect(plan.sceneFrames.reduce((a, b) => a + b, 0)).toBe(60 * 30);
+    expect(plan.sceneFrames.length).toBe(planSceneCount(60));
+  });
+
+  it('120s plan produces 8 scenes summing to 3600 frames @ 30fps', () => {
+    const plan = planSceneDurations(120, 30);
+    expect(plan.sceneFrames.length).toBe(8);
+    expect(plan.totalFrames).toBe(3600);
+    expect(plan.sceneFrames.reduce((a, b) => a + b, 0)).toBe(3600);
+  });
+
+  it('falls back to default fps when 0 passed', () => {
+    const plan = planSceneDurations(60, 0);
+    expect(plan.fps).toBe(DEFAULT_FPS);
+  });
+});
+
+describe('TM-104 — generateOutline duration handling', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  const SHORT_OUTLINE_LLM = {
+    title: 'Short',
+    totalDurationInFrames: 150, // 5s
+    fps: 30,
+    width: 1920,
+    height: 1080,
+    palette: { primary: '#fff', background: '#000' },
+    scenes: [
+      { name: 'intro', role: 'title-reveal', durationInFrames: 75 },
+      { name: 'main', role: 'text-anim', durationInFrames: 75 },
+    ],
+  };
+
+  it('short prompt (10s) does NOT trigger directive — outline kept as LLM returns', async () => {
+    mockedChat.mockResolvedValueOnce(JSON.stringify(SHORT_OUTLINE_LLM));
+    const out = await generateOutline('counter 0 to 100', 'sonnet');
+    expect(out.totalDurationInFrames).toBe(150);
+    // The LLM was called with the raw prompt (no directive injection).
+    const call = mockedChat.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    expect(call.messages[0].content).toBe('counter 0 to 100');
+  });
+
+  it('long prompt (120s) injects DURATION DIRECTIVE into user message', async () => {
+    // LLM returns the desired structure (8 scenes, 3600 frames).
+    const longLLM = {
+      ...SHORT_OUTLINE_LLM,
+      totalDurationInFrames: 3600,
+      scenes: Array.from({ length: 8 }, (_, i) => ({
+        name: `s${i}`,
+        role: 'text-anim' as const,
+        durationInFrames: 450,
+      })),
+    };
+    mockedChat.mockResolvedValueOnce(JSON.stringify(longLLM));
+    const out = await generateOutline('120초 마케팅 영상', 'sonnet');
+    const call = mockedChat.mock.calls[0][0] as { messages: Array<{ content: string }> };
+    expect(call.messages[0].content).toMatch(/DURATION DIRECTIVE/);
+    expect(call.messages[0].content).toMatch(/totalDurationInFrames=3600/);
+    expect(out.totalDurationInFrames).toBe(3600);
+    expect(out.scenes.length).toBe(8);
+  });
+
+  it('post-fixes outline when LLM ignores the duration directive', async () => {
+    // LLM returns a 5s outline despite a 60s prompt.
+    mockedChat.mockResolvedValueOnce(JSON.stringify(SHORT_OUTLINE_LLM));
+    const out = await generateOutline('60초 인트로', 'sonnet');
+    expect(out.totalDurationInFrames).toBe(60 * 30); // forced
+    expect(out.scenes.length).toBe(planSceneCount(60));
+    expect(out.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(60 * 30);
+  });
+});
+
+describe('TM-104 — enforceScenePlan', () => {
+  it('preserves narrative names but rewrites durations to plan', () => {
+    const outline: Outline = {
+      title: 't',
+      totalDurationInFrames: 150,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+      palette: { primary: '#fff', secondary: '#ccc', accent: '#888', background: '#000' },
+      scenes: [
+        { name: 'intro', role: 'title-reveal', durationInFrames: 75, keyElements: [], narrativeBeat: 'a' },
+        { name: 'main', role: 'text-anim', durationInFrames: 75, keyElements: [], narrativeBeat: 'b' },
+      ],
+    };
+    const plan = planSceneDurations(60, 30);
+    const fixed = enforceScenePlan(outline, plan);
+    expect(fixed.totalDurationInFrames).toBe(1800);
+    expect(fixed.scenes.length).toBe(plan.sceneFrames.length);
+    expect(fixed.scenes.reduce((a, b) => a + b.durationInFrames, 0)).toBe(1800);
+    // First scene retains narrative
+    expect(fixed.scenes[0].name).toBe('intro');
   });
 });
 

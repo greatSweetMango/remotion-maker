@@ -37,11 +37,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid assetId' }, { status: 400 });
   }
 
-  const [user, asset] = await Promise.all([
+  const [user, asset, alreadyMaterialized] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
     isTemplate
       ? Promise.resolve(null)
       : prisma.asset.findFirst({ where: { id: assetId, userId: session.user.id, deletedAt: null } }),
+    // TM-109 — server-side guard: if this user has previously materialized
+    // *this* template (template-<id>), reuse the existing Asset row instead
+    // of creating a duplicate. Prevents `monthlyUsage` from being charged
+    // more than once per template per user, even if the client (buggy or
+    // malicious) keeps re-sending `assetId: "template-…"` after the first
+    // edit. The TM-106 client fix already pivots `state.asset.id` for the
+    // happy path; this is the defence-in-depth.
+    isTemplate
+      ? prisma.asset.findFirst({
+          where: {
+            userId: session.user.id,
+            templateSourceId: assetId,
+            deletedAt: null,
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   if (!user) {
@@ -52,7 +68,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
   }
 
-  const usageKey = assetId;
+  // TM-109 — when the template has already been materialized for this user,
+  // pivot the usage key (and downstream writes) onto the existing asset's
+  // real id. The reservation, refund, asset.update, and assetVersion.create
+  // all key off this real id from here on.
+  const templateSourceId = isTemplate ? assetId : null;
+  const effectiveAssetId = alreadyMaterialized?.id ?? assetId;
+  const usageKey = effectiveAssetId;
 
   // TM-93 — atomically reserve one edit slot BEFORE the LLM call. Previously
   // this route did findUnique → JSON.parse → compare → editAsset → update,
@@ -79,9 +101,13 @@ export async function POST(req: Request) {
   try {
     const edited = await editAsset(currentCode, prompt, model);
 
-    let savedAssetId = assetId;
+    let savedAssetId = effectiveAssetId;
 
-    if (isTemplate) {
+    if (isTemplate && !alreadyMaterialized) {
+      // First materialization of this template for this user — create a new
+      // Asset row, stamp `templateSourceId` so future `template-…` edits hit
+      // the TM-109 guard, and bump monthlyUsage (this is the *one* time the
+      // user is charged a generation slot for adopting the template).
       const newAsset = await prisma.asset.create({
         data: {
           userId: user.id,
@@ -93,6 +119,7 @@ export async function POST(req: Request) {
           fps: edited.fps,
           width: edited.width,
           height: edited.height,
+          templateSourceId,
           versions: {
             create: {
               code: edited.code,
@@ -105,9 +132,14 @@ export async function POST(req: Request) {
       });
       savedAssetId = newAsset.id;
 
-      // monthlyUsage still bumps for template→asset materialization (a new
-      // asset was created). editUsage was already incremented atomically by
-      // reserveEditSlot above — do NOT touch it here.
+      // monthlyUsage bumps EXACTLY once per template per user — on the
+      // first materialization. editUsage was already incremented atomically
+      // by reserveEditSlot above (under the new asset's id, not the
+      // template- prefix, thanks to TM-106 client pivot — but if the client
+      // is misbehaving and keeps sending `template-…`, the `usageKey`
+      // already points at `effectiveAssetId === assetId`, so subsequent
+      // requests still hit this branch only when no prior materialization
+      // exists for THIS template).
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -115,12 +147,17 @@ export async function POST(req: Request) {
         },
       });
     } else {
+      // Either:
+      //   (a) plain edit on an owned cuid asset, OR
+      //   (b) TM-109 guarded re-entry — client sent `template-…` but we
+      //       already have a materialized row, so we transparently edit
+      //       that row and DO NOT bump monthlyUsage.
       // editUsage already incremented atomically above (TM-93). Transaction
       // here only covers the version+asset writes.
       await prisma.$transaction([
         prisma.assetVersion.create({
           data: {
-            assetId,
+            assetId: effectiveAssetId,
             code: edited.code,
             jsCode: edited.jsCode,
             parameters: JSON.stringify(edited.parameters),
@@ -128,7 +165,7 @@ export async function POST(req: Request) {
           },
         }),
         prisma.asset.update({
-          where: { id: assetId },
+          where: { id: effectiveAssetId },
           data: {
             code: edited.code,
             jsCode: edited.jsCode,
