@@ -299,6 +299,14 @@ export async function generateAsset(
   model: string = getModels().free,
   opts: GenerateOptions = {},
 ): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
+  // TM-102 — opt-in multi-step pipeline (outline → scene → code).
+  // Off by default; flipped on per-request via AI_MULTI_STEP=1 until
+  // bench (TM-46 r7) shows uplift. ADR-PENDING-TM-102.
+  if (process.env.AI_MULTI_STEP === '1' && !opts.answers) {
+    const { generateAssetMultiStepAsApiResponse } = await import('./pipeline');
+    return await generateAssetMultiStepAsApiResponse(prompt, model);
+  }
+
   // TM-74 — Reference-template RAG. We resolve a reference once for this
   // prompt and append it to the system prompt for all attempts. Stable
   // across retries to preserve prompt-cache key (ADR-0003).
