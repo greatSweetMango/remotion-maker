@@ -55,19 +55,57 @@ export function sanitizeForbiddenTokens(input: string): ForbiddenSanitizeResult 
   const notes: string[] = [];
   let code = input;
 
-  // 1. `const X = require('...')` / `const { a } = require('...')` —
+  // 1. `const X = require('...')` / `const { a, b } = require('...')` —
   //    drop the whole declaration. Remotion runtime injects all
   //    React/Remotion globals so a CJS require is never legitimate.
-  const requireDecl = /^[ \t]*(?:const|let|var)\s+[^;\n]*=\s*require\s*\([^)]*\)\s*;?\s*$/gm;
-  if (requireDecl.test(code)) {
-    code = code.replace(requireDecl, '');
+  //
+  //    TM-114 — the original single-line regex missed multi-line destructures
+  //    (e.g. gpt-4o emits
+  //
+  //        const {
+  //          interpolate,
+  //          spring,
+  //          Easing
+  //        } = require('remotion');
+  //
+  //    ) which then fell through to the `bareRequire` fallback below. That
+  //    fallback rewrote the RHS `require(...)` to `undefined`, leaving
+  //    `const { interpolate, spring, Easing } = undefined;` — which throws
+  //    `Cannot destructure property 'interpolate' of 'undefined'` at React
+  //    *render* time, hitting the studio's ErrorBoundary on every multi-step
+  //    asset (TM-108 r3: 100% `<Unknown>` ErrorBoundary noise).
+  //
+  //    The new pattern allows the LHS (identifier or destructure pattern) to
+  //    span newlines, so we drop the whole statement before the bare-require
+  //    fallback fires.
+  const requireDeclMulti = /^[ \t]*(?:const|let|var)\s+(?:\{[\s\S]*?\}|\[[\s\S]*?\]|[A-Za-z_$][\w$]*)\s*=\s*require\s*\([^)]*\)\s*;?[ \t]*$/gm;
+  if (requireDeclMulti.test(code)) {
+    code = code.replace(requireDeclMulti, '');
     notes.push('stripped `const … = require(...)` declarations');
   }
-  // Bare `require(...)` calls anywhere → comment out the rest of the line.
+  // Bare `require(...)` calls anywhere → replace with `undefined`. After the
+  // multi-line declaration sweep above, anything still here is either an
+  // expression-position require (`x = require('x').foo`, `require('x')(...)`,
+  // etc.) where the substitution is benign, or a stray that the LLM emitted
+  // outside any declaration we recognise.
   const bareRequire = /\brequire\s*\([^)]*\)/g;
   if (bareRequire.test(code)) {
     code = code.replace(bareRequire, 'undefined /* TM-111: require stripped */');
     notes.push('replaced bare require(...) with undefined');
+  }
+
+  // 1b. TM-114 — gpt-4o sometimes emits the *result* of an earlier
+  //     hallucinated rewrite directly (e.g. `const { spring } = undefined;`)
+  //     or simulates a missing module by destructuring `null`. Either form
+  //     throws `Cannot destructure property 'X' of 'undefined'` at React
+  //     render time and there is no legitimate use of the pattern in a
+  //     Remotion scene. Strip the whole statement so the destructured idents
+  //     fall through to the runtime-injected globals (interpolate / spring /
+  //     Easing / …) declared at the factory body's top.
+  const brokenDestructure = /^[ \t]*(?:const|let|var)\s+(?:\{[\s\S]*?\}|\[[\s\S]*?\])\s*=\s*(?:undefined|null)\s*;?[ \t]*$/gm;
+  if (brokenDestructure.test(code)) {
+    code = code.replace(brokenDestructure, '');
+    notes.push('stripped `const { … } = undefined|null` broken destructures');
   }
 
   // 2. `globalThis.X` / `globalThis['X']` — rewrite to plain `X` so the
