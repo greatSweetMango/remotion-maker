@@ -627,6 +627,55 @@ describe('TM-111 — sanitizeForbiddenTokens', () => {
     expect(code).toBe(input);
     expect(notes).toEqual([]);
   });
+
+  // TM-114 — gpt-4o emits multi-line destructured `require` declarations
+  // (most commonly `const { interpolate, spring, Easing } = require('remotion');`
+  // formatted across newlines). The original single-line regex missed those,
+  // and the bare-require fallback then rewrote only the RHS to `undefined`,
+  // leaving `const { ... } = undefined;` which throws at React render time
+  // (TM-108 r3 100% `<Unknown>` ErrorBoundary). The strip-declaration pass
+  // must drop the entire statement regardless of formatting.
+  it('strips multi-line destructured require declarations (TM-114 regression)', () => {
+    const input = `const Scene2 = () => {
+  const {
+    interpolate,
+    spring,
+    Easing
+  } = require('remotion');
+  return <AbsoluteFill />;
+};`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/require\s*\(/);
+    // Crucially, the broken `= undefined` artefact must NOT remain.
+    expect(code).not.toMatch(/=\s*undefined\s*;/);
+    expect(code).not.toMatch(/\}\s*=\s*undefined/);
+    // The destructured-binding pattern itself is dropped wholesale (the
+    // identifiers are runtime-injected globals, so referencing them as
+    // bare identifiers below is sufficient).
+    expect(code).not.toMatch(/const\s*\{[\s\S]*?\}\s*=/);
+    expect(notes.join(' ')).toMatch(/require/);
+  });
+
+  it('strips a single-line destructured require declaration', () => {
+    const input = `const { interpolate, spring } = require('remotion');\nconst x = 1;`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/require\s*\(/);
+    expect(code).not.toMatch(/=\s*undefined/);
+    expect(code).toMatch(/const x = 1/);
+  });
+
+  it('strips an indented multi-line require declaration inside a function body', () => {
+    const input = `function f() {
+      const {
+        a,
+        b
+      } = require('mod');
+      return a + b;
+    }`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/require\s*\(/);
+    expect(code).not.toMatch(/=\s*undefined/);
+  });
 });
 
 describe('TM-102 — cost projection', () => {
