@@ -276,6 +276,68 @@ describe('scoreConcreteness — visual-domain signal gate', () => {
   });
 });
 
+// --------------------------------------------------------------------------
+// TM-95 — data-viz over-clarify regression (5 prompts from TM-85 r1)
+// --------------------------------------------------------------------------
+
+describe('scoreConcreteness — TM-95 data-viz prompts (TM-85 r1 regression)', () => {
+  // The exact 5 data-viz prompts that 100% over-triggered clarify in TM-85 r1.
+  // After TM-95 widening, all 5 MUST be classified as concrete AND
+  // forceSkipClarify=true so the hardened retry can rescue them if the LLM
+  // still misbehaves.
+  const dataVizPrompts = [
+    'Bar chart top 5 products by revenue',
+    '막대 그래프 매출 상위 10',
+    'Pie chart device breakdown 4 segments',
+    'Line chart stock price daily',
+    'Donut chart user signups',
+  ];
+
+  it.each(dataVizPrompts)('classifies "%s" as concrete + forceSkipClarify', (prompt) => {
+    const r = scoreConcreteness(prompt);
+    expect(r.isConcrete).toBe(true);
+    // Either subject+data or category-count path must trigger forceSkipClarify.
+    expect(r.forceSkipClarify).toBe(true);
+  });
+
+  it('expanded DATA_PATTERNS catches "signups" / "breakdown" / "daily" / "device"', () => {
+    expect(scoreConcreteness('Donut chart user signups').hits).toContain('data');
+    expect(scoreConcreteness('Pie chart device breakdown 4 segments').hits).toContain('data');
+    expect(scoreConcreteness('Line chart stock price daily').hits).toContain('data');
+  });
+
+  it('expanded COUNT_PATTERNS catches "4 segments" / "5 products"', () => {
+    expect(scoreConcreteness('Pie chart device breakdown 4 segments').hits).toContain('count');
+    expect(scoreConcreteness('Bar chart top 5 products by revenue').hits).toContain('count');
+  });
+});
+
+describe('generateAsset — TM-95 data-viz hardened retry', () => {
+  beforeEach(() => mockedChat.mockReset());
+
+  it('fires TM-95 dataviz hardened retry for "Donut chart user signups"', async () => {
+    // subject (donut/chart) + data (signups/users), no entity count.
+    // Expected sequence: clarify → forced clarify → TM-95 dataviz hardened → generate
+    mockedChat.mockResolvedValueOnce(clarifyJson);
+    mockedChat.mockResolvedValueOnce(clarifyJson);
+    mockedChat.mockResolvedValueOnce(generateJson);
+    const result = await generateAsset('Donut chart user signups', 'haiku');
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(3);
+    const third = mockedChat.mock.calls[2][0];
+    expect(third.system).toContain('DATA-VIZ SUBJECT');
+    expect(third.system).toContain('TM-95');
+  });
+
+  it('TM-52 forced retry alone is enough when LLM cooperates (no 3rd call)', async () => {
+    mockedChat.mockResolvedValueOnce(clarifyJson);
+    mockedChat.mockResolvedValueOnce(generateJson);
+    const result = await generateAsset('Bar chart top 5 products by revenue', 'haiku');
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('buildEntityCountReinforcement — TM-68', () => {
   it('quotes the entity count back to the model', () => {
     const r = buildEntityCountReinforcement(8);
@@ -308,19 +370,25 @@ describe('generateAsset — TM-68 entity-count hardened retry', () => {
     expect(third.system).toContain('8');
   });
 
-  it('does NOT do a 3rd retry when prompt has no explicit entity count', async () => {
-    // "Comparison side-by-side ... red vs green" → forceSkipClarify by category
-    // count, but entityCount=0 (durations excluded). The hardened retry is
-    // gated on entityCount>0 because that's the wording it quotes back.
+  it('TM-95: fires 3rd hardened retry (dataviz variant) when forceSkipClarify=true with no entity count', async () => {
+    // "Comparison side-by-side ... red vs green" → forceSkipClarify by hits≥3
+    // (color/count/punctuation), entityCount=0. Under TM-95, hardened retry
+    // now fires for ANY forceSkipClarify=true (not just entityCount>0) using
+    // the TM-95 dataviz reinforcement.
     mockedChat.mockResolvedValueOnce(clarifyJson);  // 1st
     mockedChat.mockResolvedValueOnce(clarifyJson);  // 2nd (TM-52 forced) — still clarify
+    mockedChat.mockResolvedValueOnce(generateJson); // 3rd (TM-95 hardened) — generates
     const result = await generateAsset(
       'Comparison side-by-side: "Before 30s" vs "After 5s", red vs green',
       'haiku',
     );
-    // Surfaced as clarify after the TM-52 retry; TM-68 hardened path does not fire.
-    expect(result.type).toBe('clarify');
-    expect(mockedChat).toHaveBeenCalledTimes(2);
+    expect(result.type).toBe('generate');
+    expect(mockedChat).toHaveBeenCalledTimes(3);
+    // The 3rd call must NOT contain the entity-count wording (entityCount=0).
+    const third = mockedChat.mock.calls[2][0];
+    expect(third.system).toContain('DATA-VIZ SUBJECT');
+    expect(third.system).toContain('TM-95');
+    expect(third.system).not.toContain('ENTITY COUNT');
   });
 
   it('returns generate immediately if TM-52 forced retry succeeded (no 3rd call)', async () => {
