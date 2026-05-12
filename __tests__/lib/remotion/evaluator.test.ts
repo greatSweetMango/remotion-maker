@@ -79,6 +79,41 @@ describe('evaluateComponent — caching', () => {
   });
 });
 
+describe('TM-116 — expanded Remotion globals destructure', () => {
+  // gpt-4o multi-step scenes regularly reach for less-common Remotion
+  // APIs (Series, Loop, random, Audio, staticFile, etc.). Prior to TM-116
+  // the evaluator only destructured ~9 names, so any reference to e.g.
+  // `Series` threw ReferenceError at render time and surfaced as a
+  // `<Scene1>` ErrorBoundary in production. The destructure now covers
+  // the full Remotion public surface; verify each name is in scope.
+  const EXPANDED_NAMES = [
+    'Series',
+    'Loop',
+    'Freeze',
+    'Audio',
+    'Video',
+    'OffthreadVideo',
+    'staticFile',
+    'random',
+    'delayRender',
+    'continueRender',
+  ];
+
+  beforeEach(() => clearEvaluatorCache());
+
+  it.each(EXPANDED_NAMES)('exposes `%s` to evaluated jsCode without ReferenceError', name => {
+    // Body references `name` at module scope so a missing destructure
+    // throws synchronously inside the factory call — caught and returned
+    // as `error.kind === 'runtime'` by the evaluator.
+    const jsCode = `
+      const _typecheck_${name} = ${name};
+      const Component = () => null;
+    `;
+    const C = evaluateComponent(jsCode);
+    expect(C).not.toBeNull();
+  });
+});
+
 describe('evaluateComponent — 35 template regression', () => {
   // The full template set must round-trip through the evaluator without
   // returning null. This is the canary for refactor regressions.

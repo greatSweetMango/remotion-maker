@@ -292,6 +292,53 @@ const Scene1 = () => {
   });
 });
 
+describe('TM-116 — composer per-scene boundary + displayName (EB suppression)', () => {
+  const SCENE_OK = `const Scene1Params = { scene1_x: 1 } as const;
+const Scene1 = () => (<AbsoluteFill style={{ backgroundColor: '#000' }} />);`;
+
+  const SCENE_THROWS = `const Scene1Params = { scene1_x: 1 } as const;
+const Scene1 = () => {
+  // simulate the gpt-4o failure mode that hit TM-108 r4 case 1:
+  // Scene component references an identifier not in module scope.
+  const v = undefinedRef.foo;
+  return (<AbsoluteFill style={{ opacity: v }} />);
+};`;
+
+  it('wraps every Sequence in __SceneBoundary so a single throw cannot propagate', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_OK, SCENE_OK]);
+    // Each scene must be wrapped.
+    const wrapCount = (composed.match(/<__SceneBoundary\b/g) ?? []).length;
+    expect(wrapCount).toBe(2);
+    // The boundary class itself must be defined in the composed module.
+    expect(composed).toMatch(/class __SceneBoundary extends React\.Component/);
+    // The boundary must implement React's error-boundary contract.
+    expect(composed).toMatch(/getDerivedStateFromError/);
+  });
+
+  it('sets displayName on GeneratedAsset so EB componentStack is not <Unknown>', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_OK, SCENE_OK]);
+    expect(composed).toMatch(/GeneratedAsset\.displayName\s*=\s*['"]GeneratedAsset['"]/);
+  });
+
+  it('sets displayName on placeholder scenes injected for missing components', () => {
+    // SCENE_THROWS *does* define Scene1, so we need a "missing-component"
+    // fixture to test the placeholder. Use a fragment that defines only a
+    // params const.
+    const PARAMS_ONLY = `const Scene1Params = { x: 1 } as const;`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [PARAMS_ONLY, SCENE_OK]);
+    // Scene1 placeholder must be assigned and labelled.
+    expect(composed).toMatch(/const Scene1 = \(\) => <AbsoluteFill/);
+    expect(composed).toMatch(/Scene1\.displayName\s*=\s*['"]Scene1['"]/);
+  });
+
+  it('per-scene boundary wraps the original Scene tag verbatim (no name mangling)', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_OK, SCENE_OK]);
+    // Each canonical scene tag still appears inside its boundary wrapper.
+    expect(composed).toMatch(/<__SceneBoundary name="Scene1"><Scene1 \/><\/__SceneBoundary>/);
+    expect(composed).toMatch(/<__SceneBoundary name="Scene2"><Scene2 \/><\/__SceneBoundary>/);
+  });
+});
+
 describe('TM-102 pipeline — orchestrator', () => {
   beforeEach(() => mockedChat.mockReset());
 

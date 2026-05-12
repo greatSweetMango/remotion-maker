@@ -748,9 +748,11 @@ export function composeSceneCodes(outline: Outline, sceneCodes: string[]): strin
     });
     // If no component was discovered, append a tiny placeholder so the
     // <Sequence> still mounts something and the other scenes can render.
+    // TM-116 — set displayName so dev console / EB componentStack shows
+    // `<Scene{N}>` instead of `<Unknown>`.
     if (!component) {
       renamedFragments.push(
-        `const ${expectedComponent} = () => <AbsoluteFill style={{ backgroundColor: 'transparent' }} />;`,
+        `const ${expectedComponent} = () => <AbsoluteFill style={{ backgroundColor: 'transparent' }} />;\n${expectedComponent}.displayName = ${JSON.stringify(expectedComponent)};`,
       );
     }
   }
@@ -762,7 +764,12 @@ export function composeSceneCodes(outline: Outline, sceneCodes: string[]): strin
       const from = offsets[i];
       const dur = s.durationInFrames;
       const compName = canonicalNames[i].component;
-      return `      <Sequence from={${from}} durationInFrames={${dur}}><${compName} /></Sequence>`;
+      // TM-116 — wrap each scene in a per-scene boundary so one bad scene
+      // doesn't tear down the whole asset and trip the studio EB. Without
+      // this, a `<Scene1>` throw (e.g. undefined ref inside Scene1) bubbles
+      // all the way up and the user sees a blank fallback instead of the
+      // remaining scenes.
+      return `      <Sequence from={${from}} durationInFrames={${dur}}><__SceneBoundary name=${JSON.stringify(compName)}><${compName} /></__SceneBoundary></Sequence>`;
     })
     .join('\n');
 
@@ -774,7 +781,32 @@ export function composeSceneCodes(outline: Outline, sceneCodes: string[]): strin
     .filter((s): s is string => s !== null)
     .join('\n');
 
+  // TM-116 — inline per-scene error boundary so a single scene's render
+  // throw degrades to a silent transparent fill (other scenes still play)
+  // instead of bubbling to the studio EvaluatorErrorBoundary. Defined
+  // inside the factory body via the wrapper so it has access to React.
   return `${fragments}
+
+class __SceneBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { errored: false };
+  }
+  static getDerivedStateFromError() {
+    return { errored: true };
+  }
+  componentDidCatch(error, info) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[TM-116] scene render error in ' + (this.props.name || 'scene') + ':', error && error.message);
+    }
+  }
+  render() {
+    if (this.state.errored) {
+      return <AbsoluteFill style={{ backgroundColor: 'transparent' }} />;
+    }
+    return this.props.children;
+  }
+}
 
 const PARAMS = {
 ${paramsSpreads}
@@ -787,6 +819,7 @@ ${sequences}
     </AbsoluteFill>
   );
 };
+GeneratedAsset.displayName = 'GeneratedAsset';
 `;
 }
 
