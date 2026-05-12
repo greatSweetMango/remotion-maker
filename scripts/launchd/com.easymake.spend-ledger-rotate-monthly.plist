@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.easymake.spend-ledger-rotate-monthly</string>
+
+  <!--
+    TM-118 — Monthly rotation of .agent-state/spend-ledger.jsonl.
+    Triggers on the 1st of each month at 00:05 (local) and archives every
+    row from prior months into spend-ledger.archive.YYYY-MM.jsonl.gz.
+    Idempotent: re-running on the same day is a noop.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd __REPO_ROOT__ &amp;&amp; node scripts/orchestrator/rotate-spend-ledger.mjs --json &gt;&gt; .agent-state/spend-ledger-rotate.log 2&gt;&amp;1</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Day</key><integer>1</integer>
+    <key>Hour</key><integer>0</integer>
+    <key>Minute</key><integer>5</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/.agent-state/spend-ledger-rotate.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/.agent-state/spend-ledger-rotate.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
