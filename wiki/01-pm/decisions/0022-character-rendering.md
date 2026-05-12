@@ -1,7 +1,7 @@
 ---
 title: "ADR-0022: 캐릭터/장면 렌더링 capability 전략"
 created: 2026-05-12
-updated: 2026-05-12
+updated: 2026-05-13
 tags: [decision, area/ai, area/edit, area/cost]
 status: proposed
 related: [ADR-0001, ADR-0002, ADR-0003, ADR-0019, ADR-0020]
@@ -39,7 +39,7 @@ clarify 4문(style / appearance / mood / time-of-day)에 사용자가 답해도,
 |---|---|---|---|
 | **품질 (캐릭터)** | 디자이너가 만든 자산 = 가장 안정적, 그러나 유한 카탈로그 | 임의 프롬프트 커버, 스타일 일관성은 seed/style ref로 통제 | 라인아트만 가능. 곰돌이 같은 친근 형상엔 부적합 |
 | **장면 다양성** | 자산 N개 × 포즈 K개 = 한정 | 무제한 (프롬프트 그대로) | 추상/기하 한정 |
-| **추가 비용 / asset** | $0 (정적) + LLM은 asset id만 선택 → 현행 ~$0.005 유지 | **+$0.04 (gpt-image-1 standard 1024²)**. 현행 LLM $0.005 + image $0.04 ≈ $0.045 (9× 인상) | $0 (코드만) |
+| **추가 비용 / asset** | $0 (정적) + LLM은 asset id만 선택 → 현행 ~$0.005 유지 | **tier별 (TM-92 실측)**: low **$0.0111**, medium **$0.0425**, high **$0.1666** (1024² 1콜). 권고 default=low → 현행 $0.005 + $0.011 ≈ $0.016 (3× 인상). 캐릭터 한정 medium opt-in. 상세: [[../../05-reports/2026-05-13-TM-92-tier-bench\|TM-92 bench]] | $0 (코드만) |
 | **Latency** | 즉시 (정적 fetch) | 5–15초 (image-gen round trip) | 즉시 |
 | **편집 호환** ([[0001-edit-not-equal-render\|ADR-0001]]) | 완전 호환 — 자산은 staticFile, 편집은 LLM only | **부분 호환** — 첫 generate에서만 image-gen, 이후 편집은 캐시된 이미지 URL 재사용 → LLM only 유지 | 완전 호환 |
 | **PARAMS 호환** ([[0002-customize-ui-auto-extract\|ADR-0002]]) | `assetId: "bear-walking-01" // type: select, options: ...` | `imageUrl: "https://..." // type: image` (신규 type) + `prompt: "..." // type: text` (재생성 트리거) | 기존 numeric/color params 그대로 |

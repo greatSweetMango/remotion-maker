@@ -1,0 +1,393 @@
+{
+  "task": "TM-92",
+  "ts": "2026-05-12T17:10:05.572Z",
+  "budgetUsd": 1,
+  "runningCostUsd": 0.6608,
+  "tiers": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "prompts": [
+    {
+      "id": "character",
+      "label": "bear-meadow",
+      "text": "귀여운 갈색 곰돌이 캐릭터, 밝은 동화책 일러스트, 부드러운 파스텔, 평면 도형, 중앙 정렬, 흰 배경 여백"
+    },
+    {
+      "id": "object",
+      "label": "smartphone-clean",
+      "text": "단순한 평면 스타일의 검정 스마트폰, 정면 뷰, 화면은 비어 있음(off), 그림자 약간, 흰 배경, 제품 아이콘 느낌"
+    },
+    {
+      "id": "abstract",
+      "label": "neon-countdown",
+      "text": "추상적 네온 카운트다운 비주얼, 큰 숫자 3, 보라+시안 글로우, 어두운 배경, 깊은 보케, 사이버펑크 분위기"
+    }
+  ],
+  "callsAttempted": 9,
+  "callsSucceeded": 9,
+  "costMatrixUsd": {
+    "low": {
+      "character": 0.01113,
+      "object": 0.011105,
+      "abstract": 0.01114
+    },
+    "medium": {
+      "character": 0.04249,
+      "object": 0.042465,
+      "abstract": 0.0425
+    },
+    "high": {
+      "character": 0.16665,
+      "object": 0.166625,
+      "abstract": 0.16666
+    }
+  },
+  "latencyMatrixMs": {
+    "low": {
+      "character": 13584,
+      "object": 12637,
+      "abstract": 12896
+    },
+    "medium": {
+      "character": 18902,
+      "object": 14571,
+      "abstract": 19254
+    },
+    "high": {
+      "character": 32856,
+      "object": 25290,
+      "abstract": 36860
+    }
+  },
+  "sizeMatrixKb": {
+    "low": {
+      "character": 1170,
+      "object": 1057,
+      "abstract": 1090
+    },
+    "medium": {
+      "character": 1542,
+      "object": 1135,
+      "abstract": 1306
+    },
+    "high": {
+      "character": 1670,
+      "object": 1155,
+      "abstract": 1402
+    }
+  },
+  "pricing": {
+    "note": "cost preferred from API usage tokens; static-table fallback if usage missing",
+    "perTokenPer1M": {
+      "text_in": 5,
+      "image_in": 10,
+      "image_out": 40
+    },
+    "staticTable": {
+      "low": 0.011,
+      "medium": 0.042,
+      "high": 0.167
+    }
+  },
+  "results": [
+    {
+      "tier": "low",
+      "prompt": "character",
+      "promptLabel": "bear-meadow",
+      "promptText": "귀여운 갈색 곰돌이 캐릭터, 밝은 동화책 일러스트, 부드러운 파스텔, 평면 도형, 중앙 정렬, 흰 배경 여백",
+      "ok": true,
+      "latencyMs": 13584,
+      "sizeBytes": 1197806,
+      "sizeKb": 1170,
+      "dimensions": "1024x1024",
+      "costUsd": 0.01113,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 50,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 50
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 322
+      },
+      "usageBreakdown": {
+        "cost": 0.01113,
+        "textIn": 50,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "pngPath": ".spike-assets/TM-92/low/character-bear-meadow.png"
+    },
+    {
+      "tier": "low",
+      "prompt": "object",
+      "promptLabel": "smartphone-clean",
+      "promptText": "단순한 평면 스타일의 검정 스마트폰, 정면 뷰, 화면은 비어 있음(off), 그림자 약간, 흰 배경, 제품 아이콘 느낌",
+      "ok": true,
+      "latencyMs": 12637,
+      "sizeBytes": 1082801,
+      "sizeKb": 1057,
+      "dimensions": "1024x1024",
+      "costUsd": 0.011105,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 45,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 45
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 317
+      },
+      "usageBreakdown": {
+        "cost": 0.011105,
+        "textIn": 45,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "pngPath": ".spike-assets/TM-92/low/object-smartphone-clean.png"
+    },
+    {
+      "tier": "low",
+      "prompt": "abstract",
+      "promptLabel": "neon-countdown",
+      "promptText": "추상적 네온 카운트다운 비주얼, 큰 숫자 3, 보라+시안 글로우, 어두운 배경, 깊은 보케, 사이버펑크 분위기",
+      "ok": true,
+      "latencyMs": 12896,
+      "sizeBytes": 1116360,
+      "sizeKb": 1090,
+      "dimensions": "1024x1024",
+      "costUsd": 0.01114,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 52,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 52
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 324
+      },
+      "usageBreakdown": {
+        "cost": 0.01114,
+        "textIn": 52,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "pngPath": ".spike-assets/TM-92/low/abstract-neon-countdown.png"
+    },
+    {
+      "tier": "medium",
+      "prompt": "character",
+      "promptLabel": "bear-meadow",
+      "promptText": "귀여운 갈색 곰돌이 캐릭터, 밝은 동화책 일러스트, 부드러운 파스텔, 평면 도형, 중앙 정렬, 흰 배경 여백",
+      "ok": true,
+      "latencyMs": 18902,
+      "sizeBytes": 1579057,
+      "sizeKb": 1542,
+      "dimensions": "1024x1024",
+      "costUsd": 0.04249,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 50,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 50
+        },
+        "output_tokens": 1056,
+        "output_tokens_details": {
+          "image_tokens": 1056,
+          "text_tokens": 0
+        },
+        "total_tokens": 1106
+      },
+      "usageBreakdown": {
+        "cost": 0.04249,
+        "textIn": 50,
+        "imgIn": 0,
+        "imgOut": 1056
+      },
+      "pngPath": ".spike-assets/TM-92/medium/character-bear-meadow.png"
+    },
+    {
+      "tier": "medium",
+      "prompt": "object",
+      "promptLabel": "smartphone-clean",
+      "promptText": "단순한 평면 스타일의 검정 스마트폰, 정면 뷰, 화면은 비어 있음(off), 그림자 약간, 흰 배경, 제품 아이콘 느낌",
+      "ok": true,
+      "latencyMs": 14571,
+      "sizeBytes": 1162046,
+      "sizeKb": 1135,
+      "dimensions": "1024x1024",
+      "costUsd": 0.042465,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 45,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 45
+        },
+        "output_tokens": 1056,
+        "output_tokens_details": {
+          "image_tokens": 1056,
+          "text_tokens": 0
+        },
+        "total_tokens": 1101
+      },
+      "usageBreakdown": {
+        "cost": 0.042465,
+        "textIn": 45,
+        "imgIn": 0,
+        "imgOut": 1056
+      },
+      "pngPath": ".spike-assets/TM-92/medium/object-smartphone-clean.png"
+    },
+    {
+      "tier": "medium",
+      "prompt": "abstract",
+      "promptLabel": "neon-countdown",
+      "promptText": "추상적 네온 카운트다운 비주얼, 큰 숫자 3, 보라+시안 글로우, 어두운 배경, 깊은 보케, 사이버펑크 분위기",
+      "ok": true,
+      "latencyMs": 19254,
+      "sizeBytes": 1336955,
+      "sizeKb": 1306,
+      "dimensions": "1024x1024",
+      "costUsd": 0.0425,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 52,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 52
+        },
+        "output_tokens": 1056,
+        "output_tokens_details": {
+          "image_tokens": 1056,
+          "text_tokens": 0
+        },
+        "total_tokens": 1108
+      },
+      "usageBreakdown": {
+        "cost": 0.0425,
+        "textIn": 52,
+        "imgIn": 0,
+        "imgOut": 1056
+      },
+      "pngPath": ".spike-assets/TM-92/medium/abstract-neon-countdown.png"
+    },
+    {
+      "tier": "high",
+      "prompt": "character",
+      "promptLabel": "bear-meadow",
+      "promptText": "귀여운 갈색 곰돌이 캐릭터, 밝은 동화책 일러스트, 부드러운 파스텔, 평면 도형, 중앙 정렬, 흰 배경 여백",
+      "ok": true,
+      "latencyMs": 32856,
+      "sizeBytes": 1709631,
+      "sizeKb": 1670,
+      "dimensions": "1024x1024",
+      "costUsd": 0.16665,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 50,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 50
+        },
+        "output_tokens": 4160,
+        "output_tokens_details": {
+          "image_tokens": 4160,
+          "text_tokens": 0
+        },
+        "total_tokens": 4210
+      },
+      "usageBreakdown": {
+        "cost": 0.16665,
+        "textIn": 50,
+        "imgIn": 0,
+        "imgOut": 4160
+      },
+      "pngPath": ".spike-assets/TM-92/high/character-bear-meadow.png"
+    },
+    {
+      "tier": "high",
+      "prompt": "object",
+      "promptLabel": "smartphone-clean",
+      "promptText": "단순한 평면 스타일의 검정 스마트폰, 정면 뷰, 화면은 비어 있음(off), 그림자 약간, 흰 배경, 제품 아이콘 느낌",
+      "ok": true,
+      "latencyMs": 25290,
+      "sizeBytes": 1183149,
+      "sizeKb": 1155,
+      "dimensions": "1024x1024",
+      "costUsd": 0.166625,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 45,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 45
+        },
+        "output_tokens": 4160,
+        "output_tokens_details": {
+          "image_tokens": 4160,
+          "text_tokens": 0
+        },
+        "total_tokens": 4205
+      },
+      "usageBreakdown": {
+        "cost": 0.166625,
+        "textIn": 45,
+        "imgIn": 0,
+        "imgOut": 4160
+      },
+      "pngPath": ".spike-assets/TM-92/high/object-smartphone-clean.png"
+    },
+    {
+      "tier": "high",
+      "prompt": "abstract",
+      "promptLabel": "neon-countdown",
+      "promptText": "추상적 네온 카운트다운 비주얼, 큰 숫자 3, 보라+시안 글로우, 어두운 배경, 깊은 보케, 사이버펑크 분위기",
+      "ok": true,
+      "latencyMs": 36860,
+      "sizeBytes": 1435766,
+      "sizeKb": 1402,
+      "dimensions": "1024x1024",
+      "costUsd": 0.16666,
+      "costSource": "usage-tokens",
+      "usage": {
+        "input_tokens": 52,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 52
+        },
+        "output_tokens": 4160,
+        "output_tokens_details": {
+          "image_tokens": 4160,
+          "text_tokens": 0
+        },
+        "total_tokens": 4212
+      },
+      "usageBreakdown": {
+        "cost": 0.16666,
+        "textIn": 52,
+        "imgIn": 0,
+        "imgOut": 4160
+      },
+      "pngPath": ".spike-assets/TM-92/high/abstract-neon-countdown.png"
+    }
+  ]
+}
