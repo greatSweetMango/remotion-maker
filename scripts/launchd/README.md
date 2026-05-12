@@ -10,7 +10,7 @@
 REPO_ROOT="/Users/kimjaehyuk/Desktop/remotion-maker"
 mkdir -p ~/Library/LaunchAgents
 
-for f in com.easymake.meta-analysis-weekly.plist com.easymake.meta-analysis-monthly.plist; do
+for f in com.easymake.meta-analysis-weekly.plist com.easymake.meta-analysis-monthly.plist com.easymake.dashboard-rollup-weekly.plist; do
   sed "s|__REPO_ROOT__|${REPO_ROOT}|g" \
     "${REPO_ROOT}/scripts/launchd/${f}" \
     > "${HOME}/Library/LaunchAgents/${f}"
@@ -22,7 +22,10 @@ done
 ```bash
 launchctl load -w ~/Library/LaunchAgents/com.easymake.meta-analysis-weekly.plist
 launchctl load -w ~/Library/LaunchAgents/com.easymake.meta-analysis-monthly.plist
+launchctl load -w ~/Library/LaunchAgents/com.easymake.dashboard-rollup-weekly.plist
 ```
+
+> `dashboard-rollup-weekly` 는 매주 일요일 23:50 KST 에 `scripts/dashboard/roll-up.mjs` 를 실행하여 `wiki/02-dev/dashboard.md` 를 갱신합니다 (TM-104).
 
 ## 3. 확인
 
