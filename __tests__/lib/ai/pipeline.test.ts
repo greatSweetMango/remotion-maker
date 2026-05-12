@@ -784,6 +784,47 @@ describe('TM-111 — sanitizeForbiddenTokens', () => {
     expect(code).toBe('const Scene1 = () => null;');
     expect(notes.join(' ')).toMatch(/non-breaking/);
   });
+
+  // TM-118 — gpt-4o hallucinates a generic <lucide.Icon name="..."/> API that
+  // crashes inside the lucide forwardRef render. Sanitizer rewrites it to a
+  // real PascalCase lucide icon so the asset renders instead of tripping
+  // the studio EvaluatorErrorBoundary as `<Unknown>`.
+  it('rewrites <lucide.Icon name="hacker-news"/> to <lucide.Hash/> (TM-118)', () => {
+    const input = `<lucide.Icon name="hacker-news" color="#ff6600" size={100} />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Hash\b/);
+    expect(code).not.toMatch(/lucide\.Icon\b/);
+    expect(code).not.toMatch(/\bname\s*=/);
+    expect(notes.join(' ')).toMatch(/lucide\.Icon/);
+  });
+
+  it('rewrites <lucide.Icon name="company-logo"/> to <lucide.Sparkles/> (TM-118)', () => {
+    const input = `<lucide.Icon name="company-logo" size={64} color={primaryColor} />`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Sparkles\b/);
+    expect(code).toMatch(/size=\{64\}/);
+    expect(code).toMatch(/color=\{primaryColor\}/);
+  });
+
+  it('falls back to <lucide.Star/> for unknown slugs (TM-118)', () => {
+    const input = `<lucide.Icon name="some-totally-unknown-thing" />`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Star\b/);
+  });
+
+  it('also handles bare <Icon name=...> (no lucide. prefix) (TM-118)', () => {
+    const input = `<Icon name="logo" size={32} />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Sparkles\b/);
+    expect(notes.join(' ')).toMatch(/lucide\.Icon/);
+  });
+
+  it('does not touch correct <lucide.Star/> usage (TM-118)', () => {
+    const input = `<lucide.Star size={48} color="#fff" />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe(input);
+    expect(notes.filter(n => /lucide\.Icon/.test(n))).toHaveLength(0);
+  });
 });
 
 describe('TM-102 — cost projection', () => {

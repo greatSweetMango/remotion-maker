@@ -178,6 +178,59 @@ export function sanitizeForbiddenTokens(input: string): ForbiddenSanitizeResult 
     notes.push('replaced non-breaking spaces with regular spaces');
   }
 
+  // 9. TM-118 — `<lucide.Icon name="..."/>` / `<Icon name="..."/>` hallucination.
+  //
+  //    gpt-4o reliably hallucinates a generic lucide `<Icon name="some-slug" />`
+  //    API (cf. react-native-vector-icons / older MUI) that does NOT exist in
+  //    lucide-react. The real `Icon` export expects an `iconNode` array prop;
+  //    when called with only a string `name` it crashes inside the forwardRef
+  //    renderer at `iconNode.map(...)` — `TypeError: Cannot read properties of
+  //    undefined (reading 'map')`. React's dev-mode componentStack shows this
+  //    as `<Unknown>` because lucide forwardRef components have no displayName.
+  //
+  //    This is the root cause of the TM-108 r3 → r6 case 2 (long-video) +
+  //    case 3 (url-ingest) `<Unknown>` EB residue that survived TM-116/TM-117.
+  //    The 60s long-video prompt invites a "logo + tagline" intro, and URL
+  //    ingest prompts ship a `source: https://news.ycombinator.com` context
+  //    that nudges the model toward `<lucide.Icon name="hacker-news" />` —
+  //    both deterministically produce the failure mode.
+  //
+  //    Fix: rewrite to a known-safe icon. We map the slug to a PascalCase
+  //    lucide identifier (e.g. `hacker-news` → `Hash`, `company-logo` →
+  //    `Sparkles`) where we recognise it, else fall back to `lucide.Star`.
+  const luxIconRe = /<\s*(?:lucide\.)?Icon\b([^/>]*)\bname\s*=\s*(?:["']([^"']*)["']|\{\s*["']([^"']*)["']\s*\})([^/>]*)\/?>/g;
+  if (luxIconRe.test(code)) {
+    luxIconRe.lastIndex = 0;
+    code = code.replace(luxIconRe, (_full, before, n1, n2, after) => {
+      const slug = String(n1 || n2 || '').trim().toLowerCase();
+      const map: Record<string, string> = {
+        'hacker-news': 'Hash',
+        'hackernews': 'Hash',
+        'news': 'Newspaper',
+        'logo': 'Sparkles',
+        'company-logo': 'Sparkles',
+        'brand': 'Sparkles',
+        'cta': 'ArrowRight',
+        'arrow': 'ArrowRight',
+        'check': 'Check',
+        'heart': 'Heart',
+        'star': 'Star',
+        'rocket': 'Rocket',
+        'flame': 'Flame',
+        'trophy': 'Trophy',
+        'chart': 'ChartBar',
+        'graph': 'ChartBar',
+      };
+      const mapped = map[slug] || 'Star';
+      const stripName = (s: string) =>
+        s.replace(/\bname\s*=\s*(?:["'][^"']*["']|\{[^}]*\})/g, '').replace(/\s{2,}/g, ' ');
+      const cleanBefore = stripName(String(before || ''));
+      const cleanAfter = stripName(String(after || ''));
+      return `<lucide.${mapped}${cleanBefore}${cleanAfter}/>`;
+    });
+    notes.push('rewrote <lucide.Icon name="..."/> hallucination to a real lucide icon');
+  }
+
   return { code, notes };
 }
 

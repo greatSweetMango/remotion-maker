@@ -67,6 +67,14 @@ ICONS — Lucide library (already injected as a \`lucide\` global, no imports ne
 - Lucide v1 renames: Home → House, Unlock → LockOpen, BarChart3 → ChartBar,
   PieChart → ChartPie. Use the new names.
 - Prefer Lucide over emoji or inline SVG when a suitable icon exists.
+- **NEVER write \`<lucide.Icon name="..."/>\` or \`<Icon name="..."/>\`** —
+  lucide-react has no such generic-name API. The \`Icon\` export expects an
+  \`iconNode\` array prop and will crash with
+  \`Cannot read properties of undefined (reading 'map')\` if you pass only
+  \`name\`. Always use a named import: \`const { Hash, Sparkles, Newspaper } = lucide;\`
+  then \`<Hash size={64} />\`. For a brand/site logo, use a generic icon like
+  \`Sparkles\` (no real per-brand logos exist in lucide). For "company logo",
+  use \`Sparkles\` or \`Hexagon\`; for "Hacker News", use \`Hash\` or \`Newspaper\`.
 
 ANIMATION QUALITY STANDARDS:
 - Use spring() for bouncy/natural motion
