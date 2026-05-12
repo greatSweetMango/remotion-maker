@@ -23,6 +23,7 @@ status: active
 - [[0021-context-ingest|ADR-0021: URL/이미지 컨텍스트 ingest]]
 - [[0022-character-rendering|ADR-0022: 캐릭터/장면 렌더링 capability 전략]]
 - [[0023-edit-params-isolation|ADR-0023: Edit PARAMS isolation — strict single-key change policy]]
+- [[0024-workflow-tooling|ADR-0024: Agent workflow tooling — specialized agents, MCP servers, skills, orchestrator guards]]
 
 ## 새 ADR 만들기
 

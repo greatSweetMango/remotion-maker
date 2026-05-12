@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-93: Agent workflow tooling — specialized agents, MCP servers, skills, orchestrator guards"
+title: "ADR-0024: Agent workflow tooling — specialized agents, MCP servers, skills, orchestrator guards"
 created: 2026-05-13
 updated: 2026-05-13
 tags: [decision, agent-company, infra, meta]
@@ -12,7 +12,7 @@ related:
   - "[[0020-multi-step-pipeline|ADR-0020]]"
 ---
 
-# ADR-PENDING-TM-93 — Agent workflow tooling roadmap
+# ADR-0024 — Agent workflow tooling roadmap
 
 ## Context
 
