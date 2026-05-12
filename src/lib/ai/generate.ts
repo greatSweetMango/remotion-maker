@@ -133,11 +133,62 @@ function repairBacktickStrings(input: string): string {
 }
 
 /**
+ * TM-53 — strip trailing commas inside arrays/objects that some smaller
+ * models (notably gpt-4o-mini) emit even when JSON mode is on. We only
+ * strike `,` characters that sit immediately before `}` or `]` and are
+ * NOT inside a JSON string literal.
+ */
+export function repairTrailingCommas(input: string): string {
+  let out = '';
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (inString) {
+      out += ch;
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; out += ch; continue; }
+    if (ch === ',') {
+      // Look ahead past whitespace for closing bracket.
+      let j = i + 1;
+      while (j < input.length && /\s/.test(input[j])) j++;
+      if (input[j] === '}' || input[j] === ']') continue; // drop comma
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * TM-53 — normalize smart / curly quotes to straight ASCII quotes. gpt-4o-mini
+ * sometimes auto-corrects nested string punctuation (e.g. the literal
+ * `"Loading 42%"` substring inside the prompt comes back as
+ * `“Loading 42%”`) which then break `JSON.parse` further downstream.
+ * Strict-mode JSON requires straight quotes; this pass leaves regular ASCII
+ * quotes alone so it is safe to run unconditionally before `JSON.parse`.
+ */
+export function repairSmartQuotes(input: string): string {
+  return input
+    .replace(/[“”„‟″‶]/g, '"')
+    .replace(/[‘’‚‛′‵]/g, "'");
+}
+
+/**
  * Extract first balanced JSON object from raw LLM text.
  * Tolerates leading prose / code fences and backtick-quoted string values.
  * Returns null on failure.
+ *
+ * Repair ladder (TM-53):
+ *  1. raw `JSON.parse`
+ *  2. backtick-quoted string values  → "..."
+ *  3. trailing-comma strip + smart-quote normalize
+ *  4. all of the above combined
  */
-function extractJson(text: string): unknown | null {
+export function extractJson(text: string): unknown | null {
   // Strip code fences first
   const fenceStripped = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '');
   const start = fenceStripped.indexOf('{');
@@ -164,9 +215,17 @@ function extractJson(text: string): unknown | null {
   }
   if (endIdx < 0) return null;
   const slice = fenceStripped.slice(start, endIdx + 1);
-  try { return JSON.parse(slice); } catch {}
-  // Fallback: repair backtick-quoted string values to JSON strings.
-  try { return JSON.parse(repairBacktickStrings(slice)); } catch {}
+  // Ladder of progressively more aggressive repairs (TM-53). Each layer is
+  // independently safe; we just try them in turn so the cheapest parse wins.
+  const candidates: string[] = [
+    slice,
+    repairBacktickStrings(slice),
+    repairTrailingCommas(repairSmartQuotes(slice)),
+    repairTrailingCommas(repairSmartQuotes(repairBacktickStrings(slice))),
+  ];
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch {}
+  }
   return null;
 }
 
