@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-82: 캐릭터/장면 렌더링 capability 전략"
+title: "ADR-0022: 캐릭터/장면 렌더링 capability 전략"
 created: 2026-05-12
 updated: 2026-05-12
 tags: [decision, area/ai, area/edit, area/cost]
@@ -8,7 +8,7 @@ related: [ADR-0001, ADR-0002, ADR-0003, ADR-0019, ADR-0020]
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-82: 캐릭터/장면 렌더링 capability — image-gen 우선 hybrid
+# ADR-0022: 캐릭터/장면 렌더링 capability — image-gen 우선 hybrid
 
 ## TL;DR
 

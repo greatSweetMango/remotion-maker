@@ -21,6 +21,7 @@ status: active
 - [[0018-judge-determinism|ADR-0018: judge determinism]]
 - [[0019-rag-templates|ADR-0019: Reference 템플릿 RAG]]
 - [[0021-context-ingest|ADR-0021: URL/이미지 컨텍스트 ingest]]
+- [[0022-character-rendering|ADR-0022: 캐릭터/장면 렌더링 capability 전략]]
 
 ## 새 ADR 만들기
 
