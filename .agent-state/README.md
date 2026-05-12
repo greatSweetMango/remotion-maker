@@ -4,12 +4,33 @@
 
 | 파일 | 용도 | 누가 갱신 |
 |---|---|---|
-| `STOP` | (존재 시) Orchestrator 즉시 종료 | 사용자 (`touch .agent-state/STOP`) |
+| `STOP` | (존재 시) Orchestrator 즉시 종료 | 사용자 또는 `scripts/orchestrator/stop-guard.mjs` |
 | `branch-locks.json` | worktree/branch 락 테이블 | PM agent |
-| `spend.json` | 토큰/비용 추적, 일일/주간 예산 | Hooks (PostToolUse) |
+| `spend.json` | 토큰/비용 추적 (누적), 일일/주간 예산 | Hooks (PostToolUse) |
+| `spend-ledger.jsonl` (TM-101) | append-only 비용 원장 — 시간대/task/model 별 breakdown | Hooks (PostToolUse), 분석: stop-guard |
+| `verdict-history.jsonl` (TM-101) | TeamLead 요약 verdict 로그 (error-rate 분석용) | Orchestrator Step 5 |
 | `concurrency-limit` | 동시 실행 worktree 한도 | PM agent (자동 조정) |
 | `loop-count` | Ralph 루프 반복 카운터 | Orchestrator |
 | `context-{task-id}.md` | build-team 임시 컨텍스트 | build-team Phase 0 |
+
+## TM-101 — Night-mode STOP 조건 + spend ledger
+
+기존 STOP 가드 (STOP file / spend 95% / loop-count >100 / openai cap $18 / AI QA final / qa_iteration ≥5) 외에 `scripts/orchestrator/stop-guard.mjs` 가 5 신호를 추가 감시한다. orchestrate.md Step 7-1 가 매 iter 호출.
+
+| 신호 | 조건 (기본) | env override |
+|---|---|---|
+| quality_plateau | 최근 3개 bench report `mode_match_pct` drift <1pp | `STOP_QUALITY_LOOKBACK`, `STOP_QUALITY_DELTA_PP` |
+| error_rate_spike | 최근 5 verdict 중 BLOCK/REQUEST_CHANGES ≥60% | `STOP_ERROR_LOOKBACK`, `STOP_ERROR_RATE_PCT` |
+| worktree_leak | `git worktree list` ≥5 | `STOP_WORKTREE_MAX` |
+| stale_lock | branch-locks entry started_at >6h 경과 | `STOP_STALE_LOCK_HOURS` |
+| cost_burst | spend-ledger.jsonl 최근 60min 합산 ≥$3 | `STOP_COST_BURST_USD`, `STOP_COST_BURST_MIN` |
+
+`spend-ledger.jsonl` 한 줄 스키마 (append-only):
+```json
+{ "ts": "2026-05-13T03:21:18.412Z", "task_id": "TM-101", "model": "gpt-4o-mini",
+  "tokens_in": 4123, "tokens_out": 812, "cost_usd": 0.0024, "kind": "openai" }
+```
+누적 합계는 여전히 `spend.json` 가 canonical — ledger 는 시간대 분석용 데이터 소스.
 
 ## 정지 방법
 
