@@ -1921,6 +1921,17 @@
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 82,
+        "title": "Refactor week 1: dead-code",
+        "description": "자동 등록 (TM-94 scheduler) — week 1 주제: dead-code 제거 (ts-prune / depcheck). scope=src/, app/, scripts/. 도구: ts-prune, depcheck.",
+        "details": "# Auto-spawned by TM-94 refactor scheduler\n\n- week: 1\n- focus slug: dead-code\n- focus title: dead-code 제거 (ts-prune / depcheck)\n- scope: src/, app/, scripts/\n- recommended tools: ts-prune, depcheck\n- triggered_at: 2026-05-12T15:47:59.531Z\n\n## 작업 가이드\n1. 위 도구로 baseline 리포트 생성 → `wiki/05-reports/` 에 첨부.\n2. 발견 항목 우선순위화 (impact × effort).\n3. 상위 N건만 처리 (timeboxed 1 day). 나머지는 follow-up task로 분리.\n4. PR + 회고 (`wiki/05-reports/YYYY-MM-DD-refactor-week-1-dead-code.md`).\n\n이 task는 TM-94 의 3일 주기 cron 으로 자동 생성됨. 비활성화하려면 `.agent-state/refactor-cron.json` 의 period_days 를 변경하거나 파일을 제거.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -1933,7 +1944,7 @@
       ],
       "created": "2026-04-27T15:31:17.711Z",
       "description": "Tasks for master context",
-      "updated": "2026-05-04T08:19:51.929Z"
+      "updated": "2026-05-12T15:48:01.546Z"
     }
   }
 }
