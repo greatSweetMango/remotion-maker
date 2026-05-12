@@ -134,34 +134,48 @@ Orchestrator는 commit 직전 다음을 자동 수행 (TeamLead는 신경 쓸 �
 
 ## QA task 특수 규약 — 버그 발견 시 fix task spawn + 재검증 트리거
 
-본 task가 **QA 성격**(예: TM-41~48 AI QA, 또는 task title/태그에 `qa`/`audit`/`fuzz`/`visual` 포함)이고 실행 중 **버그/저품질 결과**를 발견하면:
+본 task가 **QA 성격**(예: TM-41~48 AI QA, 또는 task title/태그에 `qa`/`audit`/`fuzz`/`visual` 포함)이고 실행 중 **버그/저품질 결과**를 발견하면 spawn 한다.
 
-1. **즉시 fix task spawn** (build-team Phase 4-5 안에서, 또는 Phase F 반환 직전):
-   ```bash
-   task-master add-task \
-     -t "AI-BUG-<area>-<slug>" \
-     -d "<재현 절차 + 기대값/실제값 + 영향범위>" \
-     --details "발견자: TM-X. 재현: <command/url/prompt>. 첨부: screenshots/TM-X/<file>.png. requires_env: [...]" \
-     --priority "high|medium|low" \
-     --dependencies "X"   # 발견 task ID
-   ```
-2. **재검증 트리거 박제** — fix task spawn 직후 metadata 갱신:
-   ```bash
-   task-master update-task --id=<NEW_ID> \
-     --append \
-     --prompt "metadata: {\"triggers_requalify\": [\"TM-X\"], \"qa_iteration\": <int>}"
-   ```
-   `triggers_requalify`가 박힌 fix task가 **머지 완료**되면 Orchestrator Step 5-post가 자동으로 부모 QA task를 `pending` 으로 되돌리고 다음 iter에 재실행 (회고는 `-r2`, `-r3` suffix).
-3. **요약 JSON에 spawned_tasks 명시**:
-   ```json
-   "spawned_tasks": [
-     {"id": "TM-NN", "title": "AI-BUG-...", "triggers_requalify": ["TM-X"]}
-   ]
-   ```
-4. **재검증 회차** — 본 task가 재실행이면 (즉, 이전 회차의 retro가 wiki/05-reports/에 존재) 회고 파일명에 suffix 부여:
-   - 1회차: `2026-04-27-TM-X-retro.md`
-   - 2회차: `2026-04-27-TM-X-retro-r2.md`
-   - 3회차: `...-r3.md`. 본 task에 박힌 `qa_iteration` metadata로 회차 결정.
+### TM-97 (2026-05-13) — 워크트리에서 `task-master add-task` 절대 금지
+
+**문제**: TeamLead 세션은 워크트리(`worktrees/TM-X-slug/`) 안에서 실행되고, 그 안의 `.taskmaster/tasks/tasks.json` 은 본 task 시작 시점의 **stale 스냅샷**이다. 여기에 add-task 하면:
+
+- 워크트리 tasks.json 기준으로 다음 가용 ID 를 부여 → 동시에 main 에서는 이미 그 ID 가 다른 task 에 할당돼 있을 수 있다.
+- PR 머지 시 wiki/코드 파일은 main 에 진입하지만 tasks.json 변경은 거의 항상 conflict → 결국 canonical DB 와 spawn ID 가 불일치.
+- 실측 사례 (TM-94/TM-85 retro): scheduler 가 "TM-82" 라벨로 spawn → 실제 TM-82 는 character-rendering task. Orchestrator 가 수동으로 TM-110 으로 재등록.
+
+**규칙**:
+
+1. TeamLead 는 워크트리 안에서 **절대 `task-master add-task` 를 호출하지 않는다.** (보강: `scripts/orchestrator/check-cwd.sh` 가 worktree path 를 자동 검출해 exit 20 으로 차단. linked git worktree 도 git-dir/git-common-dir 비교로 감지.)
+2. 호출이 필요한 케이스(QA bug spawn 등)에서는 아래 §"spawned_tasks 형식" 으로 **요약 JSON 에 propose 만** 한다.
+3. Orchestrator (canonical main repo) 는 PR 머지 직후 `scripts/orchestrator/promote-spawned.sh` 에 spawned_tasks 배열을 stdin 으로 넘겨 canonical ID 를 할당한다:
+   - `check-cwd.sh` 로 self 위치 검증 (worktree 면 exit 20).
+   - `.agent-state/task-master.lock` 으로 flock (병렬 iter 충돌 방지).
+   - `task-master add-task` 호출 후 stdout 에서 새 ID 추출 + tasks.json fallback 으로 보강.
+   - `triggers_requalify` 가 있으면 `update-task --append` 로 metadata 박제.
+   - placeholder_id → canonical_id 매핑을 JSON 으로 stdout 에 출력 → Orchestrator 가 retro/wiki 산출물의 placeholder 토큰을 일괄 치환.
+4. **placeholder ID 규칙** — TeamLead 가 임시 식별자가 필요하면 `TM-<parent>-spawn-<n>` (예: `TM-46-spawn-1`) 만 사용. `TM-82` 같은 실제 숫자 ID 는 절대 발급 금지.
+
+### spawned_tasks 형식 (Phase F 요약 JSON)
+
+```json
+"spawned_tasks": [
+  {
+    "placeholder_id": "TM-46-spawn-1",
+    "title": "AI-BUG-<area>-<slug>",
+    "description": "<재현 절차 + 기대값/실제값 + 영향범위>",
+    "details": "발견자: TM-46. 재현: <command/url/prompt>. 첨부: screenshots/TM-46/<file>.png. requires_env: [...]",
+    "priority": "high",
+    "dependencies": ["46"],
+    "triggers_requalify": ["TM-46"]
+  }
+]
+```
+
+- `placeholder_id` 는 retro/qa/validation 본문에서 `TM-46-spawn-1` 로 그대로 참조 가능. Orchestrator promote 후 canonical ID 로 치환된다.
+- `dependencies` 는 canonical numeric ID 만 (이미 main 에 존재하는 task 기준).
+- `triggers_requalify` 가 박힌 fix task 가 **머지 완료**되면 Orchestrator Step 5-post 가 자동으로 부모 QA task 를 `pending` 으로 되돌리고 다음 iter 에 재실행.
+- **재검증 회차 suffix**: 1회차 `YYYY-MM-DD-TM-X-retro.md`, 2회차 `-retro-r2.md`, 3회차 `-r3.md`. task metadata 의 `qa_iteration` 으로 결정.
 
 ## 자동화 정책
 
