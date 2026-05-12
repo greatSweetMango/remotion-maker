@@ -170,12 +170,25 @@ Agent[
       worktree는 이미 Orchestrator가 생성: ${task1.worktree_path}
       branch-locks 이미 등록됨.
 
+      TM-117: 첫 Bash turn 에서 반드시
+        bash scripts/orchestrator/set-current-task.sh TM-${task1.task_id}
+      를 실행해 .agent-state/current-task 를 wiring 하세요. PostToolUse hook 이
+      spend-ledger.jsonl 에 task_id 를 정확히 기록하도록 (env CLAUDE_TASK_ID 는
+      서브에이전트 spawn 시 주입되지 않으므로 file fallback 이 유일한 채널).
+
       Phase A → F 순서로 자율 실행. 마지막에 요약 JSON 반환.`
   },
   { /* task2 */ },
   { /* task3 */ }
 ]
 ```
+
+> **TM-117**: Orchestrator 본인 세션은 매 iter 시작 시
+> `bash scripts/orchestrator/set-current-task.sh TM-<id>` 또는
+> `export CLAUDE_TASK_ID=TM-<id>` 로 자체 ledger attribution 도 잡아준다.
+> 병렬 TeamLead 들이 모두 같은 워크트리 파일을 공유하면 race 가 발생하지만,
+> 각 TeamLead 는 자신의 워크트리(`worktrees/TM-X-slug/.agent-state/current-task`)
+> 를 사용하므로 격리된다. main 의 current-task 는 Orchestrator 만 만진다.
 
 각 TeamLead Agent는:
 - 자체 컨텍스트로 build-team 풀 사이클 실행
