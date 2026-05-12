@@ -563,6 +563,31 @@ const Scene1 = ({ scene1_color = Scene1Params.scene1_color } = Scene1Params) => 
     (mockedValidateCode as jest.Mock).mockImplementation(() => ({ valid: true, errors: [] }));
   });
 
+  // TM-117 — gpt-4o sometimes double-escapes the `code` JSON string, so
+  // `JSON.parse` yields a single-line payload whose `\n` are literal
+  // backslash-n. Without un-escaping, sucrase rejects with
+  // `Unexpected token, expected "(" (1:46)` at the composition stage.
+  it('un-escapes literal \\n sequences in a single-line code payload (TM-117)', async () => {
+    const singleLine =
+      'const Scene1Params = {\\n  scene1_color: "#7C3AED"\\n};\\n' +
+      'const Scene1 = ({ scene1_color = Scene1Params.scene1_color } = Scene1Params) => {\\n' +
+      '  return <AbsoluteFill style={{ backgroundColor: scene1_color }} />;\\n' +
+      '};';
+    mockedChat.mockResolvedValueOnce(JSON.stringify({ code: singleLine }));
+    const tsx = await generateSceneCode(
+      VALID_OUTLINE,
+      { name: 'intro' } as never,
+      0,
+      'gpt-4o',
+    );
+    // After un-escape, real newlines must exist and the literal `\n` token
+    // (two chars) must be gone.
+    expect(tsx).toMatch(/\n/);
+    expect(tsx).not.toMatch(/\\n/);
+    expect(tsx).toMatch(/Scene1Params/);
+    expect(tsx).toMatch(/Scene1/);
+  });
+
   it('still throws SceneSandboxError when the sanitizer cannot remove the violation', async () => {
     const { SceneSandboxError } = await import('@/lib/ai/pipeline');
 
@@ -722,6 +747,42 @@ describe('TM-111 — sanitizeForbiddenTokens', () => {
     const { code } = sanitizeForbiddenTokens(input);
     expect(code).not.toMatch(/require\s*\(/);
     expect(code).not.toMatch(/=\s*undefined/);
+  });
+
+  // TM-117 — gpt-4o sometimes emits "use client" / "use server" / "use strict"
+  // directives at the head of a scene fragment. After sanitizeCode strips
+  // imports, those directives land on line 1 of the input that sucrase
+  // sees, and have been observed to manifest as
+  // `Unexpected token, expected "(" (1:46)` in the composed module
+  // (TM-108 r5 case 1). Strip them so the composer's own wrapper owns
+  // module-level setup.
+  it('strips "use client" directives at the head of a fragment (TM-117)', () => {
+    const input = `"use client";\nconst Scene1 = () => null;`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).not.toMatch(/use client/);
+    expect(code).toMatch(/Scene1/);
+    expect(notes.join(' ')).toMatch(/directive/);
+  });
+
+  it('strips "use server" and "use strict" directives too (TM-117)', () => {
+    const { code: a } = sanitizeForbiddenTokens(`'use server';\nconst x = 1;`);
+    const { code: b } = sanitizeForbiddenTokens(`"use strict";\nconst x = 1;`);
+    expect(a).not.toMatch(/use server/);
+    expect(b).not.toMatch(/use strict/);
+  });
+
+  it('strips zero-width / BOM characters (TM-117)', () => {
+    const input = `﻿​const Scene1 = () => null;`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe('const Scene1 = () => null;');
+    expect(notes.join(' ')).toMatch(/zero-width|BOM/);
+  });
+
+  it('replaces non-breaking spaces with regular spaces (TM-117)', () => {
+    const input = `const Scene1 = () => null;`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe('const Scene1 = () => null;');
+    expect(notes.join(' ')).toMatch(/non-breaking/);
   });
 });
 

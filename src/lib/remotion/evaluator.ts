@@ -288,7 +288,15 @@ export function evaluateComponentDetailed(jsCode: unknown): EvaluationResult {
   }
 
   const inner = result.component;
-  const Wrapped: RemotionComponent = (props) => React.createElement(inner, props);
+  // TM-117 — use a named `function` declaration (not an arrow) so React's
+  // dev-mode componentStack / DevTools picks up the name even before the
+  // `.displayName` assignment runs. Anonymous arrows previously rendered
+  // as `<Unknown>` in the studio EvaluatorErrorBoundary stack
+  // (TM-108 r4/r5 case 2/3) — see `[[2026-04-27-TM-117-fix]]`.
+  function EvaluatedAsset(props: Record<string, unknown>) {
+    return React.createElement(inner, props);
+  }
+  const Wrapped = EvaluatedAsset as RemotionComponent;
   Wrapped.displayName = 'EvaluatedAsset';
 
   cacheSet(hash, jsCode, Wrapped);
