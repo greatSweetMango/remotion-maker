@@ -136,7 +136,11 @@ if execution_location == "worktree":
   #   누락 시 TeamLead가 매번 수동으로 .env 만지다 시간 낭비 (TM-42/43/45 retro 참조).
   #   dev_port 컨벤션: 30NN (NN = task_id 두자리, 예: TM-56 → 3056).
   bash scripts/setup-worktree.sh {worktree_path} {dev_port}
-  branch-locks.json에 entry 추가 (status: "in_progress")
+  # TM-96: branch-locks.json 쓰기는 반드시 mutex helper 경유 — 직접 jq | mv 금지.
+  #   wrapper 가 flock(2) (Linux/CI) 또는 mkdir 기반 shell mutex (mac) 로
+  #   동시 쓰기 race 차단 (TM-55/TM-85 PR 중복 생성 race 의 근본 원인이었음).
+  bash scripts/lib/branch-locks.sh set-entry "{task_id}" \
+    "{\"branch\":\"{branch}\",\"worktree\":\"{worktree_path}\",\"status\":\"in_progress\"}"
 
 # wiki-only / docs task
 elif execution_location == "main":
@@ -277,7 +281,8 @@ for summary in team_lead_summaries:
     git pull --ff-only origin main  # 머지 결과 가져오기
 
     # 락 해제 + worktree 정리 (.agent-state/branch-locks.json 은 .gitignore 처리)
-    branch-locks.json 에서 entry 삭제 (로컬 파일, push 불필요)
+    # TM-96: mutex wrapper 경유 — 직접 jq | mv 금지.
+    bash scripts/lib/branch-locks.sh remove-entry "{task_id}"
     git worktree remove {worktree_path}
 
     # Task Master 상태 갱신
@@ -310,7 +315,8 @@ for summary in team_lead_summaries:
   elif summary.verdict == "BLOCK" or summary.status == "escalated":
     # 사람 escalate
     blocking_questions 기록, status: "blocked"
-    branch-locks.json에서 entry 유지하되 status: "blocked"
+    # TM-96: mutex wrapper 경유.
+    bash scripts/lib/branch-locks.sh set-status "{task_id}" "blocked"
     mcp__task-master-ai__set_task_status(id={tm_id}, status="blocked")
     사용자 알림 메시지 출력
 ```

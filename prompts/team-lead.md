@@ -58,8 +58,18 @@
 4. **ADR NNNN 사전 부여** (해당 시) — `git fetch origin main` 후 `git ls-tree origin/main wiki/01-pm/decisions/` 로 max NNNN 확인 → `max+1` 부여 → PENDING placeholder rename + 본문의 `ADR-PENDING-<task_id>` 토큰을 `ADR-<NNNN>` 로 일괄 치환 → ADR README 인덱스에도 항목 추가. 같은 worktree commit 에 포함.
 5. `git add -A && git commit -m "..."` (코드 + wiki 모두 같은 commit 또는 분할 commit)
 6. `git push -u origin {branch}` (실패 시 escalate)
-7. `gh pr create --base main --head {branch} --title "..." --body "..."` (PR 본문에 코드 변경 + wiki 산출물 path + 검증 결과 + test plan)
-8. PR URL 캡처
+7. **pre-PR 중복 가드 (TM-96, 의무)** — PR 생성 직전 반드시:
+   ```bash
+   bash scripts/pre-pr.sh "${BRANCH}"
+   rc=$?
+   ```
+   - `rc == 0`: 안전, `gh pr create` 진행.
+   - `rc == 10` (open PR 존재): **`gh pr create` 호출 금지.** 이미 같은 branch 의 PR 이 열려 있다 — push 만 했으므로 새 커밋이 기존 PR 에 자동 반영됨. 기존 PR URL 을 그대로 요약 JSON 의 `pr_url` 로 반환 (`gh pr view --json url`). 추가로 `gh pr comment <PR#> -b "TeamLead background re-push: <summary>"` 한 줄 코멘트.
+   - `rc == 11` (이미 머지됨): **즉시 abort.** PR 생성 금지. 요약 JSON 에 `status: "aborted"`, `verdict: "BLOCK"`, `notes: "branch already merged via PR #N — TM-55/TM-85 style race avoided"` 기록 후 Phase E 로 이동. **이게 TM-96 의 주된 가드** — 메인 세션이 이미 PR 머지한 뒤 백그라운드 TeamLead 가 또 PR 만드는 패턴 차단.
+   - `rc == 12` (closed PR 존재, 미머지): 새 PR 생성 허용하되 본문에 "supersedes #N (closed without merge)" 명시.
+   - 그 외 비정상 종료 (1/2): 즉시 escalate.
+8. `gh pr create --base main --head {branch} --title "..." --body "..."` (PR 본문에 코드 변경 + wiki 산출물 path + 검증 결과 + test plan)
+9. PR URL 캡처
 
 ### Phase E: Cleanup
 
