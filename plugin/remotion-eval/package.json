@@ -1,0 +1,29 @@
+{
+  "name": "@remotion-maker/mcp-remotion-eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remotion code validation MCP server — exposes validate_remotion_code over stdio.",
+  "type": "module",
+  "bin": {
+    "mcp-remotion-eval": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "node --loader ts-node/esm src/server.ts",
+    "test": "node --test --import tsx test/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "sucrase": "^3.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
