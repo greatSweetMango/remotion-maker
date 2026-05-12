@@ -7,6 +7,10 @@
     "task-master-ai": {
       "command": "npx",
       "args": ["-y", "task-master-ai"]
+    },
+    "remotion-eval": {
+      "command": "npx",
+      "args": ["tsx", "./plugin/remotion-eval/src/server.ts"]
     }
   }
 }
