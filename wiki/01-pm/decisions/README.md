@@ -24,6 +24,7 @@ status: active
 - [[0022-character-rendering|ADR-0022: 캐릭터/장면 렌더링 capability 전략]]
 - [[0023-edit-params-isolation|ADR-0023: Edit PARAMS isolation — strict single-key change policy]]
 - [[0024-workflow-tooling|ADR-0024: Agent workflow tooling — specialized agents, MCP servers, skills, orchestrator guards]]
+- [[0025-branch-locks-mutex|ADR-0025: branch-locks mutex + pre-PR duplicate guard (TM-96)]]
 
 ## 새 ADR 만들기
 
