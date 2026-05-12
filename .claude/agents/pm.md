@@ -22,6 +22,8 @@ model: sonnet
    - **특화 agent 라우팅 (`area`)**:
      - `area="ai-prompt"` → `.claude/agents/ai-prompt-tuner.md` (system prompt / clarify-gate / generate prompts / classify 라우팅 룰)
        - 트리거: `context_files` 가 `src/lib/ai/prompts.ts | clarify-gate.ts | generate.ts | classify.ts | clarify-questions.ts` 중 하나 포함, **또는** title/desc 에 "system prompt / clarify / mode_match / pipeline quality / prompt regression / 프롬프트 튜닝", **또는** 의존 task 가 TM-83 / TM-85 / TM-92 / TM-93 / TM-95 / TM-106 라인.
+     - `area="remotion"` → `.claude/agents/remotion-validator.md` (evaluator / sandbox / transpiler / 35 템플릿 / CSP / PARAMS extract)
+       - 트리거: `context_files` 가 `src/lib/remotion/evaluator.ts | sandbox.ts | transpiler.ts | src/remotion/UniversalComposition.tsx | src/remotion/export-entry.tsx | src/remotion/templates/` 중 하나 포함, **또는** title/desc 에 "remotion / composition / Sequence / useCurrentFrame / sandbox / iframe CSP / Content-Security-Policy / evaluator / PARAMS extract / transpile / 35 템플릿 / template smoke / visual judge / visual regression / zero-width / empty input guard", **또는** 의존 task 가 TM-26 / TM-43 / TM-45 / TM-46 / TM-57 / TM-58 / TM-66 / TM-84 / TM-118 라인.
      - 그 외 → generic TeamLead (`prompts/team-lead.md`).
    - **유형 태그** 키워드 매트릭스:
      - "버그/에러/오류/fix/수정/장애" → `#bug-fix`
@@ -94,8 +96,8 @@ Orchestrator로 반환하는 `tasks[]` 원소는 **반드시 다음 TM 필드를
   "tm_id": 101,
   "title": "<TM.title>",
   "type": "feature|fix|experiment|refactor|docs|infra",
-  "area": "ai-prompt|null",
-  "teamlead_agent": "ai-prompt-tuner|null",
+  "area": "ai-prompt|remotion|null",
+  "teamlead_agent": "ai-prompt-tuner|remotion-validator|null",
   "tags": ["#..."],
   "branch": "TM-101-foo-bar",
   "worktree_path": "worktrees/TM-101-foo-bar",
