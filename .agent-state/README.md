@@ -7,7 +7,8 @@
 | `STOP` | (존재 시) Orchestrator 즉시 종료 | 사용자 또는 `scripts/orchestrator/stop-guard.mjs` |
 | `branch-locks.json` | worktree/branch 락 테이블 | PM agent |
 | `spend.json` | 토큰/비용 추적 (누적), 일일/주간 예산 | Hooks (PostToolUse) |
-| `spend-ledger.jsonl` (TM-101) | append-only 비용 원장 — 시간대/task/model 별 breakdown | Hooks (PostToolUse), 분석: stop-guard |
+| `spend-ledger.jsonl` (TM-101 format, TM-112 producer) | append-only 비용 원장 — 시간대/task/model 별 breakdown | Hooks (PostToolUse), 분석: stop-guard |
+| `current-task` (TM-112) | 현재 진행 중 task_id 한 줄 (선택) — `CLAUDE_TASK_ID` 환경변수가 우선 | Orchestrator/TeamLead (선택적) |
 | `verdict-history.jsonl` (TM-101) | TeamLead 요약 verdict 로그 (error-rate 분석용) | Orchestrator Step 5 |
 | `concurrency-limit` | 동시 실행 worktree 한도 | PM agent (자동 조정) |
 | `loop-count` | Ralph 루프 반복 카운터 | Orchestrator |
@@ -31,6 +32,8 @@
   "tokens_in": 4123, "tokens_out": 812, "cost_usd": 0.0024, "kind": "openai" }
 ```
 누적 합계는 여전히 `spend.json` 가 canonical — ledger 는 시간대 분석용 데이터 소스.
+
+생산자(TM-112): `.claude/hooks/post-tool-use.sh` — Claude Code PostToolUse 페이로드에서 `usage` 블록 추출 시 한 줄 append. `task_id` 는 `CLAUDE_TASK_ID` env → `.agent-state/current-task` 파일 → `"unknown"` 순으로 해석. `flock` 직렬화 (`.spend-ledger.lock`).
 
 ## 정지 방법
 

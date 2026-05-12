@@ -8,6 +8,9 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SPEND_FILE="$REPO_ROOT/.agent-state/spend.json"
 LOCK_FILE="$REPO_ROOT/.agent-state/.spend.lock"
+LEDGER_FILE="$REPO_ROOT/.agent-state/spend-ledger.jsonl"
+LEDGER_LOCK="$REPO_ROOT/.agent-state/.spend-ledger.lock"
+CURRENT_TASK_FILE="$REPO_ROOT/.agent-state/current-task"
 
 # 의존성 검사 — 없으면 무음 종료
 command -v jq >/dev/null 2>&1 || exit 0
@@ -128,5 +131,42 @@ mkdir -p "$(dirname "$LOCK_FILE")"
        else . end)
   ' "$SPEND_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$SPEND_FILE" || rm -f "$tmp"
 ) 9>"$LOCK_FILE"
+
+# ─── TM-112: append one line to spend-ledger.jsonl ─────────────────────────
+# Format (TM-101 spec, .agent-state/README.md):
+#   { ts, task_id, model, tokens_in, tokens_out, cost_usd, kind }
+# kind = openai | anthropic | other
+task_id="${CLAUDE_TASK_ID:-}"
+if [[ -z "$task_id" && -f "$CURRENT_TASK_FILE" ]]; then
+  task_id="$(head -n1 "$CURRENT_TASK_FILE" 2>/dev/null | tr -d '[:space:]' || true)"
+fi
+[[ -z "$task_id" ]] && task_id="unknown"
+
+ts="$(date -u +%Y-%m-%dT%H:%M:%S.000Z 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
+kind="$provider"  # openai | anthropic
+case "$kind" in
+  openai|anthropic) : ;;
+  *) kind="other" ;;
+esac
+
+ledger_line="$(jq -cn \
+  --arg ts "$ts" \
+  --arg task_id "$task_id" \
+  --arg model "${model_raw:-unknown}" \
+  --arg kind "$kind" \
+  --argjson tokens_in "$input_tokens" \
+  --argjson tokens_out "$output_tokens" \
+  --argjson cost_usd "$cost_usd" \
+  '{ts:$ts, task_id:$task_id, model:$model, tokens_in:$tokens_in, tokens_out:$tokens_out, cost_usd:$cost_usd, kind:$kind}' \
+  2>/dev/null || true)"
+
+if [[ -n "$ledger_line" ]]; then
+  (
+    if command -v flock >/dev/null 2>&1; then
+      flock -w 5 8 || exit 0
+    fi
+    printf '%s\n' "$ledger_line" >> "$LEDGER_FILE"
+  ) 8>"$LEDGER_LOCK"
+fi
 
 exit 0
