@@ -215,9 +215,17 @@ function buildAndInvoke(jsCode: string): EvaluationResult {
       'lucide',
       `
       "use strict";
+      // TM-116 — destructure expanded so gpt-4o multi-step scenes that reach
+      // for less-common Remotion APIs (e.g. Series, Loop, random, Audio) no
+      // longer throw ReferenceError at render time. Each name is a no-op if
+      // unused; cost is a few extra local bindings per factory invocation.
       const {
         useCurrentFrame, useVideoConfig, interpolate, interpolateColors,
-        spring, AbsoluteFill, Sequence, Img, Easing
+        spring, AbsoluteFill, Sequence, Series, Loop, Freeze, Img, Easing,
+        Audio, Video, OffthreadVideo, IFrame, staticFile, random,
+        delayRender, continueRender, cancelRender, prefetch,
+        getInputProps, getRemotionEnvironment, getStaticFiles, watchStaticFile,
+        Composition, Still, Folder, registerRoot
       } = remotion;
 
       ${jsCode}
