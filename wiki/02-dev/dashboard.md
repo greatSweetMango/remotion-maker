@@ -10,15 +10,27 @@ status: active
 # Dashboard — last 7 days
 
 > Auto-generated. Do not edit by hand — re-run `node scripts/dashboard/roll-up.mjs`.
-> Generated at `2026-05-12T16:32:33.190Z`.
+> Generated at `2026-05-12T17:06:45.439Z`.
 
 ## Throughput
 
-- **Merged PRs (window):** 43
-- **Average cadence:** 3.8h / PR
+- **Merged PRs (window):** 55
+- **Average cadence:** 3h / PR
 
 | PR | when | subject |
 |---|---|---|
+| #157 | 2026-05-13 | qa(judge): TM-111 visual-judge migrate to ai-quality-judge agent + judge-acceptance skill (#157) |
+| #156 | 2026-05-13 | docs(agents): TM-116 wire remotion-validator → mcp__remotion-eval (#156) |
+| #155 | 2026-05-13 | feat(mcp): TM-114 add extract_params tool to mcp-remotion-eval (#155) |
+| #154 | 2026-05-13 | feat(ux): TM-91 image-gen progressive latency UX (38s p50) (#154) |
+| #153 | 2026-05-13 | feat(infra): TM-117 wire CLAUDE_TASK_ID / current-task for spend-ledger (#153) |
+| #152 | 2026-05-13 | test(ci): TM-115 add MCP remotion-eval deny-list sync guard (#152) |
+| #151 | 2026-05-13 | feat(hooks): TM-112 spend-ledger appender — cost_burst signal live (#151) |
+| #150 | 2026-05-13 | feat(mcp): TM-103 mcp-llm-judge server scaffold + judge_visual/judge_code tools (#150) |
+| #149 | 2026-05-13 | feat(orchestrator): TM-113 verdict-history.jsonl append hook (#149) |
+| #148 | 2026-05-13 | feat(ai): TM-88 PARAMS type:image regen-prompt UI (ADR-0022 follow-up) (#148) |
+| #147 | 2026-05-13 | feat(dashboard): TM-104 weekly roll-up script + launchd cron (#147) |
+| #146 | 2026-05-13 | feat(mcp): TM-102 mcp-remotion-eval server scaffold + validate_remotion_code tool (#146) |
 | #145 | 2026-05-13 | feat(agents): TM-100 ai-quality-judge specialized TeamLead + judge-acceptance skill (#145) |
 | #144 | 2026-05-13 | feat(orchestrator): TM-101 night-mode STOP guard + spend-ledger format (#144) |
 | #143 | 2026-05-13 | feat(agents): TM-99 remotion-validator agent + PM router (#143) |
@@ -27,18 +39,6 @@ status: active
 | #140 | 2026-05-13 | feat(agents): TM-98 ai-prompt-tuner specialized TeamLead (#140) |
 | #139 | 2026-05-13 | qa(TM-106): TM-85 r2 re-bench — 30/30 mode_match, data-viz fix verified (#139) |
 | #138 | 2026-05-13 | fix(orchestrator): TM-96 branch-locks mutex + pre-pr.sh duplicate guard (#138) |
-| #137 | 2026-05-13 | feat(orchestrator): TM-94 recurring refactor scheduler — 3-day cadence, 6-area rotation (#137) |
-| #136 | 2026-05-13 | fix(ai): TM-95 narrow clarify rule — living-entity only (data-viz regression) (#136) |
-| #135 | 2026-05-13 | feat(dashboard): TM-87 user asset management — rename + duplicate (delete shipped earlier) (#135) |
-| #134 | 2026-05-13 | docs(meta): TM-93 agent workflow tooling ADR — 6 tracks, 10 follow-ups (#134) |
-| #132 | 2026-05-13 | qa(TM-85): pipeline quality bench — 30 prompts, character/motion-graphics 100%, data-viz 0% regression (#132) |
-| #131 | 2026-05-13 | fix(ai): TM-86 edit PARAMS isolation guard + driver event/change distinction (#131) |
-| #130 | 2026-05-13 | feat(ai): TM-84 asset-gen spike — gpt-image-1 e2e validates ADR-0022 option B (#130) |
-| #129 | 2026-05-12 | qa(TM-83): clarify regression — 14 prompts validate PR #127 fix (#129) |
-| #128 | 2026-05-12 | docs(TM-82): ADR — character/scene rendering capability (image-gen + SVG hybrid) (#128) |
-| #127 | 2026-05-12 | fix(ai): trigger clarify for visually-ambiguous prompts + catch skeleton-echo placeholder (#127) |
-| #126 | 2026-05-12 | qa(TM-55): TM-42 edit-flow r2 — 20-set full re-baseline (OpenAI live) (#126) |
-| #125 | 2026-05-12 | feat(plugin): extract agent-company harness as standalone Claude plugin (#125) |
 
 ## Quality (bench rollup)
 
@@ -63,6 +63,18 @@ status: active
 - **By kind:** —
 - **OpenAI cumulative (spend.json):** $0.0332
 - **Weekly budget:** $200
+
+### Per-task cost (last 7d, top 10)
+
+_(no per-task spend in window)_
+
+### Per-model cost (last 7d, top 10)
+
+_(no per-model spend in window)_
+
+### Daily spend trend (last 7d)
+
+_(no daily spend in window)_
 
 ## Agent verdicts
 
