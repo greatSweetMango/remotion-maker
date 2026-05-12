@@ -35,6 +35,8 @@
 
 생산자(TM-112): `.claude/hooks/post-tool-use.sh` — Claude Code PostToolUse 페이로드에서 `usage` 블록 추출 시 한 줄 append. `task_id` 는 `CLAUDE_TASK_ID` env → `.agent-state/current-task` 파일 → `"unknown"` 순으로 해석. `flock` 직렬화 (`.spend-ledger.lock`).
 
+회전(TM-118): `scripts/orchestrator/rotate-spend-ledger.mjs` — launchd `com.easymake.spend-ledger-rotate-monthly` 가 매월 1일 00:05 (로컬) 호출. 지난 달 데이터를 `.agent-state/spend-ledger.archive.YYYY-MM.jsonl.gz` 로 압축한 뒤 원본에서 제거. 같은 `.spend-ledger.lock` 으로 직렬화하여 PostToolUse hook 과 충돌 없음. Idempotent: 진행 상태를 `.agent-state/spend-ledger.rotate.json` 에 기록하여 partial-failure 재실행 시 중복 archive append 차단. 시간대 분석은 회전 후에도 현재 달 + archive 파일들을 함께 zcat 으로 스트림하면 됨 (`zcat .agent-state/spend-ledger.archive.*.jsonl.gz; cat .agent-state/spend-ledger.jsonl`).
+
 ## 정지 방법
 
 ```bash
