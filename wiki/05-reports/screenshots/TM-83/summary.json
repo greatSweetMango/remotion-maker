@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-05-12T14:52:07.319Z",
+  "finishedAt": "2026-05-12T14:54:43.001Z",
+  "base": "http://127.0.0.1:3083",
+  "totalPrompts": 14,
+  "overallAccuracy": {
+    "correct": 13,
+    "total": 14,
+    "pct": 93
+  },
+  "byCategory": {
+    "character": {
+      "n": 7,
+      "total": 7,
+      "pct": 100
+    },
+    "motion-graphics": {
+      "n": 5,
+      "total": 5,
+      "pct": 100
+    },
+    "style-character": {
+      "n": 1,
+      "total": 2,
+      "pct": 50
+    }
+  },
+  "skeletonHitsTotal": 0,
+  "acceptance": {
+    "overall_accuracy_gte_90": true,
+    "character_clarify_pct_gte_86": true,
+    "motion_graphics_generate_pct_100": true,
+    "skeleton_hits_zero": true,
+    "style_specified_pct_100": false
+  },
+  "mismatches": [
+    {
+      "id": "S2",
+      "cat": "style-character",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "low-poly 3D dragon flying"
+    }
+  ],
+  "verdict": "APPROVE"
+}
