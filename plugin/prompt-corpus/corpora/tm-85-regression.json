@@ -1,0 +1,39 @@
+{
+  "name": "tm-85-regression",
+  "description": "TM-85 regression corpus — 30 prompts spanning {character, motion-graphics, data-viz, typography}. Used for nightly full regression + visual-judge gating (TM-46 r2 baseline). Frozen 2026-05-13 per TM-105.",
+  "prompts": [
+    { "id": "char-01", "category": "character",       "prompt": "Cute mascot character waving hand, round body, pastel blue, 2D flat style, bouncing animation" },
+    { "id": "char-02", "category": "character",       "prompt": "고양이 캐릭터가 박스에서 머리만 내미는 애니메이션, 주황색 줄무늬, 귀 살랑살랑" },
+    { "id": "char-03", "category": "character",       "prompt": "Stick figure jumping with joy, three frames loop, black on white" },
+    { "id": "char-04", "category": "character",       "prompt": "Smiley face emoji bouncing in with spring effect, yellow, eyes blinking" },
+    { "id": "char-05", "category": "character",       "prompt": "Robot character with antenna blinking red, gray body, sliding in from left" },
+    { "id": "char-06", "category": "character",       "prompt": "강아지 캐릭터 꼬리 흔드는 루프, 갈색 털, 흰 배경" },
+    { "id": "char-07", "category": "character",       "prompt": "Ghost character floating up and down, semi-transparent white, purple background" },
+    { "id": "char-08", "category": "character",       "prompt": "Pixel-art knight raising sword, 16-bit palette, 4-frame loop" },
+
+    { "id": "mg-01",   "category": "motion-graphics", "prompt": "Slide transition from left to right, two colored panels (purple to teal)" },
+    { "id": "mg-02",   "category": "motion-graphics", "prompt": "원이 화면을 가득 채우며 다음 색으로 전환, 노랑→파랑" },
+    { "id": "mg-03",   "category": "motion-graphics", "prompt": "Circular spinner loader, 8 dots rotating, primary blue color" },
+    { "id": "mg-04",   "category": "motion-graphics", "prompt": "Morph transition from circle to square, single accent color (#FF6B6B)" },
+    { "id": "mg-05",   "category": "motion-graphics", "prompt": "Iris-out transition, black aperture closing on a red background" },
+    { "id": "mg-06",   "category": "motion-graphics", "prompt": "진행률 바 0%에서 100%까지, 초록색, 둥근 모서리" },
+    { "id": "mg-07",   "category": "motion-graphics", "prompt": "Bouncing 3 dots loader, gray on white, ease-in-out" },
+    { "id": "mg-08",   "category": "motion-graphics", "prompt": "Step indicator 1-2-3-4 with checkmarks animating in, green accent" },
+
+    { "id": "dv-01",   "category": "data-viz",        "prompt": "Animated counter from 0 to 100 with spring effect, blue text on transparent background" },
+    { "id": "dv-02",   "category": "data-viz",        "prompt": "월별 매출 막대그래프, 1월부터 6월까지 [120, 150, 180, 200, 240, 280] 단위 만원, 보라색 톤" },
+    { "id": "dv-03",   "category": "data-viz",        "prompt": "Pie chart with 4 slices: 40% sales, 30% marketing, 20% R&D, 10% admin, pastel colors" },
+    { "id": "dv-04",   "category": "data-viz",        "prompt": "Line graph showing growth from 10 to 90, smooth curve, green gradient stroke" },
+    { "id": "dv-05",   "category": "data-viz",        "prompt": "Animated percentage ring filling from 0% to 75%, neon cyan color, dark background" },
+    { "id": "dv-06",   "category": "data-viz",        "prompt": "Horizontal bar race, 5 brands [Apple 320, Samsung 280, Xiaomi 200, Google 150, Sony 100], orange theme" },
+    { "id": "dv-07",   "category": "data-viz",        "prompt": "도넛 차트 60%/40% 분할, 부드럽게 채워지는 애니메이션, 파란색 강조" },
+
+    { "id": "ty-01",   "category": "typography",      "prompt": "\"Hello World\" 타이핑 효과, 모노스페이스 폰트, 흰 배경 검정 글씨" },
+    { "id": "ty-02",   "category": "typography",      "prompt": "Big bold \"SALE\" text bouncing in with spring, red color, drop shadow" },
+    { "id": "ty-03",   "category": "typography",      "prompt": "Glitchy cyberpunk title \"SYSTEM ONLINE\", green RGB shift effect" },
+    { "id": "ty-04",   "category": "typography",      "prompt": "Word-by-word reveal of the sentence \"Make the impossible possible\", elegant serif font" },
+    { "id": "ty-05",   "category": "typography",      "prompt": "\"NEW\" 글자가 회전하면서 등장, 금색 그라데이션, 5초 길이" },
+    { "id": "ty-06",   "category": "typography",      "prompt": "Numbers 3, 2, 1, GO! countdown with each number scaling up and fading out" },
+    { "id": "ty-07",   "category": "typography",      "prompt": "Handwritten signature \"Claude\" stroke animation, black ink on white" }
+  ]
+}
