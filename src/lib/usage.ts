@@ -1,9 +1,23 @@
+// TM-81 — this module is server-only. It top-level imports `prisma`, which
+// transitively pulls `node:fs` (via @prisma/client → adapter loaders) into
+// whatever chunk it lands in. Turbopack errors with
+//   "the chunking context (unknown) does not support external modules
+//    (request: node:fs)"
+// the moment any client component reaches this file through its import
+// graph. The `'server-only'` sentinel converts that silent bundle pull into
+// a clear build error at the entry point, so we catch future regressions
+// (e.g. someone re-adding `import { TIER_LIMITS } from '@/lib/usage'` in a
+// client component) instead of shipping prisma to the browser. Client
+// components MUST import TIER_LIMITS from `@/lib/tier-limits` directly.
+import 'server-only';
+
 import type { Tier } from '@/types';
 import { prisma } from '@/lib/db/prisma';
 import { TIER_LIMITS } from '@/lib/tier-limits';
 
 // Re-exported for backwards compatibility — prefer importing from
-// `@/lib/tier-limits` in client components (TM-98).
+// `@/lib/tier-limits` in client components (TM-98). Note: server-only above
+// means any client-side import of this re-export will fail at build time.
 export { TIER_LIMITS };
 
 /**
