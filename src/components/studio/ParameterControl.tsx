@@ -8,6 +8,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { searchLucideCatalog, DEFAULT_LUCIDE_ICON } from '@/lib/lucide-catalog';
 import type { Parameter } from '@/types';
 
@@ -267,8 +271,29 @@ function UploadParameterControl({ param, value, onChange, ariaLabelledBy }: Uplo
     return () => { cancelled = true; controller.abort(); };
   }, [kind]);
 
+  // TM-88: only image params with a stored `regen_prompt` annotation expose
+  // the AI Regenerate button. Without a seed prompt we'd be forcing the user
+  // to write one from scratch — the upload picker is the better path for that
+  // case (or they should re-prompt the whole composition).
+  const showRegen = kind === 'image' && typeof param.regenPrompt === 'string' && param.regenPrompt.length > 0;
+
   return (
     <div className="space-y-1.5">
+      {/* TM-88: image preview thumbnail. Shown above the picker when the
+          current value resolves to a renderable URL (http(s)/data:). For
+          fonts this slot stays empty — the font name is enough. */}
+      {kind === 'image' && typeof value === 'string' && /^(https?:|data:image\/)/.test(value) && (
+        <div className="rounded-md border border-slate-600 overflow-hidden bg-slate-900 aspect-video flex items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URLs / arbitrary hosts; <Image> would require remotePatterns config and breaks for data: */}
+          <img
+            src={value}
+            alt={`${param.label} preview`}
+            className="max-h-full max-w-full object-contain"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       <Select value={value || ''} onValueChange={onChange}>
         <SelectTrigger aria-labelledby={ariaLabelledBy} className="bg-slate-700 border-slate-600 text-white text-xs">
           <SelectValue placeholder={loading ? 'Loading…' : `Pick ${kind}…`} />
@@ -289,10 +314,197 @@ function UploadParameterControl({ param, value, onChange, ariaLabelledBy }: Uplo
           })}
         </SelectContent>
       </Select>
+
+      {showRegen && (
+        <RegenerateImageButton
+          paramKey={param.key}
+          paramLabel={param.label}
+          initialPrompt={param.regenPrompt ?? ''}
+          onRegenerated={onChange}
+        />
+      )}
+
       {value && kind === 'image' && (
         <div className="mt-1 text-[10px] text-slate-400 truncate font-mono">{value}</div>
       )}
     </div>
+  );
+}
+
+interface RegenerateImageButtonProps {
+  paramKey: string;
+  paramLabel: string;
+  initialPrompt: string;
+  onRegenerated: (url: string) => void;
+}
+
+interface RegenSuccess {
+  imageUrl: string;
+  costUsd: number;
+  latencyMs: number;
+}
+
+/**
+ * TM-88 / ADR-0022 — "Regenerate" button for `type:image` PARAMS.
+ *
+ * Opens a dialog pre-filled with the prompt the AI used to make this image.
+ * User can edit it freely (no length cap beyond the server's validatePrompt
+ * 2000-char limit). Submit → POST /api/asset/regen-image → response.imageUrl
+ * is piped back via `onRegenerated`, which the parent uses to update
+ * `paramValues[paramKey]`.
+ *
+ * Cost & tier semantics: the server enforces PRO-only. Free users will see
+ * the 403 surface as an inline error with `upgradeRequired: true`; we render
+ * a short message + link cue rather than crashing.
+ */
+function RegenerateImageButton({
+  paramKey,
+  paramLabel,
+  initialPrompt,
+  onRegenerated,
+}: RegenerateImageButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<RegenSuccess | null>(null);
+
+  // Reset prompt buffer to the latest seed whenever the dialog opens —
+  // otherwise a previous failed attempt's edits would persist forever.
+  // Done in the onOpenChange callback rather than a useEffect to avoid the
+  // react-hooks/set-state-in-effect lint (effects with sync setState cause
+  // cascading renders — TM-90/TM-91 housekeeping).
+  const handleOpenChange = React.useCallback((next: boolean) => {
+    setOpen(next);
+    if (next) {
+      setPrompt(initialPrompt);
+      setError(null);
+    }
+  }, [initialPrompt]);
+
+  const onSubmit = React.useCallback(async () => {
+    if (submitting) return;
+    const trimmed = prompt.trim();
+    if (!trimmed) {
+      setError('Prompt cannot be empty.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const r = await fetch('/api/asset/regen-image', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: trimmed, paramKey }),
+      });
+      const d = await r.json().catch(() => ({} as Record<string, unknown>));
+      if (!r.ok) {
+        const msg = typeof d.error === 'string' ? d.error : `Regenerate failed (${r.status})`;
+        setError(d.upgradeRequired ? `${msg} Upgrade to Pro to use AI image regeneration.` : msg);
+        return;
+      }
+      const imageUrl = typeof d.imageUrl === 'string' ? d.imageUrl : null;
+      if (!imageUrl) {
+        setError('Response missing imageUrl.');
+        return;
+      }
+      setLastResult({
+        imageUrl,
+        costUsd: typeof d.costUsd === 'number' ? d.costUsd : 0,
+        latencyMs: typeof d.latencyMs === 'number' ? d.latencyMs : 0,
+      });
+      onRegenerated(imageUrl);
+      setOpen(false); // skip seed-reset on programmatic close — keeps lastResult cost line readable
+    } catch (err) {
+      setError((err as Error)?.message ?? 'Network error');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [prompt, paramKey, onRegenerated, submitting]);
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-xs border-violet-700 text-violet-200 hover:bg-violet-900/30 hover:text-white"
+          onClick={() => handleOpenChange(true)}
+          data-testid={`regen-image-btn-${paramKey}`}
+        >
+          <Sparkles aria-hidden className="h-3 w-3 mr-1" />
+          Regenerate with AI
+        </Button>
+        {lastResult && (
+          <span className="text-[10px] text-slate-500 font-mono">
+            ${lastResult.costUsd.toFixed(2)} · {Math.round(lastResult.latencyMs / 100) / 10}s
+          </span>
+        )}
+      </div>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Regenerate {paramLabel}</DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Edit the prompt and we&apos;ll generate a fresh image. ~$0.04 per call (Pro only).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`regen-prompt-${paramKey}`} className="text-xs text-slate-300">
+              Prompt
+            </Label>
+            <Textarea
+              id={`regen-prompt-${paramKey}`}
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              disabled={submitting}
+              rows={5}
+              className="bg-slate-800 border-slate-600 text-white text-xs"
+              data-testid={`regen-prompt-input-${paramKey}`}
+            />
+            {error && (
+              <p className="text-xs text-red-400" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenChange(false)}
+              disabled={submitting}
+              className="text-slate-400 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onSubmit}
+              disabled={submitting || prompt.trim().length === 0}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              data-testid={`regen-submit-${paramKey}`}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 aria-hidden className="h-3 w-3 mr-1 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Sparkles aria-hidden className="h-3 w-3 mr-1" />
+                  Regenerate
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

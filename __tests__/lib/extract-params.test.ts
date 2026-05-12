@@ -42,6 +42,49 @@ const PARAMS = {
     expect(params[0].sequenceIds).toBeUndefined();
   });
 
+  // TM-88 / ADR-0022 — regen_prompt annotation for type:image PARAMS
+  it('parses double-quoted regen_prompt annotation on type:image', () => {
+    const code = `
+const PARAMS = {
+  hero: "data:image/png;base64,AAAA", // type: image, regen_prompt: "a cute bear walking in a meadow"
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('image');
+    expect(params[0].regenPrompt).toBe('a cute bear walking in a meadow');
+  });
+
+  it('parses regen_prompt with embedded commas (the comma-grammar foot-gun)', () => {
+    const code = `
+const PARAMS = {
+  hero: "x", // type: image, regen_prompt: "곰돌이, 친근한 캐릭터, watercolor"
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params[0].regenPrompt).toBe('곰돌이, 친근한 캐릭터, watercolor');
+  });
+
+  it('accepts single-quoted regen_prompt', () => {
+    const code = `
+const PARAMS = {
+  hero: "x", // type: image, regen_prompt: 'corgi on a beach'
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params[0].regenPrompt).toBe('corgi on a beach');
+  });
+
+  it('leaves regenPrompt undefined when annotation absent (backward compat)', () => {
+    const code = `
+const PARAMS = {
+  hero: "x", // type: image
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params[0].regenPrompt).toBeUndefined();
+  });
+
   it('preserves existing min/max parsing alongside sequence annotation', () => {
     const code = `
 const PARAMS = {
