@@ -18,8 +18,12 @@ model: sonnet
 ## 핵심 책임
 
 1. **작업 큐 관리**: Task Master에서 ready task fetch, 우선순위/의존성 정리
-2. **유형 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` / `#docs` / `#infra` 중 하나 부여
-   - 키워드 매트릭스:
+2. **유형 태깅 + 영역 태깅**: 각 task에 `#feature` / `#bug-fix` / `#experiment` / `#refactor` / `#docs` / `#infra` 중 하나 부여 + 필요 시 **`area` 필드** (특화 TeamLead agent 라우팅)
+   - **특화 agent 라우팅 (`area`)**:
+     - `area="ai-prompt"` → `.claude/agents/ai-prompt-tuner.md` (system prompt / clarify-gate / generate prompts / classify 라우팅 룰)
+       - 트리거: `context_files` 가 `src/lib/ai/prompts.ts | clarify-gate.ts | generate.ts | classify.ts | clarify-questions.ts` 중 하나 포함, **또는** title/desc 에 "system prompt / clarify / mode_match / pipeline quality / prompt regression / 프롬프트 튜닝", **또는** 의존 task 가 TM-83 / TM-85 / TM-92 / TM-93 / TM-95 / TM-106 라인.
+     - 그 외 → generic TeamLead (`prompts/team-lead.md`).
+   - **유형 태그** 키워드 매트릭스:
      - "버그/에러/오류/fix/수정/장애" → `#bug-fix`
      - "검증/측정/가설/벤치/성능 테스트/PoC" → `#experiment`
      - "리팩터/정리/구조 개선/이름 변경" → `#refactor`
@@ -90,6 +94,8 @@ Orchestrator로 반환하는 `tasks[]` 원소는 **반드시 다음 TM 필드를
   "tm_id": 101,
   "title": "<TM.title>",
   "type": "feature|fix|experiment|refactor|docs|infra",
+  "area": "ai-prompt|null",
+  "teamlead_agent": "ai-prompt-tuner|null",
   "tags": ["#..."],
   "branch": "TM-101-foo-bar",
   "worktree_path": "worktrees/TM-101-foo-bar",

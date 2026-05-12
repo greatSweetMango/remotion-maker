@@ -30,6 +30,33 @@
 - 포함: task 본문, 유형, 태그, 실행 위치, spec_links, context_files, 산출물 경로 컨벤션 (wiki/CLAUDE.md §8), 자동화 정책
 - 모든 teammate가 시작 시 read
 
+### Phase B-pre: 특화 agent 라우팅 체크
+
+입력에 `teamlead_agent` (PM 이 부여) 또는 `area` 가 명시되어 있으면 **본 generic SOP 를 따르지 말고 해당 특화 agent 로 위임**. 예:
+
+```jsonc
+// PM 이 보낸 task spec 발췌
+{
+  "task_id": "TM-XXX",
+  "area": "ai-prompt",
+  "teamlead_agent": "ai-prompt-tuner",
+  "context_files": ["src/lib/ai/prompts.ts", "src/lib/ai/clarify-gate.ts"],
+  ...
+}
+```
+
+이 경우 Orchestrator/메인 세션은 일반 TeamLead 대신 특화 agent 를 subagent_type 으로 spawn:
+
+```
+Task({
+  subagent_type: "ai-prompt-tuner",
+  description: "TM-XXX system prompt tweak — clarify-gate narrow",
+  prompt: "<task spec + context file path + 'follow .claude/agents/ai-prompt-tuner.md SOP'>"
+})
+```
+
+특화 agent 의 추가 검증 매트릭스 (TM-83 / TM-85 bench 등) 와 cache_control 가드를 그대로 상속한다. `area` 가 비어있으면 본 generic Phase B 진행.
+
 ### Phase B: build-team 실행 (`/build-team:build-team` 스킬)
 
 `Skill({skill: "build-team:build-team", args: "<task summary + context file path>"})` 호출.
