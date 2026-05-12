@@ -1,0 +1,924 @@
+{
+  "startedAt": "2026-05-12T14:52:07.319Z",
+  "base": "http://127.0.0.1:3083",
+  "results": [
+    {
+      "id": "C1",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "곰돌이 캐릭터가 초원을 걸어가는 10초가량의 애니메이션 만들어줘",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 6730,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "visual_style",
+          "question": "애니메이션의 전체적인 스타일은?",
+          "choices": [
+            {
+              "id": "cartoon",
+              "label": "만화"
+            },
+            {
+              "id": "realistic",
+              "label": "사실적"
+            },
+            {
+              "id": "minimal",
+              "label": "미니멀"
+            }
+          ]
+        },
+        {
+          "id": "bear_appearance",
+          "question": "곰돌이 캐릭터의 외형은?",
+          "choices": [
+            {
+              "id": "cute",
+              "label": "귀여운"
+            },
+            {
+              "id": "adventurous",
+              "label": "모험가"
+            },
+            {
+              "id": "classic",
+              "label": "클래식"
+            }
+          ]
+        },
+        {
+          "id": "background_music",
+          "question": "배경 음악의 분위기는?",
+          "choices": [
+            {
+              "id": "calm",
+              "label": "잔잔"
+            },
+            {
+              "id": "cheerful",
+              "label": "명랑"
+            },
+            {
+              "id": "mysterious",
+              "label": "신비"
+            }
+          ]
+        },
+        {
+          "id": "time_of_day",
+          "question": "초원의 시간대는?",
+          "choices": [
+            {
+              "id": "day",
+              "label": "낮"
+            },
+            {
+              "id": "sunset",
+              "label": "노을"
+            },
+            {
+              "id": "night",
+              "label": "밤"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "강아지가 공을 쫓아가는 애니메이션",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 7526,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "style",
+          "question": "애니메이션 스타일은?",
+          "choices": [
+            {
+              "id": "cartoon",
+              "label": "카툰"
+            },
+            {
+              "id": "realistic",
+              "label": "리얼리틱"
+            },
+            {
+              "id": "minimal",
+              "label": "미니멀"
+            }
+          ]
+        },
+        {
+          "id": "background",
+          "question": "배경은 어떤가요?",
+          "choices": [
+            {
+              "id": "park",
+              "label": "공원"
+            },
+            {
+              "id": "beach",
+              "label": "해변"
+            },
+            {
+              "id": "yard",
+              "label": "마당"
+            }
+          ]
+        },
+        {
+          "id": "pacing",
+          "question": "애니메이션 속도는?",
+          "choices": [
+            {
+              "id": "slow",
+              "label": "느리게"
+            },
+            {
+              "id": "medium",
+              "label": "보통"
+            },
+            {
+              "id": "fast",
+              "label": "빠르게"
+            }
+          ]
+        },
+        {
+          "id": "dog_breed",
+          "question": "강아지의 품종은?",
+          "choices": [
+            {
+              "id": "labrador",
+              "label": "래브라도"
+            },
+            {
+              "id": "poodle",
+              "label": "푸들"
+            },
+            {
+              "id": "bulldog",
+              "label": "불독"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "용이 하늘을 나는 장면 5초",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 7408,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "dragon_style",
+          "question": "용의 스타일은?",
+          "choices": [
+            {
+              "id": "realistic",
+              "label": "사실적"
+            },
+            {
+              "id": "cartoon",
+              "label": "만화적"
+            },
+            {
+              "id": "fantasy",
+              "label": "판타지"
+            }
+          ]
+        },
+        {
+          "id": "sky_palette",
+          "question": "하늘의 색감은?",
+          "choices": [
+            {
+              "id": "daylight",
+              "label": "낮"
+            },
+            {
+              "id": "sunset",
+              "label": "노을"
+            },
+            {
+              "id": "night",
+              "label": "밤"
+            }
+          ]
+        },
+        {
+          "id": "bgm_mood",
+          "question": "배경 음악 분위기는?",
+          "choices": [
+            {
+              "id": "calm",
+              "label": "잔잔"
+            },
+            {
+              "id": "epic",
+              "label": "웅장"
+            },
+            {
+              "id": "mystical",
+              "label": "신비"
+            }
+          ]
+        },
+        {
+          "id": "camera_angle",
+          "question": "카메라 각도는?",
+          "choices": [
+            {
+              "id": "side_view",
+              "label": "측면"
+            },
+            {
+              "id": "below_view",
+              "label": "아래에서"
+            },
+            {
+              "id": "above_view",
+              "label": "위에서"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "사람이 춤추는 영상",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 6257,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "dance_style",
+          "question": "춤 스타일은?",
+          "choices": [
+            {
+              "id": "hiphop",
+              "label": "힙합"
+            },
+            {
+              "id": "ballet",
+              "label": "발레"
+            },
+            {
+              "id": "salsa",
+              "label": "살사"
+            },
+            {
+              "id": "contemporary",
+              "label": "컨템포러리"
+            }
+          ]
+        },
+        {
+          "id": "visual_style",
+          "question": "영상의 시각적 스타일은?",
+          "choices": [
+            {
+              "id": "realistic",
+              "label": "리얼리틱"
+            },
+            {
+              "id": "cartoon",
+              "label": "카툰"
+            },
+            {
+              "id": "abstract",
+              "label": "추상적"
+            },
+            {
+              "id": "vintage",
+              "label": "빈티지"
+            }
+          ]
+        },
+        {
+          "id": "background_music",
+          "question": "배경 음악의 분위기는?",
+          "choices": [
+            {
+              "id": "calm",
+              "label": "잔잔"
+            },
+            {
+              "id": "energetic",
+              "label": "에너제틱"
+            },
+            {
+              "id": "romantic",
+              "label": "로맨틱"
+            },
+            {
+              "id": "dramatic",
+              "label": "드라마틱"
+            }
+          ]
+        },
+        {
+          "id": "duration",
+          "question": "영상 길이는?",
+          "choices": [
+            {
+              "id": "short",
+              "label": "짧게 (~10초)"
+            },
+            {
+              "id": "medium",
+              "label": "중간 (~30초)"
+            },
+            {
+              "id": "long",
+              "label": "길게 (~1분)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C5",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "공룡이 숲을 걸어가는 애니메이션 10초",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 10332,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "dinosaur_type",
+          "question": "어떤 종류의 공룡인가요?",
+          "choices": [
+            {
+              "id": "t_rex",
+              "label": "티라노사우루스"
+            },
+            {
+              "id": "triceratops",
+              "label": "트리케라톱스"
+            },
+            {
+              "id": "brachiosaurus",
+              "label": "브라키오사우루스"
+            },
+            {
+              "id": "velociraptor",
+              "label": "벨로시랩터"
+            }
+          ]
+        },
+        {
+          "id": "forest_type",
+          "question": "숲의 종류는?",
+          "choices": [
+            {
+              "id": "tropical",
+              "label": "열대우림"
+            },
+            {
+              "id": "coniferous",
+              "label": "침엽수림"
+            },
+            {
+              "id": "deciduous",
+              "label": "낙엽수림"
+            },
+            {
+              "id": "prehistoric",
+              "label": "선사시대"
+            }
+          ]
+        },
+        {
+          "id": "visual_style",
+          "question": "시각적 스타일은?",
+          "choices": [
+            {
+              "id": "realistic",
+              "label": "사실적"
+            },
+            {
+              "id": "cartoon",
+              "label": "만화"
+            },
+            {
+              "id": "minimal",
+              "label": "미니멀"
+            },
+            {
+              "id": "fantasy",
+              "label": "판타지"
+            }
+          ]
+        },
+        {
+          "id": "bgm_mood",
+          "question": "배경 음악의 분위기는?",
+          "choices": [
+            {
+              "id": "calm",
+              "label": "잔잔"
+            },
+            {
+              "id": "adventurous",
+              "label": "모험적"
+            },
+            {
+              "id": "mysterious",
+              "label": "신비로운"
+            },
+            {
+              "id": "intense",
+              "label": "강렬"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C6",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "person walking in a forest, 8 seconds",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 6109,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "visual_style",
+          "question": "What visual style should the animation have?",
+          "choices": [
+            {
+              "id": "realistic",
+              "label": "Realistic"
+            },
+            {
+              "id": "cartoon",
+              "label": "Cartoon"
+            },
+            {
+              "id": "sketch",
+              "label": "Sketch"
+            },
+            {
+              "id": "abstract",
+              "label": "Abstract"
+            }
+          ]
+        },
+        {
+          "id": "forest_type",
+          "question": "What type of forest is it?",
+          "choices": [
+            {
+              "id": "tropical",
+              "label": "Tropical"
+            },
+            {
+              "id": "temperate",
+              "label": "Temperate"
+            },
+            {
+              "id": "boreal",
+              "label": "Boreal"
+            },
+            {
+              "id": "mystical",
+              "label": "Mystical"
+            }
+          ]
+        },
+        {
+          "id": "time_of_day",
+          "question": "What time of day is it?",
+          "choices": [
+            {
+              "id": "morning",
+              "label": "Morning"
+            },
+            {
+              "id": "afternoon",
+              "label": "Afternoon"
+            },
+            {
+              "id": "evening",
+              "label": "Evening"
+            },
+            {
+              "id": "night",
+              "label": "Night"
+            }
+          ]
+        },
+        {
+          "id": "person_appearance",
+          "question": "What is the person's appearance?",
+          "choices": [
+            {
+              "id": "casual",
+              "label": "Casual"
+            },
+            {
+              "id": "adventurer",
+              "label": "Adventurer"
+            },
+            {
+              "id": "mysterious",
+              "label": "Mysterious"
+            },
+            {
+              "id": "formal",
+              "label": "Formal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C7",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "a cat playing with yarn",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": true,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 5281,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "cat_breed",
+          "question": "What breed of cat?",
+          "choices": [
+            {
+              "id": "persian",
+              "label": "Persian"
+            },
+            {
+              "id": "siamese",
+              "label": "Siamese"
+            },
+            {
+              "id": "maine_coon",
+              "label": "Maine Coon"
+            },
+            {
+              "id": "tabby",
+              "label": "Tabby"
+            }
+          ]
+        },
+        {
+          "id": "yarn_color",
+          "question": "What color is the yarn?",
+          "choices": [
+            {
+              "id": "red",
+              "label": "Red"
+            },
+            {
+              "id": "blue",
+              "label": "Blue"
+            },
+            {
+              "id": "green",
+              "label": "Green"
+            },
+            {
+              "id": "yellow",
+              "label": "Yellow"
+            }
+          ]
+        },
+        {
+          "id": "background_style",
+          "question": "Background style?",
+          "choices": [
+            {
+              "id": "living_room",
+              "label": "Living room"
+            },
+            {
+              "id": "garden",
+              "label": "Garden"
+            },
+            {
+              "id": "plain",
+              "label": "Plain color"
+            },
+            {
+              "id": "patterned",
+              "label": "Patterned"
+            }
+          ]
+        },
+        {
+          "id": "animation_style",
+          "question": "Animation style?",
+          "choices": [
+            {
+              "id": "realistic",
+              "label": "Realistic"
+            },
+            {
+              "id": "cartoon",
+              "label": "Cartoon"
+            },
+            {
+              "id": "minimal",
+              "label": "Minimal"
+            },
+            {
+              "id": "sketch",
+              "label": "Sketch"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "Animated counter from 0 to 100 with spring effect",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 1691,
+      "paramsCount": 6,
+      "skeletonHits": [],
+      "latencyMs": 5108,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "M2",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "빨간 카운터 0~100, 3초",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 1914,
+      "paramsCount": 6,
+      "skeletonHits": [],
+      "latencyMs": 6754,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "M3",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "원형 스피너 8개 점, 파란색",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 2226,
+      "paramsCount": 8,
+      "skeletonHits": [],
+      "latencyMs": 13513,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "M4",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "Comic book POW! text exploding outward",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 1488,
+      "paramsCount": 5,
+      "skeletonHits": [],
+      "latencyMs": 15478,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "M5",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "타이핑 효과 \"Hello World\", 모노스페이스",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 1928,
+      "paramsCount": 6,
+      "skeletonHits": [],
+      "latencyMs": 5599,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "S1",
+      "cat": "style-character",
+      "expect": "generate",
+      "prompt": "픽셀아트 곰돌이가 걷는 10초 애니메이션",
+      "status": 200,
+      "ok": true,
+      "mode": "generate",
+      "matchedExpect": true,
+      "codeLen": 1309,
+      "paramsCount": 5,
+      "skeletonHits": [],
+      "latencyMs": 17733,
+      "error": null,
+      "clarifyQuestions": null
+    },
+    {
+      "id": "S2",
+      "cat": "style-character",
+      "expect": "generate",
+      "prompt": "low-poly 3D dragon flying",
+      "status": 200,
+      "ok": true,
+      "mode": "clarify",
+      "matchedExpect": false,
+      "codeLen": 0,
+      "paramsCount": 0,
+      "skeletonHits": [],
+      "latencyMs": 6952,
+      "error": null,
+      "clarifyQuestions": [
+        {
+          "id": "flight_style",
+          "question": "How should the dragon fly?",
+          "choices": [
+            {
+              "id": "graceful",
+              "label": "Graceful"
+            },
+            {
+              "id": "powerful",
+              "label": "Powerful"
+            },
+            {
+              "id": "playful",
+              "label": "Playful"
+            }
+          ]
+        },
+        {
+          "id": "environment",
+          "question": "What environment is the dragon flying in?",
+          "choices": [
+            {
+              "id": "mountains",
+              "label": "Mountains"
+            },
+            {
+              "id": "forest",
+              "label": "Forest"
+            },
+            {
+              "id": "sky",
+              "label": "Open sky"
+            },
+            {
+              "id": "cave",
+              "label": "Cave"
+            }
+          ]
+        },
+        {
+          "id": "color_palette",
+          "question": "What color palette should be used?",
+          "choices": [
+            {
+              "id": "earthy",
+              "label": "Earthy tones"
+            },
+            {
+              "id": "vibrant",
+              "label": "Vibrant colors"
+            },
+            {
+              "id": "monochrome",
+              "label": "Monochrome"
+            }
+          ]
+        },
+        {
+          "id": "duration",
+          "question": "How long should the animation be?",
+          "choices": [
+            {
+              "id": "short",
+              "label": "Short (~5 seconds)"
+            },
+            {
+              "id": "medium",
+              "label": "Medium (~10 seconds)"
+            },
+            {
+              "id": "long",
+              "label": "Long (~20 seconds)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "startedAt": "2026-05-12T14:52:07.319Z",
+    "finishedAt": "2026-05-12T14:54:43.001Z",
+    "base": "http://127.0.0.1:3083",
+    "totalPrompts": 14,
+    "overallAccuracy": {
+      "correct": 13,
+      "total": 14,
+      "pct": 93
+    },
+    "byCategory": {
+      "character": {
+        "n": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "motion-graphics": {
+        "n": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "style-character": {
+        "n": 1,
+        "total": 2,
+        "pct": 50
+      }
+    },
+    "skeletonHitsTotal": 0,
+    "acceptance": {
+      "overall_accuracy_gte_90": true,
+      "character_clarify_pct_gte_86": true,
+      "motion_graphics_generate_pct_100": true,
+      "skeleton_hits_zero": true,
+      "style_specified_pct_100": false
+    },
+    "mismatches": [
+      {
+        "id": "S2",
+        "cat": "style-character",
+        "expect": "generate",
+        "got": "clarify",
+        "prompt": "low-poly 3D dragon flying"
+      }
+    ],
+    "verdict": "APPROVE"
+  }
+}
