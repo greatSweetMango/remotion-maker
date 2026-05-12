@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.easymake.dashboard-rollup-weekly</string>
+
+  <!--
+    TM-104 weekly dashboard roll-up.
+    매주 일요일 23:50 (meta-analysis 보다 9분 먼저 실행 → meta-analyzer 가
+    최신 dashboard 를 입력으로 활용 가능).
+    EasyMake 저장소 절대경로는 사용자가 등록 시 __REPO_ROOT__ 치환.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd __REPO_ROOT__ &amp;&amp; git fetch origin &amp;&amp; git checkout main &amp;&amp; git pull --ff-only &amp;&amp; node scripts/dashboard/roll-up.mjs &gt;&gt; .agent-state/dashboard-logs/launchd.log 2&gt;&amp;1</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer> <!-- 0 = Sunday -->
+    <key>Hour</key>
+    <integer>23</integer>
+    <key>Minute</key>
+    <integer>50</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/.agent-state/dashboard-logs/weekly.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/.agent-state/dashboard-logs/weekly.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

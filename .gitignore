@@ -50,6 +50,8 @@ next-env.d.ts
 .agent-state/loop-count
 .agent-state/context-*.md
 .agent-state/STOP
+.agent-state/dashboard.json
+.agent-state/dashboard-logs/
 
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/
