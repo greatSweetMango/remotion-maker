@@ -1,0 +1,201 @@
+src/proxy.ts:6 - default
+src/proxy.ts:28 - config
+__tests__/benchmarks/params-extraction.benchmark.ts:16 - BenchmarkCategory (used in module)
+__tests__/benchmarks/tm-108-bench.ts:68 - TM108_CASES (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:108 - measureRouting (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:195 - summarize (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:250 - fullClassifierRun
+__tests__/benchmarks/tm-33-routing.benchmark.ts:21 - ComplexityLabel (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:24 - COMPLEXITY_LABELS (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:90 - RoutingMeasurement (used in module)
+__tests__/benchmarks/tm-33-routing.benchmark.ts:184 - RoutingSummary (used in module)
+__tests__/benchmarks/tm-46-capture.ts:54 - captureViaFetch (used in module)
+__tests__/benchmarks/tm-46-capture.ts:110 - CAPTURE_FRAMES (used in module)
+scripts/fuzz/cases.ts:14 - FuzzCategory (used in module)
+src/app/layout.tsx:18 - default
+src/app/layout.tsx:9 - metadata
+src/hooks/useActiveSequence.tsx:50 - ActiveSequenceProviderProps (used in module)
+src/hooks/useFpsMonitor.ts:5 - UseFpsMonitorOptions (used in module)
+src/hooks/useFpsMonitor.ts:16 - FpsMonitorState (used in module)
+src/lib/auth.ts:14 - signOut
+src/lib/lucide-catalog.ts:8 - LucideCatalogEntry (used in module)
+src/lib/palettes.ts:14 - PaletteSlot (used in module)
+src/lib/prompt-suggestions.ts:13 - PromptCategory (used in module)
+src/lib/tier-limits.ts:17 - satisfies
+src/lib/tier-limits.ts:17 - Record
+src/remotion/UniversalComposition.tsx:10 - UniversalComposition (used in module)
+src/types/index.ts:1 - Tier (used in module)
+src/types/index.ts:3 - ParameterType (used in module)
+src/types/index.ts:5 - Parameter (used in module)
+src/types/index.ts:25 - GeneratedAsset (used in module)
+src/types/index.ts:37 - AssetVersion (used in module)
+src/types/index.ts:63 - LastFailed (used in module)
+src/types/index.ts:69 - StudioState
+src/types/index.ts:95 - ClarifyChoice (used in module)
+src/types/index.ts:100 - ClarifyQuestion (used in module)
+src/types/index.ts:106 - ClarifyResponse
+src/types/index.ts:110 - GenerateApiResponse
+src/types/index.ts:115 - ClarifyAnswers (used in module)
+src/types/index.ts:117 - ClarifyState (used in module)
+src/types/index.ts:122 - StudioAction
+src/types/index.ts:151 - Template
+src/types/index.ts:166 - ExportFormat
+src/types/index.ts:168 - UsageInfo
+src/app/(marketing)/layout.tsx:6 - default
+src/app/(marketing)/page.tsx:4 - default
+src/app/dashboard/page.tsx:16 - default
+src/app/dev-eval-fixture/page.tsx:17 - default
+src/app/dev-eval-fixture/page.tsx:15 - dynamic
+src/app/dev-fluid-preview/page.tsx:14 - default
+src/app/dev-fluid-preview/page.tsx:12 - dynamic
+src/app/dev-login/page.tsx:8 - default
+src/app/studio/page.tsx:12 - default
+src/app/trash/page.tsx:14 - default
+src/app/trash/page.tsx:11 - dynamic
+src/app/trash/page.tsx:12 - revalidate
+src/components/studio/HistoryGraph.tsx:288 - default
+src/components/studio/PromptPanel.tsx:66 - PromptMode (used in module)
+src/components/trash/TrashList.tsx:8 - TrashItemData (used in module)
+src/components/ui/avatar.tsx:106 - Avatar (used in module)
+src/components/ui/avatar.tsx:107 - AvatarImage (used in module)
+src/components/ui/avatar.tsx:108 - AvatarFallback (used in module)
+src/components/ui/avatar.tsx:109 - AvatarGroup (used in module)
+src/components/ui/avatar.tsx:110 - AvatarGroupCount (used in module)
+src/components/ui/avatar.tsx:111 - AvatarBadge (used in module)
+src/components/ui/badge.tsx:49 - badgeVariants (used in module)
+src/components/ui/button.tsx:67 - buttonVariants (used in module)
+src/components/ui/card.tsx:98 - CardFooter (used in module)
+src/components/ui/card.tsx:100 - CardAction (used in module)
+src/components/ui/dialog.tsx:159 - DialogClose (used in module)
+src/components/ui/dialog.tsx:164 - DialogOverlay (used in module)
+src/components/ui/dialog.tsx:165 - DialogPortal (used in module)
+src/components/ui/dropdown-menu.tsx:255 - DropdownMenuPortal (used in module)
+src/components/ui/dropdown-menu.tsx:258 - DropdownMenuGroup (used in module)
+src/components/ui/dropdown-menu.tsx:259 - DropdownMenuLabel (used in module)
+src/components/ui/dropdown-menu.tsx:261 - DropdownMenuCheckboxItem (used in module)
+src/components/ui/dropdown-menu.tsx:262 - DropdownMenuRadioGroup (used in module)
+src/components/ui/dropdown-menu.tsx:263 - DropdownMenuRadioItem (used in module)
+src/components/ui/dropdown-menu.tsx:265 - DropdownMenuShortcut (used in module)
+src/components/ui/dropdown-menu.tsx:266 - DropdownMenuSub (used in module)
+src/components/ui/dropdown-menu.tsx:267 - DropdownMenuSubTrigger (used in module)
+src/components/ui/dropdown-menu.tsx:268 - DropdownMenuSubContent (used in module)
+src/components/ui/popover.tsx:83 - PopoverAnchor (used in module)
+src/components/ui/popover.tsx:85 - PopoverDescription (used in module)
+src/components/ui/popover.tsx:86 - PopoverHeader (used in module)
+src/components/ui/popover.tsx:87 - PopoverTitle (used in module)
+src/components/ui/scroll-area.tsx:55 - ScrollBar (used in module)
+src/components/ui/select.tsx:184 - SelectGroup (used in module)
+src/components/ui/select.tsx:186 - SelectLabel (used in module)
+src/components/ui/select.tsx:187 - SelectScrollDownButton (used in module)
+src/components/ui/select.tsx:188 - SelectScrollUpButton (used in module)
+src/components/ui/select.tsx:189 - SelectSeparator (used in module)
+src/components/ui/skeleton.tsx:13 - Skeleton (used in module)
+src/components/ui/tabs.tsx:90 - tabsListVariants (used in module)
+src/components/ui/tooltip.tsx:57 - Tooltip (used in module)
+src/components/ui/tooltip.tsx:57 - TooltipContent (used in module)
+src/components/ui/tooltip.tsx:57 - TooltipProvider (used in module)
+src/components/ui/tooltip.tsx:57 - TooltipTrigger (used in module)
+src/lib/ai/asset-gen.ts:25 - GenerateAssetImageOptions (used in module)
+src/lib/ai/asset-gen.ts:35 - GenerateAssetImageResult (used in module)
+src/lib/ai/clarify-gate.ts:63 - ConcretenessReport (used in module)
+src/lib/ai/clarify-questions.ts:52 - CLARIFY_QUESTION_GENERATOR_SYSTEM_PROMPT (used in module)
+src/lib/ai/clarify-questions.ts:336 - GenerateClarifyQuestionsOptions (used in module)
+src/lib/ai/classify.ts:104 - classifyWithHaiku (used in module)
+src/lib/ai/refusal.ts:29 - RefusalCategory (used in module)
+src/lib/ai/refusal.ts:31 - RefusalClassification (used in module)
+src/lib/ai/retrieval.ts:30 - RagCategory (used in module)
+src/lib/ai/retrieval.ts:40 - ReferenceTemplate (used in module)
+src/lib/ai/router.ts:14 - RouteDecision (used in module)
+src/lib/ai/spend.ts:125 - resolveSpendPath (used in module)
+src/lib/ai/spend.ts:24 - AnthropicUsage (used in module)
+src/lib/ai/spend.ts:31 - OpenAIUsage (used in module)
+src/lib/ai/spend.ts:37 - Provider (used in module)
+src/lib/ai/spend.ts:39 - PriceTable (used in module)
+src/lib/ai/spend.ts:51 - ANTHROPIC_PRICES (used in module)
+src/lib/ai/spend.ts:62 - OPENAI_PRICES (used in module)
+src/lib/ai/spend.ts:155 - RecordUsageInput (used in module)
+src/lib/ai/spend.ts:163 - RecordUsageResult (used in module)
+src/lib/ai/stream.ts:15 - StreamOptions (used in module)
+src/lib/ai/stream.ts:24 - StreamResult (used in module)
+src/lib/db/prisma.ts:5 - Prisma (used in module)
+src/lib/ingest/url.ts:56 - fetchHtml (used in module)
+src/lib/ingest/url.ts:19 - formatIngestForPrompt
+src/lib/ingest/url.ts:19 - IngestedContext (used in module)
+src/lib/perf/fps-sampler.ts:12 - FpsSamplerOptions (used in module)
+src/lib/perf/fps-sampler.ts:94 - AssetDims (used in module)
+src/lib/remotion/evaluator.ts:60 - EvaluatorError (used in module)
+src/lib/remotion/evaluator.ts:70 - EvaluationResult (used in module)
+src/lib/storage/index.ts:17 - getStorageProvider
+src/lib/storage/index.ts:36 - _resetStorageProviderForTest
+src/lib/storage/index.ts:41 - ALLOWED_IMAGE_MIME
+src/lib/storage/index.ts:49 - ALLOWED_FONT_MIME
+src/lib/storage/index.ts:63 - FONT_EXT
+src/lib/storage/index.ts:64 - IMAGE_EXT
+src/lib/storage/index.ts:66 - MAX_IMAGE_BYTES
+src/lib/storage/index.ts:67 - MAX_FONT_BYTES
+src/lib/storage/index.ts:69 - StorageProvider (used in module)
+src/lib/storage/index.ts:69 - StorageKind
+src/lib/storage/index.ts:69 - StorageObject
+src/lib/storage/index.ts:69 - PutOptions
+src/lib/validation/prompt.ts:54 - PromptValidationError (used in module)
+src/remotion/templates/AreaChart.tsx:14 - AreaChart
+src/remotion/templates/BarChart.tsx:14 - BarChart
+src/remotion/templates/BezierPath.tsx:19 - BezierPath
+src/remotion/templates/CirclePulse.tsx:12 - CirclePulse
+src/remotion/templates/ComicEffect.tsx:12 - ComicEffect
+src/remotion/templates/Constellation.tsx:18 - Constellation
+src/remotion/templates/CounterAnimation.tsx:14 - CounterAnimation
+src/remotion/templates/DataStory.tsx:21 - DataStory
+src/remotion/templates/DonutChart.tsx:16 - DonutChart
+src/remotion/templates/FlowField.tsx:18 - FlowField
+src/remotion/templates/GlitchEffect.tsx:19 - GlitchEffect
+src/remotion/templates/GlowingText.tsx:12 - GlowingText
+src/remotion/templates/GradientOrbs.tsx:12 - GradientOrbs
+src/remotion/templates/HighlightReel.tsx:18 - HighlightReel
+src/remotion/templates/HolographicCard.tsx:18 - HolographicCard
+src/remotion/templates/IconBadge.tsx:13 - IconBadge
+src/remotion/templates/LineChart.tsx:15 - LineChart
+src/remotion/templates/LiquidWave.tsx:17 - LiquidWave
+src/remotion/templates/LogoReveal.tsx:12 - LogoReveal
+src/remotion/templates/LowerThird.tsx:12 - LowerThird
+src/remotion/templates/MorphingGeometry.tsx:16 - MorphingGeometry
+src/remotion/templates/ParticleField.tsx:11 - ParticleField
+src/remotion/templates/ParticlePhysics.tsx:15 - ParticlePhysics
+src/remotion/templates/ProductIntro.tsx:21 - ProductIntro
+src/remotion/templates/ProgressBar.tsx:14 - ProgressBar
+src/remotion/templates/ProgressCircle.tsx:13 - ProgressCircle
+src/remotion/templates/RotatingText.tsx:14 - RotatingText
+src/remotion/templates/SplitText.tsx:13 - SplitText
+src/remotion/templates/TextReveal.tsx:12 - TextReveal
+src/remotion/templates/Timeline.tsx:13 - Timeline
+src/remotion/templates/TypeExplosion.tsx:15 - TypeExplosion
+src/remotion/templates/Typewriter.tsx:12 - Typewriter
+src/remotion/templates/WaveText.tsx:13 - WaveText
+src/remotion/templates/ZoomTransition.tsx:13 - ZoomTransition
+src/app/(auth)/login/page.tsx:201 - default
+src/app/(marketing)/pricing/page.tsx:30 - default
+src/app/api/edit/route.ts:9 - runtime
+src/app/api/export/route.ts:45 - POST
+src/app/api/export/route.ts:10 - runtime
+src/app/api/export/route.ts:11 - maxDuration
+src/app/api/generate/route.ts:10 - runtime
+src/app/api/usage/route.ts:6 - GET
+src/app/share/[slug]/page.tsx:37 - generateMetadata
+src/app/share/[slug]/page.tsx:52 - default
+src/app/share/[slug]/page.tsx:12 - dynamic
+src/app/share/[slug]/page.tsx:13 - revalidate
+src/app/api/auth/[...nextauth]/route.ts:2 - GET
+src/app/api/auth/[...nextauth]/route.ts:2 - POST
+src/app/api/auth/register/route.ts:5 - POST
+src/app/api/dev/auto-login/route.ts:11 - GET
+src/app/api/dev/auto-login/route.ts:6 - runtime
+src/app/api/ingest/url/route.ts:20 - POST
+src/app/api/ingest/url/route.ts:5 - runtime
+src/app/api/ingest/url/route.ts:7 - dynamic
+src/app/api/stripe/checkout/route.ts:6 - POST
+src/app/api/stripe/webhook/route.ts:20 - POST
+src/app/api/stripe/webhook/route.ts:6 - runtime
+src/app/api/upload/[id]/route.ts:10 - DELETE
+src/app/api/asset/[id]/share/route.ts:16 - POST
+src/app/api/asset/[id]/share/route.ts:87 - DELETE
+src/app/api/upload/file/[...path]/route.ts:35 - GET
