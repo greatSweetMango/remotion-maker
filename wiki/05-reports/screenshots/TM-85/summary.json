@@ -1,0 +1,101 @@
+{
+  "startedAt": "2026-05-12T15:08:59.930Z",
+  "finishedAt": "2026-05-12T15:30:14.192Z",
+  "base": "http://127.0.0.1:3085",
+  "totalPrompts": 30,
+  "modeMatch": {
+    "matched": 25,
+    "total": 30,
+    "pct": 83.3
+  },
+  "byCategory": {
+    "character": {
+      "n": 10,
+      "mode_match": 10,
+      "mode_match_pct": 100
+    },
+    "motion-graphics": {
+      "n": 10,
+      "mode_match": 10,
+      "mode_match_pct": 100
+    },
+    "data-viz": {
+      "n": 5,
+      "mode_match": 0,
+      "mode_match_pct": 0
+    },
+    "typography": {
+      "n": 5,
+      "mode_match": 5,
+      "mode_match_pct": 100
+    }
+  },
+  "skeletonHitsTotal": 0,
+  "edits": {
+    "attempted": 90,
+    "ok": 90
+  },
+  "paramsPreservation": {
+    "paramsLostTotal": 0,
+    "unintendedTotal": 2,
+    "unintendedPct": 2.2
+  },
+  "latency": {
+    "generate": {
+      "n": 30,
+      "avgMs": 11318,
+      "p50Ms": 10786,
+      "p95Ms": 25125
+    },
+    "edit_overall": {
+      "n": 90,
+      "avgMs": 7067,
+      "p50Ms": 6676,
+      "p95Ms": 11392
+    }
+  },
+  "acceptance": {
+    "mode_match_gte_90": false,
+    "skeleton_hits_zero": true,
+    "params_lost_zero": true,
+    "unintended_pct_lte_10": true
+  },
+  "mismatches": [
+    {
+      "id": "D01",
+      "cat": "data-viz",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "Bar chart top 5 products by revenue"
+    },
+    {
+      "id": "D02",
+      "cat": "data-viz",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "막대 그래프 매출 상위 10"
+    },
+    {
+      "id": "D03",
+      "cat": "data-viz",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "Pie chart device breakdown 4 segments"
+    },
+    {
+      "id": "D04",
+      "cat": "data-viz",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "Line chart stock price daily"
+    },
+    {
+      "id": "D05",
+      "cat": "data-viz",
+      "expect": "generate",
+      "got": "clarify",
+      "prompt": "Donut chart user signups"
+    }
+  ],
+  "verdict": "REQUEST_CHANGES"
+}
