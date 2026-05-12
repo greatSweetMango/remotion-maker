@@ -54,3 +54,6 @@ next-env.d.ts
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/
 .playwright-mcp/
+
+# TM-84 spike — live OpenAI asset outputs, never commit.
+/.spike-assets/

@@ -1,0 +1,53 @@
+{
+  "task": "TM-84",
+  "ts": "2026-05-12T15:03:50.661Z",
+  "budgetUsd": 0.2,
+  "runningCostUsd": 0.12,
+  "callsAttempted": 3,
+  "callsSucceeded": 3,
+  "latencyMsValues": [
+    38178,
+    44389,
+    36931
+  ],
+  "latencyMsP50": 38178,
+  "results": [
+    {
+      "id": "P1",
+      "label": "bear-meadow",
+      "ok": true,
+      "latencyMs": 38178,
+      "sizeBytes": 1801786,
+      "sizeKb": 1760,
+      "sanityOk": true,
+      "pngPath": ".spike-assets/P1-57db66ecee066bf7.png",
+      "costUsd": 0.04,
+      "dataUrlPreview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7…"
+    },
+    {
+      "id": "P2",
+      "label": "corgi-beach",
+      "ok": true,
+      "latencyMs": 44389,
+      "sizeBytes": 2009293,
+      "sizeKb": 1962,
+      "sanityOk": true,
+      "pngPath": ".spike-assets/P2-f9e44085ace5f29c.png",
+      "costUsd": 0.04,
+      "dataUrlPreview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7…"
+    },
+    {
+      "id": "P3",
+      "label": "person-forest",
+      "ok": true,
+      "latencyMs": 36931,
+      "sizeBytes": 2025682,
+      "sizeKb": 1978,
+      "sanityOk": true,
+      "pngPath": ".spike-assets/P3-ad4a3f53f0d5515c.png",
+      "costUsd": 0.04,
+      "dataUrlPreview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7…"
+    }
+  ],
+  "remotionStubPath": ".spike-assets/TM84Spike.stub.tsx"
+}
