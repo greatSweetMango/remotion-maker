@@ -20,6 +20,14 @@ export interface Parameter {
    * `// sequence: a|b|global` annotations on the PARAMS line.
    */
   sequenceIds?: string[];
+  /**
+   * TM-88 / ADR-0022 — original prompt used to generate this `type:image`
+   * asset (gpt-image-1). When present, the Customize UI surfaces a
+   * "Regenerate" button that pre-fills the prompt editor. The user can tweak
+   * the prompt and call `/api/asset/regen-image` to mint a fresh `imageUrl`
+   * (data URL or R2 key) in place. Only meaningful for `type === 'image'`.
+   */
+  regenPrompt?: string;
 }
 
 export interface GeneratedAsset {

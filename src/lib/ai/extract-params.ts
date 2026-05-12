@@ -27,6 +27,19 @@ export function extractParameters(code: string): Parameter[] {
       ? sequenceMatch[1].split('|').map(s => s.trim()).filter(Boolean)
       : undefined;
 
+    // TM-88 / ADR-0022 — `regen_prompt:` annotation for type:image params.
+    // The LLM (asset-gen stage) emits the original prompt it used to generate
+    // the image; the customize UI surfaces a "Regenerate" button that lets the
+    // user edit this prompt and call /api/asset/regen-image to get a fresh
+    // imageUrl. The prompt string may contain spaces, commas, etc., but MUST
+    // be wrapped in a quoted string to avoid colliding with the comma-separated
+    // annotation grammar — we accept either '...', "..." or `...`.
+    // Example: `imageUrl: "..." // type: image, regen_prompt: "곰돌이 캐릭터, 친근한"`
+    const regenPromptMatch = rest.match(/regen_prompt:\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`)/);
+    const regenPrompt = regenPromptMatch
+      ? (regenPromptMatch[1] ?? regenPromptMatch[2] ?? regenPromptMatch[3])
+      : undefined;
+
     const label = key
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, s => s.toUpperCase())
@@ -58,6 +71,7 @@ export function extractParameters(code: string): Parameter[] {
       unit: unitMatch?.[1],
       options: optionsMatch ? optionsMatch[1].split('|') : undefined,
       sequenceIds,
+      regenPrompt,
     });
   }
 
