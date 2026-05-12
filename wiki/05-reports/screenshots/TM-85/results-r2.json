@@ -1,0 +1,2827 @@
+{
+  "startedAt": "2026-05-12T15:46:57.492Z",
+  "base": "http://127.0.0.1:3106",
+  "results": [
+    {
+      "id": "C01",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "곰돌이 캐릭터가 초원을 걸어가는 10초 애니메이션",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "visual_style": "cartoon",
+        "bear_appearance": "cute",
+        "background_music": "calm",
+        "palette": "vibrant"
+      },
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 7490,
+      "latency_clarify_round_ms": 10442,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5494,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 13712,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7700,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C02",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "강아지가 공을 쫓는 5초 애니메이션",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "visual_style": "cartoon",
+        "background": "park",
+        "dog_breed": "labrador",
+        "ball_color": "red"
+      },
+      "code_len_final": 2112,
+      "params_count": 6,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 6994,
+      "latency_clarify_round_ms": 15111,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7678,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "dogColor",
+                "before": "'#F5CBA7'",
+                "after": "'#FF0066'"
+              }
+            ],
+            "unintendedCount": 1,
+            "unintendedChanges": [
+              {
+                "key": "dogColor",
+                "before": "'#F5CBA7'",
+                "after": "'#FF0066'"
+              }
+            ]
+          },
+          "codeLen": 1540,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5795,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2112,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 4891,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2112,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 1,
+      "error": null
+    },
+    {
+      "id": "C03",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "용이 하늘을 나는 장면",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "dragon_style": "realistic",
+        "sky_appearance": "daytime",
+        "pacing": "slow",
+        "bgm_mood": "calm"
+      },
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 6236,
+      "latency_clarify_round_ms": 13304,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7121,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8879,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9870,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C04",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "사람이 춤추는 영상",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "dance_style": "hiphop",
+        "visual_style": "realistic",
+        "background_music": "calm",
+        "duration": "short"
+      },
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 5525,
+      "latency_clarify_round_ms": 13471,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5898,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7631,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7416,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C05",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "공룡이 숲을 걸어가는 10초",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "dinosaur_type": "t_rex",
+        "forest_type": "tropical",
+        "visual_style": "realistic",
+        "bgm_mood": "calm"
+      },
+      "code_len_final": 2665,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 5393,
+      "latency_clarify_round_ms": 17170,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6516,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 10042,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6284,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C06",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "a cat playing with yarn",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "style": "cartoon",
+        "color_palette": "warm",
+        "background": "indoor",
+        "pacing": "slow"
+      },
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 6399,
+      "latency_clarify_round_ms": 14548,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5333,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8416,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8544,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C07",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "person walking in a forest 8 seconds",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "visual_style": "realistic",
+        "forest_type": "tropical",
+        "time_of_day": "morning",
+        "background_music_mood": "calm"
+      },
+      "code_len_final": 2665,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 7221,
+      "latency_clarify_round_ms": 18514,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6318,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7394,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7546,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C08",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "rabbit hopping in a garden",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "visual_style": "realistic",
+        "garden_type": "flower",
+        "pacing": "slow",
+        "bgm_mood": "calm"
+      },
+      "code_len_final": 2881,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 4941,
+      "latency_clarify_round_ms": 15221,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6744,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8097,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2881,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8010,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2881,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C09",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "robot dancing in cyber city",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "robot_style": "humanoid",
+        "dance_style": "hip_hop",
+        "city_ambiance": "neon",
+        "bgm_mood": "upbeat"
+      },
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 6167,
+      "latency_clarify_round_ms": 11829,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5519,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6772,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7617,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "C10",
+      "cat": "character",
+      "expect": "clarify",
+      "prompt": "astronaut floating in space",
+      "mode_first": "clarify",
+      "mode_match": true,
+      "clarify_questions_count": 4,
+      "answers_used": {
+        "visual_style": "realistic",
+        "background": "starfield",
+        "pacing": "slow",
+        "bgm_mood": "calm"
+      },
+      "code_len_final": 2907,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 5763,
+      "latency_clarify_round_ms": 16177,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6508,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8179,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7799,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M01",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "Animated counter from 0 to 100 with spring effect, blue",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 13809,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5455,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9788,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7320,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M02",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "빨간 카운터 0~100, 3초",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2665,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 14488,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6988,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8373,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6981,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2665,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M03",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "원형 스피너 8개 점, 파란색",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 13326,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6468,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9086,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6630,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M04",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "Comic book POW! text exploding outward",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 14779,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6732,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8444,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6096,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M05",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "타이핑 효과 \"Hello World\", 모노스페이스",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2719,
+      "params_count": 6,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 10393,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5434,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "textColor",
+                "before": "\"#ffffff\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 1,
+            "unintendedChanges": [
+              {
+                "key": "textColor",
+                "before": "\"#ffffff\"",
+                "after": "\"#FF0066\""
+              }
+            ]
+          },
+          "codeLen": 1929,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5817,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2719,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 4774,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "4",
+                "after": "6"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2719,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 1,
+      "error": null
+    },
+    {
+      "id": "M06",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "loading bar 0 to 100 percent green",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2648,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 12657,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6542,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6997,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2648,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7640,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2648,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M07",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "타이머 1분 카운트다운",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2702,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 15247,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7708,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7411,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2702,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8433,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2702,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M08",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "circular progress 8 segments orange",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2907,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 20387,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5535,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7325,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7399,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M09",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "fade in fade out logo 2 seconds",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 26971,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5690,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7547,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6305,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "M10",
+      "cat": "motion-graphics",
+      "expect": "generate",
+      "prompt": "slide transition left to right two panels",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 11687,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5577,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7670,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6893,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "D01",
+      "cat": "data-viz",
+      "expect": "generate",
+      "prompt": "Bar chart top 5 products by revenue",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 27022,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6397,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 10380,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7331,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "D02",
+      "cat": "data-viz",
+      "expect": "generate",
+      "prompt": "막대 그래프 매출 상위 10",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 36663,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9426,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 10189,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9168,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "D03",
+      "cat": "data-viz",
+      "expect": "generate",
+      "prompt": "Pie chart device breakdown 4 segments",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 34519,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5950,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7766,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 20828,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "D04",
+      "cat": "data-viz",
+      "expect": "generate",
+      "prompt": "Line chart stock price daily",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2907,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 46396,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6853,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8144,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7537,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2907,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "D05",
+      "cat": "data-viz",
+      "expect": "generate",
+      "prompt": "Donut chart user signups",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 40078,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 11022,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7214,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7364,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "T01",
+      "cat": "typography",
+      "expect": "generate",
+      "prompt": "Glitch text effect \"BREAKING\"",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 4806,
+      "params_count": 9,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 36830,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 16457,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#ff2e6c\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 4126,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 14350,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 4657,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 13841,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 4806,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "T02",
+      "cat": "typography",
+      "expect": "generate",
+      "prompt": "Wave animation text \"Hello\"",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2648,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 15565,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8358,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8165,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2648,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8172,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2648,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "T03",
+      "cat": "typography",
+      "expect": "generate",
+      "prompt": "네온 글로우 텍스트 \"OPEN\"",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2878,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 15332,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 11102,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8734,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7513,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2878,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "T04",
+      "cat": "typography",
+      "expect": "generate",
+      "prompt": "Particle explosion countdown 5 4 3 2 1",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 21541,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 5990,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 8444,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6848,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    },
+    {
+      "id": "T05",
+      "cat": "typography",
+      "expect": "generate",
+      "prompt": "타이포그래피 \"WELCOME\" 그라데이션",
+      "mode_first": "generate",
+      "mode_match": true,
+      "clarify_questions_count": 0,
+      "answers_used": null,
+      "code_len_final": 2905,
+      "params_count": 8,
+      "skeleton_markers_hit": [],
+      "latency_generate_ms": 15709,
+      "latency_clarify_round_ms": 0,
+      "edits": [
+        {
+          "turnId": "color",
+          "prompt": "Change primaryColor to #FF0066 (hot pink)",
+          "intentKey": "primaryColor",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6427,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "primaryColor",
+                "before": "\"#7C3AED\"",
+                "after": "\"#FF0066\""
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2226,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "scene",
+          "prompt": "Add a new scene at the end with a fade-out title saying \"The End\"",
+          "intentKey": "__code_growth__",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 7995,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 0,
+            "changed": [],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        },
+        {
+          "turnId": "speed",
+          "prompt": "Increase animation speed by 50% (set speed to 1.5 if it exists)",
+          "intentKey": "speed",
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9993,
+          "error": null,
+          "diff": {
+            "lostCount": 0,
+            "lostKeys": [],
+            "changedCount": 1,
+            "changed": [
+              {
+                "key": "speed",
+                "before": "1.0",
+                "after": "1.5"
+              }
+            ],
+            "unintendedCount": 0,
+            "unintendedChanges": []
+          },
+          "codeLen": 2905,
+          "skeletonHits": []
+        }
+      ],
+      "edits_ok": 3,
+      "params_lost_total": 0,
+      "unintended_total": 0,
+      "error": null
+    }
+  ],
+  "summary": {
+    "startedAt": "2026-05-12T15:46:57.492Z",
+    "finishedAt": "2026-05-12T16:09:40.017Z",
+    "base": "http://127.0.0.1:3106",
+    "totalPrompts": 30,
+    "modeMatch": {
+      "matched": 30,
+      "total": 30,
+      "pct": 100
+    },
+    "byCategory": {
+      "character": {
+        "n": 10,
+        "mode_match": 10,
+        "mode_match_pct": 100
+      },
+      "motion-graphics": {
+        "n": 10,
+        "mode_match": 10,
+        "mode_match_pct": 100
+      },
+      "data-viz": {
+        "n": 5,
+        "mode_match": 5,
+        "mode_match_pct": 100
+      },
+      "typography": {
+        "n": 5,
+        "mode_match": 5,
+        "mode_match_pct": 100
+      }
+    },
+    "skeletonHitsTotal": 0,
+    "edits": {
+      "attempted": 90,
+      "ok": 90
+    },
+    "paramsPreservation": {
+      "paramsLostTotal": 0,
+      "unintendedTotal": 2,
+      "unintendedPct": 2.2
+    },
+    "latency": {
+      "generate": {
+        "n": 30,
+        "avgMs": 16851,
+        "p50Ms": 14488,
+        "p95Ms": 40078
+      },
+      "edit_overall": {
+        "n": 90,
+        "avgMs": 7897,
+        "p50Ms": 7513,
+        "p95Ms": 13712
+      }
+    },
+    "acceptance": {
+      "mode_match_gte_90": true,
+      "skeleton_hits_zero": true,
+      "params_lost_zero": true,
+      "unintended_pct_lte_10": true
+    },
+    "mismatches": [],
+    "verdict": "APPROVE"
+  }
+}
