@@ -195,27 +195,72 @@ function collectBenchSummaries(windowDays) {
 }
 
 // ─── data: spend ────────────────────────────────────────────────────────────
+// TM-119: extend roll-up with per-task / per-model / daily cost breakdown
+// pulled from `.agent-state/spend-ledger.jsonl` (TM-112 schema:
+// `{ ts, task_id, model, tokens_in, tokens_out, cost_usd, kind }`).
 function collectSpend(windowDays) {
   const stateDir = join(REPO_ROOT, '.agent-state');
   const spend = readJsonSafe(join(stateDir, 'spend.json'), {});
   const ledger = readJsonlSafe(join(stateDir, 'spend-ledger.jsonl'));
   const cutoff = Date.now() - windowDays * 86_400_000;
   const byKind = {};
+  const byTask = {};
+  const byModel = {};
+  const byDay = {}; // YYYY-MM-DD → cost
   let total = 0;
   let entries = 0;
+  let tokensIn = 0;
+  let tokensOut = 0;
   for (const r of ledger) {
     const t = Date.parse(r.ts || '');
     if (Number.isNaN(t) || t < cutoff) continue;
     const kind = r.kind || 'other';
+    const task = r.task_id || 'unknown';
+    const model = r.model || 'unknown';
     const c = Number(r.cost_usd) || 0;
+    const tin = Number(r.tokens_in) || 0;
+    const tout = Number(r.tokens_out) || 0;
+    const day = new Date(t).toISOString().slice(0, 10);
     byKind[kind] = (byKind[kind] || 0) + c;
+    if (!byTask[task]) byTask[task] = { cost: 0, calls: 0, tokens_in: 0, tokens_out: 0 };
+    byTask[task].cost += c;
+    byTask[task].calls += 1;
+    byTask[task].tokens_in += tin;
+    byTask[task].tokens_out += tout;
+    if (!byModel[model]) byModel[model] = { cost: 0, calls: 0, tokens_in: 0, tokens_out: 0 };
+    byModel[model].cost += c;
+    byModel[model].calls += 1;
+    byModel[model].tokens_in += tin;
+    byModel[model].tokens_out += tout;
+    byDay[day] = (byDay[day] || 0) + c;
     total += c;
+    tokensIn += tin;
+    tokensOut += tout;
     entries++;
   }
+  const round6 = (n) => Math.round(n * 1_000_000) / 1_000_000;
+  // Sort + clamp per-task/per-model to top N, round costs.
+  const topTasks = Object.entries(byTask)
+    .map(([task_id, v]) => ({ task_id, cost_usd: round6(v.cost), calls: v.calls, tokens_in: v.tokens_in, tokens_out: v.tokens_out }))
+    .sort((a, b) => b.cost_usd - a.cost_usd);
+  const topModels = Object.entries(byModel)
+    .map(([model, v]) => ({ model, cost_usd: round6(v.cost), calls: v.calls, tokens_in: v.tokens_in, tokens_out: v.tokens_out }))
+    .sort((a, b) => b.cost_usd - a.cost_usd);
+  const dailyTrend = Object.entries(byDay)
+    .map(([date, cost]) => ({ date, cost_usd: round6(cost) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const byKindRounded = Object.fromEntries(
+    Object.entries(byKind).map(([k, v]) => [k, round6(v)]),
+  );
   return {
-    ledger_window_total_usd: Math.round(total * 1_000_000) / 1_000_000,
+    ledger_window_total_usd: round6(total),
     ledger_window_entries: entries,
-    ledger_by_kind: byKind,
+    ledger_tokens_in: tokensIn,
+    ledger_tokens_out: tokensOut,
+    ledger_by_kind: byKindRounded,
+    ledger_by_task: topTasks,
+    ledger_by_model: topModels,
+    ledger_daily: dailyTrend,
     openai_total_usd: spend?.openai_total_usd ?? null,
     weekly_budget_usd: spend?.weekly_budget_usd ?? null,
     spend_current: spend?.current ?? null,
@@ -350,6 +395,40 @@ function renderMarkdown(agg) {
     .map(([k, val]) => `${k}=$${val.toFixed(4)}`)
     .join(', ') || '—';
 
+  // TM-119: per-task / per-model / daily breakdowns.
+  const TOP_TASKS_N = 10;
+  const TOP_MODELS_N = 10;
+  const perTaskTable =
+    (s.ledger_by_task || []).length === 0
+      ? '_(no per-task spend in window)_'
+      : [
+          '| task_id | cost_usd | calls | tokens_in | tokens_out |',
+          '|---|---|---|---|---|',
+          ...s.ledger_by_task.slice(0, TOP_TASKS_N).map(
+            (r) =>
+              `| ${r.task_id} | ${fmtUsd(r.cost_usd)} | ${r.calls} | ${r.tokens_in} | ${r.tokens_out} |`,
+          ),
+        ].join('\n');
+  const perModelTable =
+    (s.ledger_by_model || []).length === 0
+      ? '_(no per-model spend in window)_'
+      : [
+          '| model | cost_usd | calls | tokens_in | tokens_out |',
+          '|---|---|---|---|---|',
+          ...s.ledger_by_model.slice(0, TOP_MODELS_N).map(
+            (r) =>
+              `| ${r.model} | ${fmtUsd(r.cost_usd)} | ${r.calls} | ${r.tokens_in} | ${r.tokens_out} |`,
+          ),
+        ].join('\n');
+  const dailyTrendTable =
+    (s.ledger_daily || []).length === 0
+      ? '_(no daily spend in window)_'
+      : [
+          '| date | cost_usd |',
+          '|---|---|',
+          ...s.ledger_daily.map((r) => `| ${r.date} | ${fmtUsd(r.cost_usd)} |`),
+        ].join('\n');
+
   return `---
 title: Dashboard (auto)
 updated: ${date}
@@ -389,6 +468,18 @@ ${samplesTable}
 - **By kind:** ${spendKind}
 - **OpenAI cumulative (spend.json):** ${fmtUsd(s.openai_total_usd)}
 - **Weekly budget:** ${s.weekly_budget_usd == null ? '—' : `$${s.weekly_budget_usd}`}
+
+### Per-task cost (last ${w}d, top ${TOP_TASKS_N})
+
+${perTaskTable}
+
+### Per-model cost (last ${w}d, top ${TOP_MODELS_N})
+
+${perModelTable}
+
+### Daily spend trend (last ${w}d)
+
+${dailyTrendTable}
 
 ## Agent verdicts
 
