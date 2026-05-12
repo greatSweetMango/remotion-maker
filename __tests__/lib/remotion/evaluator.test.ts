@@ -114,6 +114,31 @@ describe('TM-116 — expanded Remotion globals destructure', () => {
   });
 });
 
+describe('TM-117 — Wrapped component carries a stable function name', () => {
+  // The Wrapped component the evaluator hands to <Player> previously was an
+  // arrow function (`Wrapped = (props) => ...`) whose `displayName` was set
+  // after construction. React's dev-mode componentStack in the studio
+  // EvaluatorErrorBoundary occasionally rendered it as `<Unknown>` (TM-108
+  // r4/r5 case 2/3). Converting to a `function EvaluatedAsset(...)`
+  // declaration ensures `.name` is set at construction time so dev tools
+  // and componentStack can resolve it even before `displayName` lookup.
+  beforeEach(() => clearEvaluatorCache());
+
+  it('exposes `name === "EvaluatedAsset"` on the returned component', () => {
+    const jsCode = `const Component = () => null;`;
+    const C = evaluateComponent(jsCode);
+    expect(C).not.toBeNull();
+    expect(C!.name).toBe('EvaluatedAsset');
+  });
+
+  it('keeps displayName === "EvaluatedAsset" as a belt-and-braces fallback', () => {
+    const jsCode = `const Component = () => null;`;
+    const C = evaluateComponent(jsCode);
+    expect(C).not.toBeNull();
+    expect((C as { displayName?: string }).displayName).toBe('EvaluatedAsset');
+  });
+});
+
 describe('evaluateComponent — 35 template regression', () => {
   // The full template set must round-trip through the evaluator without
   // returning null. This is the canary for refactor regressions.

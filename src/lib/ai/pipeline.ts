@@ -149,6 +149,35 @@ export function sanitizeForbiddenTokens(input: string): ForbiddenSanitizeResult 
     notes.push('replaced import.meta with undefined');
   }
 
+  // 7. TM-117 — `"use client"` / `"use server"` / `"use strict"` directives at
+  //    the head of a scene fragment make the composed module's line 1 start
+  //    with a string literal directive. After sanitizeCode strips imports,
+  //    such a directive lands on line 1 of the input to sucrase and, when
+  //    followed by certain trailing tokens, has been observed to manifest as
+  //    `Unexpected token, expected "(" (1:46)` (TM-108 r3/r5 case 1). The
+  //    composer doesn't need any of these — the wrapper is the only
+  //    legitimate place a directive belongs and the evaluator already runs
+  //    under `"use strict"`. Strip them defensively.
+  const directiveLine = /^[ \t]*['"]use (?:client|server|strict)['"];?[ \t]*\r?\n?/gm;
+  if (directiveLine.test(code)) {
+    code = code.replace(directiveLine, '');
+    notes.push('stripped "use client"/"use server"/"use strict" directives');
+  }
+
+  // 8. TM-117 — zero-width / BOM / non-breaking-space characters at the head
+  //    of a scene fragment trip sucrase's tokenizer (e.g. `﻿`, `​`,
+  //    ` `). gpt-4o occasionally emits these as decorative invisible
+  //    characters after copy-pasting from a doc-style prompt. Normalize to
+  //    standard spaces / strip entirely.
+  if (/[﻿​-‍⁠]/.test(code)) {
+    code = code.replace(/[﻿​-‍⁠]/g, '');
+    notes.push('stripped zero-width / BOM characters');
+  }
+  if (/ /.test(code)) {
+    code = code.replace(/ /g, ' ');
+    notes.push('replaced non-breaking spaces with regular spaces');
+  }
+
   return { code, notes };
 }
 
@@ -592,9 +621,33 @@ export async function generateSceneCode(
   if (!parsed) {
     throw new Error(`TM-102 scene-code[${sceneIdx}]: AI did not return valid JSON`);
   }
-  const rawCode = parsed.code as string | undefined;
+  let rawCode = parsed.code as string | undefined;
   if (!rawCode || rawCode.trim().length < 100) {
     throw new Error(`TM-102 scene-code[${sceneIdx}]: too short or missing`);
+  }
+  // TM-117 — gpt-4o occasionally double-escapes its `code` payload, returning
+  // `"code": "const x = {\\n  ..."` so JSON.parse yields a string containing
+  // LITERAL backslash-n two-character sequences rather than real newlines.
+  // sucrase then sees a single physical line whose `\n` token is an invalid
+  // escape inside an identifier context, surfacing as
+  // `Unexpected token, expected "(" (1:46)` (TM-108 r5 case 1). Unescape the
+  // common JSON-string escapes here so the downstream sanitize / transpile
+  // sees the same code the LLM "meant" to emit.
+  //
+  // We only run the rewrite when the fragment clearly contains literal
+  // escapes AND no real newlines (single-line payload). The heuristic avoids
+  // touching well-formed multi-line code where `\\n` might legitimately
+  // appear inside a string literal.
+  if (!/\n/.test(rawCode) && /\\n/.test(rawCode)) {
+    rawCode = rawCode
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '  ')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'");
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[TM-117] scene-code[${sceneIdx}] un-escaped literal \\n sequences`);
+    }
   }
   // TM-111 — pre-scrub gpt-4o failure tokens (require / globalThis /
   // dynamic import / Function ctor / process / import.meta) BEFORE the
@@ -851,7 +904,35 @@ export async function generateAssetMultiStep(
     sceneSpecs.map((spec, i) => generateSceneCode(outline, spec, i, model)),
   );
 
-  const composedCode = composeSceneCodes(outline, sceneCodes);
+  // TM-117 — per-scene transpile precheck. Even after TM-111 / TM-114 /
+  // TM-116 sanitisation, gpt-4o occasionally emits a fragment that survives
+  // the validator but trips sucrase at the composition stage (e.g. TM-108
+  // r5 case 1 `Unexpected token, expected "(" (1:46)`). Without this guard
+  // the whole pipeline 500s on a single bad scene. We probe each fragment
+  // independently and substitute a displayName-bearing placeholder for any
+  // fragment sucrase rejects so the remaining scenes still play.
+  const prechecked = await Promise.all(
+    sceneCodes.map(async (frag, i) => {
+      try {
+        // sucrase needs the same TS/JSX transforms the composed module gets.
+        await transpileTSX(frag);
+        return frag;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[TM-117] scene-code[${i}] failed transpile precheck — substituting placeholder: ${msg}`);
+        }
+        const n = i + 1;
+        // Placeholder that satisfies findSceneIdentifiers + supplies a
+        // displayName so the studio EB componentStack shows `<Scene{N}>`
+        // rather than `<Unknown>`. Defensive parity with the missing-component
+        // branch inside composeSceneCodes.
+        return `const Scene${n}Params = {};\nconst Scene${n} = () => <AbsoluteFill style={{ backgroundColor: 'transparent' }} />;\nScene${n}.displayName = ${JSON.stringify(`Scene${n}`)};`;
+      }
+    }),
+  );
+
+  const composedCode = composeSceneCodes(outline, prechecked);
 
   // TM-111 — apply forbidden-token sanitizer to the COMPOSED module too,
   // so any token introduced by the wrapper (or surviving sub-fragments)
