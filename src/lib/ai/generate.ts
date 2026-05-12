@@ -80,6 +80,23 @@ export function detectPlaceholderCode(code: string): string[] {
   if (/=>\s*null\s*[;\n)}]/.test(trimmed) && trimmed.length < 400) {
     reasons.push('component body is `() => null` placeholder');
   }
+  // Skeleton echo — model copied the system-prompt's template comments
+  // verbatim instead of writing real code. Discovered with the "곰돌이가 초원을
+  // 걷는 애니메이션" prompt: model emitted `// Complete TSX code here` +
+  // `{/* component content */}` + generic `text: "Hello World"` defaults.
+  // Length / PARAMS / JSX guards all passed because the skeleton looks valid.
+  if (/\/\/\s*Complete\s+TSX\s+code\s+here/i.test(trimmed)) {
+    reasons.push('skeleton comment `// Complete TSX code here` left in code');
+  }
+  if (/\{\s*\/\*\s*component\s+content\s*\*\/\s*\}/i.test(trimmed)) {
+    reasons.push('empty JSX placeholder `{/* component content */}` left in code');
+  }
+  if (/\/\/\s*\.\.\.\s*all\s+params/i.test(trimmed)) {
+    reasons.push('skeleton comment `// ... all params` left in code');
+  }
+  if (/\/\/\s*animation\s+logic\s*$/im.test(trimmed)) {
+    reasons.push('skeleton comment `// animation logic` left in code');
+  }
   return reasons;
 }
 

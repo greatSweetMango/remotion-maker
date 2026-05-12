@@ -239,6 +239,43 @@ describe('scoreConcreteness — TM-68 forceSkipClarify', () => {
   });
 });
 
+describe('scoreConcreteness — visual-domain signal gate', () => {
+  // Pure count+length (no visual signal) MUST NOT bypass clarify. The LLM
+  // can produce a quality result only when it knows HOW the output should
+  // look — duration alone doesn't tell it that. Discovered with the
+  // "곰돌이가 초원을 걸어가는 10초" prompt: model emitted skeleton placeholder
+  // because it had no style cue and no clarify was asked.
+  it('suppresses isConcrete when only count+length hits (no visual signal)', () => {
+    const r = scoreConcreteness('곰돌이 캐릭터가 초원을 걸어가는 10초가량의 애니메이션 만들어줘');
+    // Should hit count (10초) + length; no subject (곰돌이 not in SUBJECT_PATTERNS),
+    // no color, no style, no data.
+    expect(r.hits).toContain('count');
+    expect(r.hits).toContain('length');
+    expect(r.hits).not.toContain('color');
+    expect(r.hits).not.toContain('style');
+    expect(r.isConcrete).toBe(false);
+    expect(r.forceSkipClarify).toBe(false);
+  });
+
+  it('keeps isConcrete when count+length + style signal present', () => {
+    const r = scoreConcreteness('미니멀 곰돌이 걷기 10초 애니메이션');
+    expect(r.hits).toContain('style'); // 미니멀
+    expect(r.isConcrete).toBe(true);
+  });
+
+  it('keeps isConcrete when count+length + color signal present', () => {
+    const r = scoreConcreteness('빨간 동물 캐릭터 10초 애니메이션');
+    expect(r.hits).toContain('color'); // 빨간
+    expect(r.isConcrete).toBe(true);
+  });
+
+  it('keeps motion-graphics prompts (have subject hit) concrete', () => {
+    const r = scoreConcreteness('카운터 0~100, 3초');
+    expect(r.hits).toContain('subject'); // 카운터
+    expect(r.isConcrete).toBe(true);
+  });
+});
+
 describe('buildEntityCountReinforcement — TM-68', () => {
   it('quotes the entity count back to the model', () => {
     const r = buildEntityCountReinforcement(8);
