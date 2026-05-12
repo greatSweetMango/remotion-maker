@@ -207,7 +207,16 @@ const totalSets = results.length;
 const completedSets = results.filter(r => r.edits.length === 3 && r.edits.every(e => e.ok)).length;
 const failedGenerate = results.filter(r => !r.generate?.ok).length;
 
-const editStats = { total: 0, ok: 0, lost0: 0, unintended0: 0, lostTotal: 0, unintendedTotal: 0 };
+// editStats — distinguish EVENTS (count of edits with >0 unintended) vs
+// CHANGES (sum of unintended key-changes). TM-86 fix: r2 conflated them.
+const editStats = {
+  total: 0, ok: 0,
+  lost0: 0, lostTotalKeys: 0,
+  unintendedEvents: 0,           // # edits where >=1 unintended key changed
+  unintendedTotalChanges: 0,     // sum of unintended key-changes
+  unintended0: 0,                // # edits with zero unintended (for rate calc)
+};
+const unintendedDetails = [];
 const latencyByTurn = { generate: [], color: [], scene: [], speed: [] };
 
 for (const r of results) {
@@ -218,9 +227,17 @@ for (const r of results) {
       editStats.ok++;
       latencyByTurn[e.turnId]?.push(e.latencyMs);
       if (e.diff?.lostCount === 0) editStats.lost0++;
-      else editStats.lostTotal += e.diff?.lostCount ?? 0;
-      if (e.diff?.unintendedCount === 0) editStats.unintended0++;
-      else editStats.unintendedTotal += e.diff?.unintendedCount ?? 0;
+      else editStats.lostTotalKeys += e.diff?.lostCount ?? 0;
+      const u = e.diff?.unintendedCount ?? 0;
+      if (u === 0) editStats.unintended0++;
+      else {
+        editStats.unintendedEvents++;
+        editStats.unintendedTotalChanges += u;
+        unintendedDetails.push({
+          setId: r.setId, turnId: e.turnId,
+          unintendedCount: u, changes: e.diff?.unintendedChanges ?? [],
+        });
+      }
     }
   }
 }
@@ -255,8 +272,10 @@ const summary = {
   paramsPreservation: {
     paramsLossZeroRate: editStats.ok > 0 ? editStats.lost0 / editStats.ok : 0,
     unintendedChangeZeroRate: editStats.ok > 0 ? editStats.unintended0 / editStats.ok : 0,
-    totalLostKeys: editStats.lostTotal,
-    totalUnintendedChanges: editStats.unintendedTotal,
+    totalLostKeys: editStats.lostTotalKeys,
+    totalUnintendedEvents: editStats.unintendedEvents,
+    totalUnintendedChanges: editStats.unintendedTotalChanges,
+    unintendedDetails,
   },
   latency: {
     generate: pct(generateLatencies),
@@ -267,8 +286,8 @@ const summary = {
   },
   acceptance: {
     cacheHitRateGte80: 'N/A (OpenAI provider)',
-    paramsLossZero: editStats.lostTotal === 0,
-    unintendedChangeZero: editStats.unintendedTotal === 0,
+    paramsLossZero: editStats.lostTotalKeys === 0,
+    unintendedChangeZero: editStats.unintendedTotalChanges === 0,
   },
 };
 

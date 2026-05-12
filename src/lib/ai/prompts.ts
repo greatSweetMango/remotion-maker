@@ -524,7 +524,21 @@ Rules:
 - Keep all existing PARAMS unless the user explicitly asks to remove them
 - Add new PARAMS if the user request requires new customizable values
 - Maintain backward compatibility with existing PARAMS values
-- ALWAYS respond with valid JSON: { "title": "...", "code": "...", "durationInFrames": N, "fps": N, "width": N, "height": N }`;
+- ALWAYS respond with valid JSON: { "title": "...", "code": "...", "durationInFrames": N, "fps": N, "width": N, "height": N }
+
+PARAMS ISOLATION GUARD (ADR-0023 — strict isolation policy):
+- Identify the MINIMAL set of PARAMS keys that the user's request explicitly targets.
+- You MUST change ONLY those targeted keys. Every OTHER existing PARAMS key MUST keep its
+  exact same right-hand-side value (byte-for-byte: same literal, same quoting style, same
+  numeric form, same trailing // type: comment). Do NOT "improve", "harmonize", "match",
+  "rebalance", or "co-update" related keys (e.g. do not adjust secondaryColor when only
+  primaryColor was requested; do not tweak duration when only speed was requested).
+- If the user request literally names multiple keys, change all named keys; otherwise treat
+  the request as touching one key only.
+- Code OUTSIDE the PARAMS block may freely change to implement the request — isolation
+  applies to PARAMS key values, not to component logic, JSX, or new scenes.
+- When in doubt, prefer NOT changing a key. Conservativeness is correct here; the user can
+  always make a follow-up edit.`;
 
 export function buildEditMessages(existingCode: string, userRequest: string): AIMessage[] {
   return [
