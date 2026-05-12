@@ -1,66 +1,93 @@
 {
-  "startedAt": "2026-04-27T14:50:45.602Z",
-  "finishedAt": "2026-04-27T14:51:32.049Z",
+  "startedAt": "2026-05-12T15:17:04.289Z",
+  "finishedAt": "2026-05-12T15:28:09.750Z",
   "provider": "openai",
   "cacheStrategy": "N/A (OpenAI Chat Completions does not expose explicit cache_control; ADR-0003 currently inactive in this provider mode)",
   "totals": {
-    "sets": 2,
-    "completedSets": 2,
+    "sets": 20,
+    "completedSets": 20,
     "failedGenerate": 0,
-    "editAttempts": 6,
-    "editOk": 6
+    "editAttempts": 60,
+    "editOk": 60
   },
   "paramsPreservation": {
     "paramsLossZeroRate": 1,
-    "unintendedChangeZeroRate": 1,
+    "unintendedChangeZeroRate": 0.9666666666666667,
     "totalLostKeys": 0,
-    "totalUnintendedChanges": 0
+    "totalUnintendedEvents": 2,
+    "totalUnintendedChanges": 2,
+    "unintendedDetails": [
+      {
+        "setId": "set-06",
+        "turnId": "color",
+        "unintendedCount": 1,
+        "changes": [
+          {
+            "key": "textColor",
+            "before": "\"#ffffff\"",
+            "after": "\"#FF0066\""
+          }
+        ]
+      },
+      {
+        "setId": "set-09",
+        "turnId": "speed",
+        "unintendedCount": 1,
+        "changes": [
+          {
+            "key": "waveSpeed",
+            "before": "1.0",
+            "after": "1.5"
+          }
+        ]
+      }
+    ]
   },
   "latency": {
     "generate": {
-      "n": 2,
-      "avgMs": 4878,
-      "p50Ms": 5019,
-      "p95Ms": 5019,
-      "minMs": 4736,
-      "maxMs": 5019
+      "n": 20,
+      "avgMs": 12752,
+      "p50Ms": 13441,
+      "p95Ms": 23281,
+      "minMs": 5422,
+      "maxMs": 23281
     },
     "edit_color": {
-      "n": 2,
-      "avgMs": 4857,
-      "p50Ms": 5030,
-      "p95Ms": 5030,
-      "minMs": 4683,
-      "maxMs": 5030
+      "n": 20,
+      "avgMs": 6260,
+      "p50Ms": 6237,
+      "p95Ms": 8574,
+      "minMs": 3634,
+      "maxMs": 8574
     },
     "edit_scene": {
-      "n": 2,
-      "avgMs": 7062,
-      "p50Ms": 8162,
-      "p95Ms": 8162,
-      "minMs": 5961,
-      "maxMs": 8162
+      "n": 20,
+      "avgMs": 6929,
+      "p50Ms": 6970,
+      "p95Ms": 9232,
+      "minMs": 4502,
+      "maxMs": 9232
     },
     "edit_speed": {
-      "n": 2,
-      "avgMs": 6423,
-      "p50Ms": 6451,
-      "p95Ms": 6451,
-      "minMs": 6395,
-      "maxMs": 6451
+      "n": 20,
+      "avgMs": 7329,
+      "p50Ms": 7018,
+      "p95Ms": 13447,
+      "minMs": 3278,
+      "maxMs": 13447
     },
     "edit_overall": {
-      "n": 6,
-      "avgMs": 6114,
-      "p50Ms": 6395,
-      "p95Ms": 8162,
-      "minMs": 4683,
-      "maxMs": 8162
+      "n": 60,
+      "avgMs": 6839,
+      "p50Ms": 6917,
+      "p95Ms": 9232,
+      "minMs": 3278,
+      "maxMs": 13447
     }
   },
   "acceptance": {
     "cacheHitRateGte80": "N/A (OpenAI provider)",
     "paramsLossZero": true,
-    "unintendedChangeZero": true
+    "unintendedChangeZero": false
   }
 }
