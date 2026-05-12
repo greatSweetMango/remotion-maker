@@ -8,6 +8,7 @@ import {
 import {
   scoreConcreteness,
   FORCE_GENERATE_REINFORCEMENT,
+  FORCE_GENERATE_DATAVIZ_REINFORCEMENT,
   buildEntityCountReinforcement,
 } from './clarify-gate';
 import { generateClarifyQuestions } from './clarify-questions';
@@ -441,22 +442,29 @@ export async function generateAsset(
         // unacceptable: do one final hardened retry quoting the count back.
         if (
           forced.value.type === 'clarify' &&
-          report.forceSkipClarify &&
-          report.entityCount > 0
+          report.forceSkipClarify
         ) {
+          // TM-95: pick the reinforcement variant. If we have an explicit
+          // entity count, quote it back (TM-68 path). Otherwise, this is a
+          // data-viz subject+data prompt without a count — use the TM-95
+          // dataviz reinforcement with tasteful defaults instead.
+          const useEntityCount = report.entityCount > 0;
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              '[generateAsset] entity-count override (TM-68): forced retry still returned clarify',
+              `[generateAsset] hardened retry (${useEntityCount ? 'TM-68 entity-count' : 'TM-95 dataviz'}): forced retry still returned clarify`,
               { entityCount: report.entityCount, hits: report.hits },
             );
           }
+          const extraReinforcement = useEntityCount
+            ? buildEntityCountReinforcement(report.entityCount)
+            : FORCE_GENERATE_DATAVIZ_REINFORCEMENT;
           const hardened = await generateOnce(
             prompt,
             model,
             opts,
             baseSystemPrompt +
               FORCE_GENERATE_REINFORCEMENT +
-              buildEntityCountReinforcement(report.entityCount),
+              extraReinforcement,
           );
           if (hardened.kind === 'response') {
             // Surface whatever this is — generate or (last-resort) clarify.

@@ -41,8 +41,9 @@ const COLOR_PATTERNS: RegExp[] = [
 
 /** Counts / enumerations like "5 bars", "3가지", "7개". */
 const COUNT_PATTERNS: RegExp[] = [
-  /\b\d+\s*(items?|elements?|bars?|dots?|circles?|squares?|stars?|lines?|columns?|rows?|sections?|panels?|tiles?|steps?|frames?|seconds?|s|fps)\b/i,
-  /\d+\s*(가지|개|단계|단|초|개월|회|번|컷)/,
+  // TM-95: add data-viz units (segments, slices, categories, series, products, brands, devices)
+  /\b\d+\s*(items?|elements?|bars?|dots?|circles?|squares?|stars?|lines?|columns?|rows?|sections?|panels?|tiles?|steps?|frames?|seconds?|s|fps|segments?|slices?|categor(?:y|ies)|series|products?|brands?|devices?|points?)\b/i,
+  /\d+\s*(가지|개|단계|단|초|개월|회|번|컷|구간|조각|항목|항)/,
   /\d+\s*x\s*\d+/i, // grid like 3x3
 ];
 
@@ -54,8 +55,9 @@ const STYLE_PATTERNS: RegExp[] = [
 
 /** Domain / data-source signals. */
 const DATA_PATTERNS: RegExp[] = [
-  /\b(sales|revenue|users|stock|price|score|rank|ranking|temperature|weather|growth|kpi|metric|dashboard|live|real-?time)\b/i,
-  /(매출|수익|사용자|주식|가격|점수|순위|랭킹|기온|날씨|성장|지표|실시간|라이브)/,
+  // TM-95: expand dashboard vocab (signups, breakdown, daily/weekly/monthly, device, category, product, top-N, traffic, conversion, retention, engagement)
+  /\b(sales|revenue|users|stock|price|score|rank|ranking|temperature|weather|growth|kpi|metric|metrics|dashboard|live|real-?time|signups?|sign-?ups?|breakdown|daily|weekly|monthly|hourly|yearly|device|devices|category|categories|product|products|top|traffic|conversions?|retention|engagement|impressions?|clicks?|visits?|orders?)\b/i,
+  /(매출|수익|사용자|주식|가격|점수|순위|랭킹|기온|날씨|성장|지표|실시간|라이브|가입|일별|주별|월별|상위|하위|트래픽|전환|이탈|체류|클릭|주문|방문)/,
 ];
 
 export interface ConcretenessReport {
@@ -199,9 +201,14 @@ export function scoreConcreteness(prompt: string): ConcretenessReport {
   const isConcrete =
     score >= CONCRETENESS_THRESHOLD && hasVisualDomainSignal;
   // Entity count remains a strong override (user enumerated N things).
+  // TM-95: subject + data combination (chart/graph/dashboard-like prompts)
+  // is a strong specificity signal — the user has named both WHAT to render
+  // and WHICH dataset to use. Adding this prevents data-viz over-clarify
+  // regression observed in TM-85 r1 (5/5 data-viz prompts → clarify).
   const forceSkipClarify =
     entityCount >= ENTITY_COUNT_SKIP_THRESHOLD ||
-    (hits.length >= 3 && hasVisualDomainSignal);
+    (hits.length >= 3 && hasVisualDomainSignal) ||
+    (hits.includes('subject') && hits.includes('data'));
 
   return {
     score,
@@ -239,6 +246,33 @@ than asking.
  * user-facing error. The wording here is intentionally absolute and quotes
  * the extracted count back to the model.
  */
+/**
+ * TM-95 — hardened clarify override used when the prompt is a clear data-viz
+ * subject (chart/graph/dashboard) with explicit data domain (sales/users/
+ * stock/etc.) but no explicit entity count. The TM-68 reinforcement quotes a
+ * count back; this variant instead reminds the model that the chart subject
+ * itself implies an unambiguous render target with reasonable defaults.
+ */
+export const FORCE_GENERATE_DATAVIZ_REINFORCEMENT = `
+
+============== CLARIFY OVERRIDE — DATA-VIZ SUBJECT (TM-95) ==============
+
+The user's prompt names a CONCRETE data-visualization subject (bar/pie/line/
+donut/area chart, counter, KPI, dashboard, etc.) AND an explicit data domain
+(sales, revenue, users, stock, signups, devices, products, etc.). This is
+sufficient to render — returning mode="clarify" is forbidden.
+
+You MUST output mode="generate". When a specific count or palette is missing,
+pick TASTEFUL DEFAULTS:
+  - Default item count: 5 (top-5 / 5 categories / 5 segments).
+  - Default palette: brand-neutral indigo/violet (#7C3AED + #A78BFA + #F472B6
+    + background #0f0f17), OR honor the prompt's color hint if any.
+  - Default duration: 150 frames @ 30fps (5 seconds).
+  - Default font: system-ui stack with explicit weight.
+
+DO NOT ASK the user to pick. Render now. This is your final attempt.
+`;
+
 export function buildEntityCountReinforcement(entityCount: number): string {
   return `
 

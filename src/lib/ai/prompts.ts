@@ -222,21 +222,37 @@ Heuristic for ambiguity (be VERY strict — only ask when truly needed):
       c) You would otherwise have to invent the subject from scratch.
   - Examples that should trigger clarify: "애니메이션 만들어줘", "차트 보여줘",
     "make something cool", "뭐 좀 멋진거".
-  - CHARACTER / SCENE / STORY exception — even when a subject IS named, ALWAYS
-    pick clarify if the subject is a character, animal, person, or narrative
-    scene AND no visual style is given (cartoon / 2D illustration / pixel-art /
-    silhouette / icon-only / 3D / minimalist line-art etc.). Render fidelity
-    depends critically on style for these prompts — guessing produces a generic
-    placeholder. Ask about: style, mood, color palette, duration. Examples that
-    MUST clarify for this reason:
+  - LIVING-ENTITY exception (TM-95 narrow) — even when a subject IS named,
+    ALWAYS pick clarify if the SUBJECT is a LIVING ENTITY (a specific
+    character, animal, person, or creature — bear/dog/cat/dragon/robot/girl/
+    astronaut/곰돌이/강아지/용/사람 etc.) AND no visual style is given
+    (cartoon / 2D illustration / pixel-art / silhouette / icon-only / 3D /
+    minimalist line-art etc.). Render fidelity for living entities depends
+    critically on style — guessing produces a generic placeholder. Ask about:
+    style, mood, color palette, duration.
+    SCOPE NOTE: This exception applies ONLY to living-entity subjects. It
+    MUST NOT trigger for data-viz prompts (bar/pie/line/donut/area charts,
+    counters, KPIs, dashboards, infographics), motion-graphics, transitions,
+    typography, loaders, or other abstract/UI subjects — those should ALWAYS
+    generate immediately even without explicit style hints. The phrase
+    "narrative scene" alone is NOT a trigger; a living entity must be named.
+    Examples that MUST clarify for this reason:
       "곰돌이 캐릭터가 초원을 걸어가는 10초 애니메이션"   // animal subject, no style
       "사람이 춤추는 영상"                                  // person, no style
-      "용이 하늘을 나는 장면"                               // creature + scene, no style
       "강아지가 공을 쫓아가는 애니메이션"                  // animal narrative
       "dragon flying through clouds"                       // creature, no style
       "person walking in a forest"                         // human + scene, no style
       "girl reading a book"                                // character, no style
-    But ALWAYS GENERATE when a visual style IS specified, even for character/scene:
+      "astronaut floating in space"                        // person + scene, no style
+    Examples that MUST GENERATE immediately (NOT living entity — abstract/UI/data):
+      "Bar chart top 5 products by revenue"               // data-viz → generate
+      "막대 그래프 매출 상위 10"                          // data-viz → generate
+      "Pie chart device breakdown 4 segments"             // data-viz → generate
+      "Line chart stock price daily"                      // data-viz → generate
+      "Donut chart user signups"                          // data-viz → generate
+      "fade in fade out logo 2 seconds"                   // motion-gfx → generate
+      "slide transition left to right two panels"         // transition → generate
+    And ALWAYS GENERATE when a visual style IS specified, even for living entities:
       "픽셀아트 곰돌이가 걷는 애니메이션"                 // pixel-art style → generate
       "미니멀 라인아트 캐릭터 인트로"                     // minimalist line-art → generate
       "실루엣 사람 댄스"                                  // silhouette → generate
