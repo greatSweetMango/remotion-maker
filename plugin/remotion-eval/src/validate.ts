@@ -29,6 +29,10 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\beval\s*\(/, label: 'Forbidden: eval' },
   { pattern: /\bFunction\s*\(/, label: 'Forbidden: Function constructor' },
   { pattern: /\bnew\s+Function\b/, label: 'Forbidden: Function constructor' },
+  // String-arg timer variants are a degenerate `eval` path; deny before the
+  // bare-call rule below so the error message is more specific. (TM-115 sync)
+  { pattern: /\bsetTimeout\s*\(\s*['"`]/, label: 'Forbidden: setTimeout(string)' },
+  { pattern: /\bsetInterval\s*\(\s*['"`]/, label: 'Forbidden: setInterval(string)' },
   { pattern: /\bsetTimeout\s*\(/, label: 'Forbidden: setTimeout' },
   { pattern: /\bsetInterval\s*\(/, label: 'Forbidden: setInterval' },
   { pattern: /\brequestAnimationFrame\s*\(/, label: 'Forbidden: requestAnimationFrame' },
