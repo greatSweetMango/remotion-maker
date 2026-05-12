@@ -24,6 +24,20 @@
 
 ## 단계 (Phase A → F)
 
+### Phase A0: task_id wiring (TM-117, 필수, 첫 turn)
+
+spend-ledger.jsonl 이 매 LLM 호출마다 task_id 를 기록하려면 hook 이 정확한 id 를 알아야 한다. `.claude/hooks/post-tool-use.sh` 의 fallback chain 은 `CLAUDE_TASK_ID` env → `.agent-state/current-task` 파일 → `"unknown"`. TeamLead 워크트리 세션은 env 를 주입받지 못할 수 있으므로 **첫 Bash 호출에서 반드시** 파일을 작성한다:
+
+```bash
+bash scripts/orchestrator/set-current-task.sh TM-{task_id}
+# 또는 helper 가 없는 fallback:
+mkdir -p .agent-state && echo "TM-{task_id}" > .agent-state/current-task
+```
+
+- 헬퍼는 워크트리 위치를 자동 해석(`git rev-parse --show-toplevel`)하므로 워크트리/메인 어디서나 안전.
+- 이 파일은 git-tracked 이지만 PR 본문에 포함될 필요 없음 — Phase D commit 시 제외하거나(권장: `git restore --staged .agent-state/current-task`) 무시 가능. main 의 current-task 는 Orchestrator 가 다음 iter 에 덮어쓴다.
+- 누락 시 모든 ledger 라인이 `task_id="unknown"` 으로 기록돼 stop-guard 의 cost_burst/error_rate 분석에서 task 별 attribution 이 불가해진다 (TM-112 회귀).
+
 ### Phase A: 컨텍스트 파일 작성
 
 - `.agent-state/context-{task_id}-{slug}.md` 작성 (마크다운, frontmatter 포함)
