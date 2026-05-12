@@ -256,6 +256,38 @@ export function AssetGrid({ initialAssets, initialPagination, tier }: AssetGridP
                       : prev,
                   );
                 }}
+                onRenamed={(id, title) => {
+                  setRemoteData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          assets: prev.assets.map((x) =>
+                            x.id === id
+                              ? { ...x, title, updatedAt: new Date().toISOString() }
+                              : x,
+                          ),
+                        }
+                      : prev,
+                  );
+                }}
+                onDuplicated={() => {
+                  // Server-rendered initial view doesn't know about the new
+                  // row; trust `router.refresh()` from the card to surface it.
+                  // For the remote-fetched view, force a re-fetch by nudging
+                  // page state (kept on page 1 since duplicates sort to top
+                  // under default `updatedAt desc`).
+                  setRemoteData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          pagination: {
+                            ...prev.pagination,
+                            total: prev.pagination.total + 1,
+                          },
+                        }
+                      : prev,
+                  );
+                }}
               />
             ))}
           </div>
