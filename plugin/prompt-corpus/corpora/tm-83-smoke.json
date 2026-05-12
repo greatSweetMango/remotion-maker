@@ -1,0 +1,23 @@
+{
+  "name": "tm-83-smoke",
+  "description": "TM-83 smoke corpus — 14 prompts spanning {character, motion-graphics, data-viz, typography}. Used for nightly fast-bench (target <10min). Frozen 2026-05-13 per TM-105.",
+  "prompts": [
+    { "id": "char-01", "category": "character",       "prompt": "Cute mascot character waving hand, round body, pastel blue, 2D flat style, bouncing animation" },
+    { "id": "char-02", "category": "character",       "prompt": "고양이 캐릭터가 박스에서 머리만 내미는 애니메이션, 주황색 줄무늬, 귀 살랑살랑" },
+    { "id": "char-03", "category": "character",       "prompt": "Stick figure jumping with joy, three frames loop, black on white" },
+    { "id": "char-04", "category": "character",       "prompt": "Smiley face emoji bouncing in with spring effect, yellow, eyes blinking" },
+
+    { "id": "mg-01",   "category": "motion-graphics", "prompt": "Slide transition from left to right, two colored panels (purple to teal)" },
+    { "id": "mg-02",   "category": "motion-graphics", "prompt": "원이 화면을 가득 채우며 다음 색으로 전환, 노랑→파랑" },
+    { "id": "mg-03",   "category": "motion-graphics", "prompt": "Circular spinner loader, 8 dots rotating, primary blue color" },
+    { "id": "mg-04",   "category": "motion-graphics", "prompt": "Morph transition from circle to square, single accent color (#FF6B6B)" },
+
+    { "id": "dv-01",   "category": "data-viz",        "prompt": "Animated counter from 0 to 100 with spring effect, blue text on transparent background" },
+    { "id": "dv-02",   "category": "data-viz",        "prompt": "월별 매출 막대그래프, 1월부터 6월까지 [120, 150, 180, 200, 240, 280] 단위 만원, 보라색 톤" },
+    { "id": "dv-03",   "category": "data-viz",        "prompt": "Animated percentage ring filling from 0% to 75%, neon cyan color, dark background" },
+
+    { "id": "ty-01",   "category": "typography",      "prompt": "\"Hello World\" 타이핑 효과, 모노스페이스 폰트, 흰 배경 검정 글씨" },
+    { "id": "ty-02",   "category": "typography",      "prompt": "Big bold \"SALE\" text bouncing in with spring, red color, drop shadow" },
+    { "id": "ty-03",   "category": "typography",      "prompt": "Glitchy cyberpunk title \"SYSTEM ONLINE\", green RGB shift effect" }
+  ]
+}

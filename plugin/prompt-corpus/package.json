@@ -1,0 +1,28 @@
+{
+  "name": "@remotion-maker/mcp-prompt-corpus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prompt corpus MCP server — exposes get_corpus / list_corpora over stdio. Canonical prompt sets for nightly bench / regression tests (TM-83/TM-85).",
+  "type": "module",
+  "bin": {
+    "mcp-prompt-corpus": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "node --loader ts-node/esm src/server.ts",
+    "test": "node --test --import tsx test/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}

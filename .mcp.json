@@ -11,6 +11,10 @@
     "remotion-eval": {
       "command": "npx",
       "args": ["tsx", "./plugin/remotion-eval/src/server.ts"]
+    },
+    "prompt-corpus": {
+      "command": "npx",
+      "args": ["tsx", "./plugin/prompt-corpus/src/server.ts"]
     }
   }
 }
