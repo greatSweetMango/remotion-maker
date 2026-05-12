@@ -268,6 +268,16 @@ for s in approved_summaries:
 
 치환 후 일반 흐름 진행:
 
+#### Step 5-verdict-log: verdict-history.jsonl append (TM-113)
+
+각 TeamLead 요약을 수집한 직후, main 머지/락 처리 **이전**에 verdict 1줄을 append-only 로그에 기록한다. 이 로그는 `scripts/orchestrator/stop-guard.mjs` (TM-101) 의 `error_rate_spike` 신호 입력 — 최근 5건 중 BLOCK/REQUEST_CHANGES ≥60% 면 STOP 자동 작성. 신호 활성화는 verdict가 누적되는 이 hook 에 의존하므로 머지 성공/실패와 무관하게 반드시 모든 summary에 대해 호출.
+
+```
+for summary in team_lead_summaries:
+  bash scripts/orchestrator/append-verdict.sh "{summary.task_id}" "{summary.verdict}"
+  # exit≠0 은 transcript 경고만 — 메인 흐름은 계속 (best-effort telemetry)
+```
+
 ```
 for summary in team_lead_summaries:
   if summary.verdict == "APPROVE":
