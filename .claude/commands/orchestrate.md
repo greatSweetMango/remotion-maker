@@ -76,6 +76,9 @@ completed_count = 0  # main 처리(머지 또는 escalate 확정)까지 끝난 t
 - branch-locks.json read → active_locks count
 - concurrency-limit read → max_slots
 - available_slots = max_slots - active_locks
+- node scripts/orchestrator/refactor-tick.mjs --json   # TM-94 — 3일 주기 refactor task auto-spawn (idempotent; not-due → no-op)
+  # 출력 라인 transcript 에 그대로 흘리되, exit≠0 이어도 iter 는 계속 (best-effort scheduler).
+  # spawned 시 다음 iter 의 PM fetch 가 자연스럽게 새 task 를 픽업.
 ```
 
 ### Step 2: PM 호출 — 다음 ready task fetch (max=available_slots)

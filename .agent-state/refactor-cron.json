@@ -1,0 +1,70 @@
+{
+  "_doc": "TM-94 recurring refactor scheduler state. Updated by scripts/orchestrator/refactor-tick.mjs. period_days=3 → every 3 days a new 'Refactor week N: <focus>' task is auto-spawned via task-master. focus_rotation index advances after each spawn (modulo length). last_run_at is ISO-8601 UTC. week_counter increments per spawn.",
+  "last_run_at": "2026-05-12T15:47:59.531Z",
+  "period_days": 3,
+  "rotation_index": 1,
+  "week_counter": 1,
+  "focus_rotation": [
+    {
+      "slug": "dead-code",
+      "title": "dead-code 제거 (ts-prune / depcheck)",
+      "tools": [
+        "ts-prune",
+        "depcheck"
+      ],
+      "scope": "src/, app/, scripts/"
+    },
+    {
+      "slug": "circular-deps",
+      "title": "circular dependency 정리 (madge / dependency-cruiser)",
+      "tools": [
+        "madge",
+        "dependency-cruiser"
+      ],
+      "scope": "src/, app/"
+    },
+    {
+      "slug": "lib-cohesion",
+      "title": "src/lib 모듈 응집도 점검 (god-module 분해)",
+      "tools": [
+        "manual review",
+        "madge --depth=2"
+      ],
+      "scope": "src/lib/"
+    },
+    {
+      "slug": "test-coverage-hotspots",
+      "title": "테스트 커버리지 hot spot 보강",
+      "tools": [
+        "vitest --coverage",
+        "c8"
+      ],
+      "scope": "src/, app/api/"
+    },
+    {
+      "slug": "duplicate-fragments",
+      "title": "duplicate fragment 통합 (jscpd)",
+      "tools": [
+        "jscpd"
+      ],
+      "scope": "src/, app/, scripts/"
+    },
+    {
+      "slug": "adr-drift",
+      "title": "ADR vs 실제 코드 drift 점검",
+      "tools": [
+        "manual ADR audit"
+      ],
+      "scope": "wiki/01-pm/decisions/ × src/, app/"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-05-12T15:47:59.531Z",
+      "week": 1,
+      "focus_slug": "dead-code",
+      "spawned_task_id": 82,
+      "title": "Refactor week 1: dead-code"
+    }
+  ]
+}
