@@ -405,3 +405,98 @@ describe('generateAsset retry on transpile failure (TM-67)', () => {
     expect((transpileTSX as jest.Mock).mock.calls.length).toBe(1);
   });
 });
+
+// TM-53 — extractJson repair ladder. Reproduces the ld-07 failure mode
+// (gpt-4o-mini + `Loading bar with percentage text "Loading 42%", dark theme`
+// → `extractJson` returned null → "AI did not return valid JSON"). Two
+// distinct repair layers added: trailing-comma strip + smart-quote
+// normalize. Each independently rescues a realistic failure.
+import {
+  extractJson,
+  repairTrailingCommas,
+  repairSmartQuotes,
+} from '@/lib/ai/generate';
+
+describe('extractJson repair ladder (TM-53)', () => {
+  it('repairTrailingCommas drops commas before } and ] but not inside strings', () => {
+    const input = '{"a":1,"b":[1,2,3,],"c":"hello, world,",}';
+    const repaired = repairTrailingCommas(input);
+    expect(repaired).toBe('{"a":1,"b":[1,2,3],"c":"hello, world,"}');
+    expect(() => JSON.parse(repaired)).not.toThrow();
+  });
+
+  it('repairSmartQuotes normalizes curly quotes to straight quotes', () => {
+    const input = '{“mode”: “generate”, “title”: “Loading 42%”}';
+    const repaired = repairSmartQuotes(input);
+    expect(repaired).toBe('{"mode": "generate", "title": "Loading 42%"}');
+    expect(() => JSON.parse(repaired)).not.toThrow();
+  });
+
+  it('extractJson rescues a trailing-comma payload (gpt-4o-mini emission)', () => {
+    const raw = '{"mode":"generate","title":"Loading 42%","code":"x",}';
+    const parsed = extractJson(raw) as Record<string, unknown> | null;
+    expect(parsed).not.toBeNull();
+    expect(parsed?.title).toBe('Loading 42%');
+  });
+
+  it('extractJson rescues a smart-quote-corrupted payload (ld-07 hypothesis)', () => {
+    // Reproduces a plausible ld-07 corruption: the model auto-formats the
+    // nested quotes from the prompt and emits the title with curly quotes.
+    const raw =
+      '{"mode":"generate","title":"Loading bar — “Loading 42%”","code":"x"}';
+    const parsed = extractJson(raw) as Record<string, unknown> | null;
+    expect(parsed).not.toBeNull();
+    expect(parsed?.mode).toBe('generate');
+  });
+
+  it('extractJson rescues a combined backtick + trailing-comma + smart-quote payload', () => {
+    const raw =
+      '{ "mode": "generate", "title": “Loading 42%”, "code": `const PARAMS = {}; export const GeneratedAsset = () => <div/>;`, "fps": 30, }';
+    const parsed = extractJson(raw) as Record<string, unknown> | null;
+    expect(parsed).not.toBeNull();
+    expect(parsed?.mode).toBe('generate');
+    expect(typeof parsed?.code).toBe('string');
+  });
+
+  it('extractJson still returns null for genuinely unparseable text (no false rescue)', () => {
+    expect(extractJson('I cannot help with that request.')).toBeNull();
+    expect(extractJson('{not really json at all')).toBeNull();
+  });
+});
+
+// TM-53 — integration: the ld-07 prompt (FREE / gpt-4o-mini, percent + nested
+// quotes) used to throw "AI did not return valid JSON". After the repair
+// ladder lands, a payload with a trailing comma + smart quote parses cleanly
+// and the generate path succeeds.
+describe('generateAsset rescues ld-07-style malformed JSON (TM-53)', () => {
+  beforeEach(() => {
+    mockedChat.mockReset();
+    const { transpileTSX } = jest.requireMock('@/lib/remotion/transpiler');
+    (transpileTSX as jest.Mock).mockReset();
+    (transpileTSX as jest.Mock).mockImplementation(async (s: string) => `/*js*/${s}`);
+  });
+
+  it('parses gpt-4o-mini payload with trailing comma + curly-quoted title', async () => {
+    const malformed =
+      '{\n' +
+      '  "mode": "generate",\n' +
+      '  "title": “Loading 42%”,\n' +
+      '  "code": ' +
+      JSON.stringify(SUBSTANTIVE_CODE) +
+      ',\n' +
+      '  "durationInFrames": 150,\n' +
+      '  "fps": 30,\n' +
+      '  "width": 1920,\n' +
+      '  "height": 1080,\n' +
+      '}';
+    mockedChat.mockResolvedValueOnce(malformed);
+    const result = await generateAsset(
+      'Loading bar with percentage text "Loading 42%", dark theme',
+      'gpt-4o-mini',
+    );
+    expect(result.type).toBe('generate');
+    if (result.type === 'generate') {
+      expect(result.asset.title).toBe('Loading 42%');
+    }
+  });
+});
