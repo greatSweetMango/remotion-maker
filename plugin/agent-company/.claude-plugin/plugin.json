@@ -1,0 +1,17 @@
+{
+  "name": "agent-company",
+  "version": "0.1.0",
+  "description": "3-tier autonomous Ralph-loop agent harness (Orchestrator → TeamLead × N → 5-role build-team). Worktree-isolated parallel task execution with budget guards, STOP file, and provider-agnostic cost tracking.",
+  "author": {
+    "name": "greatSweetMango"
+  },
+  "homepage": "https://github.com/greatSweetMango/personal-calude-marketplace",
+  "keywords": [
+    "orchestrator",
+    "agent",
+    "ralph-loop",
+    "worktree",
+    "autonomous",
+    "budget-guard"
+  ]
+}

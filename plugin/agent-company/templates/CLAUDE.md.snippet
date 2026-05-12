@@ -1,0 +1,51 @@
+<!--
+agent-company 플러그인 사용 안내 — 이 스니펫을 프로젝트 CLAUDE.md 또는 AGENTS.md에 붙여넣으세요.
+-->
+
+## Agent Company (자율 에이전트 하네스)
+
+본 프로젝트는 `agent-company` 플러그인을 사용합니다. 3-tier Ralph 루프로 자율 task 실행:
+
+- **`/orchestrate`** — 연속 모드 (STOP/예산까지 무한)
+- **`/orchestrate --once`** — 1건만
+- **`/orchestrate --max=3`** — N건만
+- **`/orchestrate TASK-7`** — 특정 task 강제
+
+### 정지
+
+```bash
+touch .agent-state/STOP   # 현재 iter 완료 후 정지
+rm .agent-state/STOP      # 재개
+```
+
+### 예산 / 동시성
+
+- 기본: daily $50, weekly $200, 동시 worktree 3개
+- `.agent-state/spend.json` 과 `.agent-state/concurrency-limit` 수정으로 조정
+- 95% 도달 시 SessionStart hook이 차단
+
+### 프로젝트별 부트스트랩
+
+`scripts/agent-company-bootstrap.sh` 가 새 worktree마다 호출됨. .env 복사, DB seed 등 프로젝트 특화 작업을 여기 작성하세요.
+
+### Task tracker 통합
+
+PM 에이전트는 어디서 task를 fetch할지 모름. 다음 중 하나를 `.claude/agents/pm.md` 에 명시:
+
+- Task Master MCP (`mcp__task-master-ai__*`)
+- GitHub Issues (`gh issue list --label ready`)
+- Linear MCP
+- 로컬 파일 (예: `tasks.md`)
+
+### 안전망 — 자동 정지
+
+다음 발생 시 즉시 정지, 사람 호출:
+- 새 의존성 추가
+- 외부 API 결제 / production 배포
+- DB migration
+- 사용자 데이터 노출 가능 작업
+- 6회 escalate 누적
+
+### 컨텍스트 파일
+
+작업 중인 task의 상세 컨텍스트: `.agent-state/context-<TASK-ID>-<slug>.md`

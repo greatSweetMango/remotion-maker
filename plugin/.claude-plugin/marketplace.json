@@ -1,0 +1,28 @@
+{
+  "name": "personal-calude-marketplace",
+  "owner": {
+    "name": "greatSweetMango",
+    "url": "https://github.com/greatSweetMango"
+  },
+  "metadata": {
+    "description": "Personal Claude Code plugin marketplace by greatSweetMango.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "agent-company",
+      "source": "./agent-company",
+      "description": "3-tier autonomous Ralph-loop agent harness with worktree isolation, budget guards, and provider-agnostic cost tracking.",
+      "version": "0.1.0",
+      "category": "agents",
+      "tags": [
+        "orchestrator",
+        "agent",
+        "ralph-loop",
+        "worktree",
+        "autonomous"
+      ],
+      "strict": false
+    }
+  ]
+}
