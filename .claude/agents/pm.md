@@ -22,6 +22,9 @@ model: sonnet
    - **특화 agent 라우팅 (`area`)**:
      - `area="ai-prompt"` → `.claude/agents/ai-prompt-tuner.md` (system prompt / clarify-gate / generate prompts / classify 라우팅 룰)
        - 트리거: `context_files` 가 `src/lib/ai/prompts.ts | clarify-gate.ts | generate.ts | classify.ts | clarify-questions.ts` 중 하나 포함, **또는** title/desc 에 "system prompt / clarify / mode_match / pipeline quality / prompt regression / 프롬프트 튜닝", **또는** 의존 task 가 TM-83 / TM-85 / TM-92 / TM-93 / TM-95 / TM-106 라인.
+     - `area="qa-judge"` → `.claude/agents/ai-quality-judge.md` (LLM-as-judge 4-criteria acceptance gate / visual judge / variance RCA / 코드 quality judge)
+       - 트리거: `context_files` 가 `__tests__/benchmarks/tm-46-judge.ts | tm-46-rubric.md | tm-66-smoke.ts | tm-70-judge-variance.ts | tm-108-r5-judge.ts | __tests__/benchmarks/results/tm-46/` 중 하나 포함, **또는** title/desc 에 "LLM-as-judge / visual judge / acceptance gate / 4-criteria / 4축 채점 / rubric / 루브릭 / noise band / variance / 채점 기준", **또는** 의존 task 가 TM-46 / TM-66 / TM-70 / TM-73 / TM-108 라인 (단, 변경 본체가 `src/lib/ai/*` prompt 본문이면 `ai-prompt` 우선).
+       - 표준 호출 entry point: skill `judge-acceptance` (`.claude/skills/judge-acceptance.md`) — corpus → judge → score → acceptance gate workflow.
      - 그 외 → generic TeamLead (`prompts/team-lead.md`).
    - **유형 태그** 키워드 매트릭스:
      - "버그/에러/오류/fix/수정/장애" → `#bug-fix`
