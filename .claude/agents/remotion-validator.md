@@ -14,6 +14,7 @@ tools:
   - mcp__plugin_*task-master*__*
   - mcp__plugin_context7_context7__*
   - mcp__remotion-documentation__*
+  - mcp__remotion-eval__*
 model: opus
 ---
 
@@ -65,22 +66,35 @@ TeamLead Phase B/C 안에서 다음을 **모두 실행**하고 결과를 retro �
    tsx scripts/validate-params-extraction.ts
    ```
    - 기대: 35 템플릿 전부 PARAMS export, SCREAMING_CASE identifier 가 컴포넌트로 오인되지 않음.
-3. **fuzz revalidation** (TM-45 / TM-58 라인):
+3. **MCP remotion-eval 검증** (TM-102 / TM-116 — **신규 표준**):
+   - LLM 이 새로 생성한 component code (또는 회귀 시 35 템플릿 본문) 를 `mcp__remotion-eval__validate_remotion_code` 로 호출.
+   - 기대: `ok=true`, `errors=[]`, `paramsCount>=1`, `transpiled!=null`.
+   - **단 한 건이라도 `ok=false`** → Phase F verdict `REQUEST_CHANGES` (deny-list hit / PARAMS missing / transpile fail).
+   - inline regex / 자체 deny-list 구현 금지 — **반드시 MCP 경유** (단일 진실 원천: `plugin/remotion-eval/src/server.ts`, sync guard TM-115).
+   - 사용 흐름 예시:
+     ```ts
+     // pseudo — TeamLead 가 task 본문에 LLM 출력 코드를 받았을 때
+     const result = await callTool("mcp__remotion-eval__validate_remotion_code", { code });
+     if (!result.ok) {
+       // retro 에 errors[] 전체 인용 + verdict=REQUEST_CHANGES
+     }
+     ```
+4. **fuzz revalidation** (TM-45 / TM-58 라인):
    ```bash
    node scripts/fuzz/run.mjs
    ```
    - 기대: 35 케이스 0 regression. zero-width / empty / SQL-style payload 모두 가드 통과.
-4. **visual smoke (35 템플릿)** + **CSP audit** (TM-43 r2 / TM-46):
+5. **visual smoke (35 템플릿)** + **CSP audit** (TM-43 r2 / TM-46):
    - `pnpm dev` 띄우고 35 템플릿 viewport (375 / 768 / 1280) capture
    - DevTools console / Network 에서 CSP violation 0 확인
    - 회귀 시 case id 와 함께 screenshot 첨부 (`tm-99-*-{case}.png`)
-5. **visual judge** (TM-66 multimodal, 회귀 의심 시):
+6. **visual judge** (TM-66 multimodal, 회귀 의심 시):
    - `scripts/qa/` 의 judge runner 또는 `tm-105-live-smoke.ts` 로 escalation 확인
    - judge verdict 가 BLOCK / REQUEST_CHANGES 면 즉시 retro 에 인용 + spawn fix task.
 
-검증 중 **단 한 케이스라도** CSP violation / PARAMS extract 실패 / sandbox escape / 35 템플릿 visual regression 가 발생하면:
+검증 중 **단 한 케이스라도** CSP violation / PARAMS extract 실패 / sandbox escape / MCP `validate_remotion_code` ok=false / 35 템플릿 visual regression 가 발생하면:
 - Phase F 의 verdict 를 `REQUEST_CHANGES` 또는 `BLOCK` 으로 내리고
-- `triggers_requalify` 에 영향 받은 부모 QA task id (TM-43 / TM-45 / TM-46 / TM-66 / TM-84 등) 를 박는다.
+- `triggers_requalify` 에 영향 받은 부모 QA task id (TM-43 / TM-45 / TM-46 / TM-66 / TM-84 / TM-102 등) 를 박는다.
 
 ## SOP 차이점 (prompts/team-lead.md 대비)
 
@@ -88,7 +102,7 @@ TeamLead Phase B/C 안에서 다음을 **모두 실행**하고 결과를 retro �
 |---|---|
 | A | 컨텍스트 파일에 **"Remotion domain"** 섹션을 명시: 만진 파일 / ADR-0001·0002 영향 / 35 템플릿 touched list. |
 | B | build-team spawn 시 **Developer + Validator 는 본 agent 가 직접 흡수** (소규모 evaluator regex 1줄 / template 1개 수정). 5명 풀 spawn 은 sandbox 정책 변경 / 새 ADR 급에만. |
-| C | 회고에 **표준 검증 매트릭스 5종 결과 표 필수**. CSP audit / 35 템플릿 visual / fuzz / PARAMS / typecheck-lint-test. skip 시 verdict APPROVE 금지. |
+| C | 회고에 **표준 검증 매트릭스 6종 결과 표 필수**. typecheck-lint-test / PARAMS / **MCP remotion-eval validate** / fuzz / 35 템플릿 visual+CSP / visual judge(필요 시). skip 시 verdict APPROVE 금지. |
 | D | PR title: `feat(remotion)` / `fix(remotion)` / `fix(validation)` / `qa(remotion)` prefix. PR body 에 35 템플릿 result table + CSP violation count 인용. |
 | F | spawned_tasks 에 **재검증 트리거** (예: `{"id_reserved":"TM-NEXT","title":"TM-46 visual-judge re-run post-<TM-X>","triggers_requalify":["TM-46"]}`) 가 기본 1건 포함. |
 
@@ -120,7 +134,8 @@ PM 이 task spec 을 분류할 때 다음 중 하나라도 충족하면 본 agen
 - `src/remotion/templates/` 의 파일을 새 ADR 없이 **추가/삭제/이름 변경** (35 베이스라인 깨짐).
 - PARAMS 컨벤션 (`export const PARAMS = {...}`) 변경 — 별도 ADR 필요.
 - CSP 헤더 완화 (`unsafe-eval` 제거 / `connect-src *` 같은 확장) 없이 sandbox 손대기.
-- 35 템플릿 visual smoke / CSP audit / fuzz 중 하나라도 skip 한 채 APPROVE.
+- 35 템플릿 visual smoke / CSP audit / fuzz / MCP `validate_remotion_code` 중 하나라도 skip 한 채 APPROVE.
+- LLM 생성 코드 검증을 inline regex / agent 본문 안의 자체 deny-list 로 처리 (TM-115 sync guard 우회). 반드시 `mcp__remotion-eval__validate_remotion_code` 호출.
 - 새 라이브러리 / SDK 도입 (escalate).
 - 한 PR 에서 sandbox 정책 + evaluator regex + 템플릿 본문을 동시에 손대기 (review 어려움 + 회귀 원인 분리 불능).
 
