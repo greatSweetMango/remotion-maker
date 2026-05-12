@@ -359,6 +359,21 @@ if test -f wiki/05-reports/2026-04-27-ai-qa-final.md:
   transcript: "[ai-qa] final report detected — STOP written, exit"
   exit
 
+# TM-101 — Night-mode STOP guard (5 추가 신호 + spend-ledger 분석)
+#   - quality plateau (3회 bench mode_match_pct drift <1pp)
+#   - error rate spike (최근 5 task BLOCK/REQUEST_CHANGES ≥60%)
+#   - worktree leak (git worktree list ≥5)
+#   - stale lock (branch-locks.json started_at >6h)
+#   - cost burst (spend-ledger.jsonl 최근 60min 누적 ≥$3)
+# stop-guard.mjs 가 STOP 을 쓰면 exit 42; 본 가드 블록에서 즉시 종료.
+node scripts/orchestrator/stop-guard.mjs --json
+guard_rc=$?
+if [[ "$guard_rc" == "42" ]]; then
+  transcript: "[stop-guard] STOP fired — see .agent-state/STOP, exit"
+  exit
+fi
+# rc=0 → 통과, rc=1 → 비정상이지만 best-effort 로 iter 계속.
+
 # 7-2) 모드별 종료 조건
 switch (mode):
   case "forced":
