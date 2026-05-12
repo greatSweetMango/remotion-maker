@@ -225,6 +225,51 @@ describe('detectPlaceholderCode (TM-51)', () => {
     };`;
     expect(detectPlaceholderCode(good)).toEqual([]);
   });
+
+  // Skeleton-echo failure mode: model copied the system-prompt template
+  // verbatim (PARAMS + JSX exist, length passes, but body is empty comment).
+  // Reproduced with prompt "곰돌이 캐릭터가 초원을 걸어가는 10초가량의
+  // 애니메이션 만들어줘" — model produced `// Complete TSX code here` +
+  // `{/* component content */}` + generic "Hello World" defaults.
+  it('flags `// Complete TSX code here` skeleton comment', () => {
+    const skeleton = `// Complete TSX code here
+const PARAMS = { primaryColor: "#7C3AED", text: "Hello World" } as const;
+export const GeneratedAsset = ({ primaryColor = PARAMS.primaryColor }: typeof PARAMS = PARAMS) => {
+  return (
+    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
+      <div>Hi</div>
+    </AbsoluteFill>
+  );
+};`;
+    const reasons = detectPlaceholderCode(skeleton);
+    expect(reasons.some((r) => r.includes('Complete TSX code here'))).toBe(true);
+  });
+
+  it('flags `{/* component content */}` empty JSX placeholder', () => {
+    const skeleton = `const PARAMS = { primaryColor: "#7C3AED" } as const;
+export const GeneratedAsset = ({ primaryColor = PARAMS.primaryColor }: typeof PARAMS = PARAMS) => {
+  const frame = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
+      {/* component content */}
+    </AbsoluteFill>
+  );
+};`;
+    const reasons = detectPlaceholderCode(skeleton);
+    expect(reasons.some((r) => r.includes('component content'))).toBe(true);
+  });
+
+  it('flags `// ... all params` skeleton ellipsis', () => {
+    const skeleton = `const PARAMS = { primaryColor: "#7C3AED" } as const;
+export const GeneratedAsset = ({
+  primaryColor = PARAMS.primaryColor,
+  // ... all params
+}: typeof PARAMS = PARAMS) => {
+  return (<AbsoluteFill><div>Hi</div></AbsoluteFill>);
+};`;
+    const reasons = detectPlaceholderCode(skeleton);
+    expect(reasons.some((r) => r.includes('all params'))).toBe(true);
+  });
 });
 
 describe('generateAsset retry on placeholder (TM-51)', () => {

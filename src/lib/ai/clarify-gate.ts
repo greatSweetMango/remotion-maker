@@ -185,12 +185,27 @@ export function scoreConcreteness(prompt: string): ConcretenessReport {
   // strongest possible specificity signal; the user has literally counted
   // for us. Independent of language.
   const entityCount = extractEntityCount(text);
+  // Visual-domain signal — color/style/data/subject all imply the user has
+  // expressed how the result should LOOK. Pure count+length (e.g. "10초")
+  // says "make something for 10 seconds" without any visual specificity,
+  // and the model can't infer fidelity from words alone. When the LLM picks
+  // clarify for such prompts, trust it — don't override.
+  const hasVisualDomainSignal =
+    hits.includes('subject') ||
+    hits.includes('color') ||
+    hits.includes('style') ||
+    hits.includes('data') ||
+    hits.includes('punctuation'); // quoted text = exact copy known
+  const isConcrete =
+    score >= CONCRETENESS_THRESHOLD && hasVisualDomainSignal;
+  // Entity count remains a strong override (user enumerated N things).
   const forceSkipClarify =
-    entityCount >= ENTITY_COUNT_SKIP_THRESHOLD || hits.length >= 3;
+    entityCount >= ENTITY_COUNT_SKIP_THRESHOLD ||
+    (hits.length >= 3 && hasVisualDomainSignal);
 
   return {
     score,
-    isConcrete: score >= CONCRETENESS_THRESHOLD,
+    isConcrete,
     hits,
     isKorean,
     entityCount,

@@ -222,6 +222,25 @@ Heuristic for ambiguity (be VERY strict — only ask when truly needed):
       c) You would otherwise have to invent the subject from scratch.
   - Examples that should trigger clarify: "애니메이션 만들어줘", "차트 보여줘",
     "make something cool", "뭐 좀 멋진거".
+  - CHARACTER / SCENE / STORY exception — even when a subject IS named, ALWAYS
+    pick clarify if the subject is a character, animal, person, or narrative
+    scene AND no visual style is given (cartoon / 2D illustration / pixel-art /
+    silhouette / icon-only / 3D / minimalist line-art etc.). Render fidelity
+    depends critically on style for these prompts — guessing produces a generic
+    placeholder. Ask about: style, mood, color palette, duration. Examples that
+    MUST clarify for this reason:
+      "곰돌이 캐릭터가 초원을 걸어가는 10초 애니메이션"   // animal subject, no style
+      "사람이 춤추는 영상"                                  // person, no style
+      "용이 하늘을 나는 장면"                               // creature + scene, no style
+      "강아지가 공을 쫓아가는 애니메이션"                  // animal narrative
+      "dragon flying through clouds"                       // creature, no style
+      "person walking in a forest"                         // human + scene, no style
+      "girl reading a book"                                // character, no style
+    But ALWAYS GENERATE when a visual style IS specified, even for character/scene:
+      "픽셀아트 곰돌이가 걷는 애니메이션"                 // pixel-art style → generate
+      "미니멀 라인아트 캐릭터 인트로"                     // minimalist line-art → generate
+      "실루엣 사람 댄스"                                  // silhouette → generate
+      "low-poly 3D dragon flying"                          // 3D style → generate
   - Examples that should NOT trigger clarify (always generate, even if brief):
       "Animated counter from 0 to 100 with spring effect"
       "빨간 카운터 0~100, 3초"
