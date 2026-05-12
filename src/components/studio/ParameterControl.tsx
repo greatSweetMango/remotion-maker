@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { searchLucideCatalog, DEFAULT_LUCIDE_ICON } from '@/lib/lucide-catalog';
 import type { Parameter } from '@/types';
@@ -345,6 +346,37 @@ interface RegenSuccess {
 }
 
 /**
+ * TM-91 — Progressive latency UX helpers.
+ *
+ * Step messages keyed to elapsed seconds. Thresholds picked from TM-84
+ * benchmark (gpt-image-1 p50≈38s, p95≈55s): early reassurance under 5s,
+ * acknowledge the long tail past 15s, soften the >30s frustration cliff.
+ * Returned copy is intentionally short (single line) so dialog height
+ * stays stable across transitions.
+ */
+export function progressMessage(elapsedMs: number): string {
+  const s = elapsedMs / 1000;
+  if (s < 5) return '이미지 생성 중…';
+  if (s < 15) return 'AI가 그리는 중… (수 초 더 소요됩니다)';
+  if (s < 30) return '고품질 렌더 진행 중…';
+  return '마무리 단계입니다… 거의 다 됐어요.';
+}
+
+/**
+ * Logistic-ish progress curve calibrated so the bar hits ~50% near the
+ * p50 (38s) and asymptotically approaches 95% — never 100% — so a true
+ * completion still feels like a discrete event. Pure function: trivial
+ * to unit-test or to swap calibration when TM-92 reduces p50.
+ */
+export function progressPercent(elapsedMs: number): number {
+  const s = elapsedMs / 1000;
+  // 1 - exp(-s/k) curve. k=28 → ~50% at 19s, ~74% at 38s, ~90% at 65s.
+  // Cap at 95 so the bar never lies about completion.
+  const raw = (1 - Math.exp(-s / 28)) * 100;
+  return Math.min(95, Math.max(0, raw));
+}
+
+/**
  * TM-88 / ADR-0022 — "Regenerate" button for `type:image` PARAMS.
  *
  * Opens a dialog pre-filled with the prompt the AI used to make this image.
@@ -368,6 +400,22 @@ function RegenerateImageButton({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<RegenSuccess | null>(null);
+  // TM-91 — progressive UX: tick elapsed seconds while a regen call is in
+  // flight so we can swap step copy (5s/15s/30s thresholds) and animate a
+  // logistic Progress bar calibrated to TM-84 p50≈38s. UI only, no backend
+  // signal from the server (gpt-image-1 has no streaming progress event).
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  React.useEffect(() => {
+    if (!submitting) return;
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setElapsedMs(Date.now() - startedAt);
+    }, 500);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [submitting]);
 
   // Reset prompt buffer to the latest seed whenever the dialog opens —
   // otherwise a previous failed attempt's edits would persist forever.
@@ -390,6 +438,7 @@ function RegenerateImageButton({
       return;
     }
     setSubmitting(true);
+    setElapsedMs(0); // reset progress bar/timer before this attempt — prior attempt's value would briefly flash otherwise
     setError(null);
     try {
       const r = await fetch('/api/asset/regen-image', {
@@ -448,7 +497,7 @@ function RegenerateImageButton({
           <DialogHeader>
             <DialogTitle className="text-sm">Regenerate {paramLabel}</DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              Edit the prompt and we&apos;ll generate a fresh image. ~$0.04 per call (Pro only).
+              Edit the prompt and we&apos;ll generate a fresh image. ~$0.04 per call (Pro only). 보통 30~40초 소요됩니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -468,6 +517,27 @@ function RegenerateImageButton({
               <p className="text-xs text-red-400" role="alert">
                 {error}
               </p>
+            )}
+            {submitting && (
+              <div
+                className="space-y-1.5 pt-1"
+                role="status"
+                aria-live="polite"
+                data-testid={`regen-progress-${paramKey}`}
+              >
+                <Progress
+                  value={progressPercent(elapsedMs)}
+                  className="h-1 bg-slate-800"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span data-testid={`regen-progress-msg-${paramKey}`}>
+                    {progressMessage(elapsedMs)}
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    {Math.floor(elapsedMs / 1000)}s
+                  </span>
+                </div>
+              </div>
             )}
           </div>
           <DialogFooter className="gap-2">
