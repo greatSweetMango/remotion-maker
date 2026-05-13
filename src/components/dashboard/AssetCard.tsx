@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, type KeyboardEvent } from 'react';
+import { useState, useRef, useTransition, type ChangeEvent, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,8 @@ import {
   FolderInput,
   Tag,
   X,
+  ImagePlus,
+  ImageOff,
 } from 'lucide-react';
 import type { Tier } from '@/types';
 
@@ -42,6 +44,7 @@ export interface AssetCardData {
   updatedAt: string | Date;
   tags?: string[];
   folder?: string | null;
+  thumbnailUrl?: string | null;
   _count?: { versions: number };
 }
 
@@ -56,7 +59,14 @@ interface AssetCardProps {
   onDuplicated?: (created: { id: string; title: string }) => void;
   onTagsChanged?: (id: string, tags: string[]) => void;
   onFolderChanged?: (id: string, folder: string | null) => void;
+  onThumbnailChanged?: (id: string, thumbnailUrl: string | null) => void;
 }
+
+// Mirror of MAX_THUMBNAIL_BYTES in src/app/api/asset/[id]/thumbnail/route.ts
+// — duplicated client-side so the picker rejects oversized files before we
+// burn an upload round-trip. Keep in sync with the server constant.
+const MAX_THUMBNAIL_BYTES = 1 * 1024 * 1024;
+const ALLOWED_THUMBNAIL_TYPES = 'image/png,image/jpeg,image/webp';
 
 function formatDate(d: string | Date): string {
   return new Date(d).toLocaleDateString('en-US', {
@@ -77,11 +87,16 @@ export function AssetCard({
   onDuplicated,
   onTagsChanged,
   onFolderChanged,
+  onThumbnailChanged,
 }: AssetCardProps) {
   const router = useRouter();
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    asset.thumbnailUrl ?? null,
+  );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState(asset.title);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -218,6 +233,77 @@ export function AssetCard({
     }
   }
 
+  function openThumbnailPicker() {
+    if (isBusy) return;
+    setError(null);
+    fileInputRef.current?.click();
+  }
+
+  async function handleThumbnailFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    // Reset the input so picking the same file twice still re-fires `change`.
+    e.target.value = '';
+    if (!file) return;
+    if (isBusy) return;
+
+    if (!ALLOWED_THUMBNAIL_TYPES.split(',').includes(file.type)) {
+      setError('Thumbnail must be PNG, JPG, or WebP.');
+      return;
+    }
+    if (file.size > MAX_THUMBNAIL_BYTES) {
+      setError(
+        `Thumbnail too large (max ${Math.round(MAX_THUMBNAIL_BYTES / 1024)} KB).`,
+      );
+      return;
+    }
+
+    setIsBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/asset/${asset.id}/thumbnail`, {
+        method: 'POST',
+        body: fd,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Upload failed (${res.status})`);
+      }
+      const body = (await res.json()) as { thumbnailUrl: string };
+      setThumbnailUrl(body.thumbnailUrl);
+      onThumbnailChanged?.(asset.id, body.thumbnailUrl);
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleThumbnailRemove() {
+    if (isBusy) return;
+    if (!thumbnailUrl) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/asset/${asset.id}/thumbnail`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Remove failed (${res.status})`);
+      }
+      setThumbnailUrl(null);
+      onThumbnailChanged?.(asset.id, null);
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Remove failed');
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function handleFolderSave() {
     if (isBusy) return;
     setIsBusy(true);
@@ -256,8 +342,25 @@ export function AssetCard({
       data-testid="asset-card"
       data-asset-id={asset.id}
     >
-      <div className="aspect-video bg-slate-900 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
-        <Sparkles className="h-8 w-8 text-slate-600 group-hover:text-violet-400 transition-colors" />
+      <div
+        className="aspect-video bg-slate-900 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden"
+        data-testid="asset-card-thumbnail"
+      >
+        {thumbnailUrl ? (
+          // Plain <img> on purpose — these are user-uploaded local files
+          // served from /public, so next/image's optimizer (which expects
+          // remote/known assets) buys nothing here and would force us into
+          // remotePatterns config every time a new file lands.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailUrl}
+            alt={`${asset.title} thumbnail`}
+            className="h-full w-full object-cover"
+            data-testid="asset-card-thumbnail-img"
+          />
+        ) : (
+          <Sparkles className="h-8 w-8 text-slate-600 group-hover:text-violet-400 transition-colors" />
+        )}
         <Badge
           className={`absolute top-2 right-2 text-[10px] py-0 px-1.5 ${
             tier === 'PRO'
@@ -404,6 +507,27 @@ export function AssetCard({
             >
               <Copy className="h-4 w-4 mr-2" /> Duplicate
             </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="asset-card-upload-thumbnail"
+              onSelect={(e) => {
+                e.preventDefault();
+                openThumbnailPicker();
+              }}
+            >
+              <ImagePlus className="h-4 w-4 mr-2" />
+              {thumbnailUrl ? 'Replace thumbnail' : 'Upload thumbnail'}
+            </DropdownMenuItem>
+            {thumbnailUrl && (
+              <DropdownMenuItem
+                data-testid="asset-card-remove-thumbnail"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  void handleThumbnailRemove();
+                }}
+              >
+                <ImageOff className="h-4 w-4 mr-2" /> Remove thumbnail
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               data-testid="asset-card-delete"
@@ -418,6 +542,15 @@ export function AssetCard({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ALLOWED_THUMBNAIL_TYPES}
+        className="hidden"
+        data-testid="asset-card-thumbnail-input"
+        onChange={handleThumbnailFile}
+      />
 
       {error && (
         <p role="alert" className="mt-1 text-xs text-red-400">

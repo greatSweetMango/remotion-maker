@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
             sharedAt: true,
             sourceAssetId: true,
             templateSourceId: true,
+            thumbnailUrl: true,
             createdAt: true,
             updatedAt: true,
             _count: { select: { versions: true } },
