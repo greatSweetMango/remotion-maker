@@ -22,7 +22,8 @@ import {
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
-import type { GeneratedAsset, GenerateApiResponse } from '@/types';
+import { runAssetGenStage, type AssetGenStageResult } from './asset-gen-stage';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers } from '@/types';
 
 /* ------------------------------------------------------------------ */
 /* TM-111 — Forbidden-token sanitizer (gpt-4o failure modes)           */
@@ -650,6 +651,8 @@ export async function generateSceneCode(
   spec: SceneSpec,
   sceneIdx: number,
   model: string,
+  /** TM-90 — when present, scene code may splice `<Img src={imageUrl} />`. */
+  imageUrl?: string | null,
 ): Promise<string> {
   const userPayload = JSON.stringify(
     {
@@ -661,13 +664,26 @@ export async function generateSceneCode(
       sceneIndex: sceneIdx,
       sceneNumber: sceneIdx + 1,
       spec,
+      ...(imageUrl ? { imageUrl } : {}),
     },
     null,
     2,
   );
+  // TM-90 — when an image URL is available, append a hint that the scene
+  // code SHOULD splice it via `<Img src={imageUrl} />` rather than drawing
+  // the living entity from primitives. The LLM is reliably bad at vector
+  // animals; offloading the figure to a generated PNG fixes the largest
+  // single class of TM-46 visual-judge failures.
+  const systemPrompt = imageUrl
+    ? SCENE_CODE_SYSTEM_PROMPT +
+      `\n\nIMAGE ASSET (TM-90): A pre-generated PNG of the prompt's character/animal/person is available at \`imageUrl\` in this payload. ` +
+      `If the scene's narrativeBeat features that subject, render it via \`<Img src={imageUrl} style={{ width, height, objectFit: 'contain' }} />\` ` +
+      `(absolute-positioned inside the AbsoluteFill) and animate position/scale/opacity around it instead of drawing a vector approximation. ` +
+      `The Img component is a Remotion global — no import needed.`
+    : SCENE_CODE_SYSTEM_PROMPT;
   const text = await chatComplete({
     model,
-    system: SCENE_CODE_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: [{ role: 'user', content: userPayload }],
   });
   const parsed = extractJsonObject(text);
@@ -813,7 +829,12 @@ function findSceneIdentifiers(
  * This is the TM-112 fix for the `ReferenceError: SceneNParams is not
  * defined` runtime crash that hit 5/5 multi-step cases in TM-108 r2.
  */
-export function composeSceneCodes(outline: Outline, sceneCodes: string[]): string {
+export function composeSceneCodes(
+  outline: Outline,
+  sceneCodes: string[],
+  /** TM-90 — when present, surfaced as `PARAMS.imageUrl` so customize UI can swap. */
+  imageUrl?: string | null,
+): string {
   if (sceneCodes.length !== outline.scenes.length) {
     throw new Error(
       `TM-102 compose: scene code count ${sceneCodes.length} != outline ${outline.scenes.length}`,
@@ -887,6 +908,16 @@ export function composeSceneCodes(outline: Outline, sceneCodes: string[]): strin
     .filter((s): s is string => s !== null)
     .join('\n');
 
+  // TM-90 — surface the asset-gen PNG URL on PARAMS so:
+  //   (a) the customize UI auto-binds it as a `// type: text` field that
+  //       users can swap for their own image, and
+  //   (b) any scene that splices `<Img src={imageUrl} />` reads from a
+  //       single source-of-truth field instead of a hardcoded literal.
+  // The // type: text comment is required for ADR-0002 auto-extract.
+  const imageUrlField = imageUrl
+    ? `  imageUrl: ${JSON.stringify(imageUrl)}, // type: text\n`
+    : '';
+
   // TM-116 — inline per-scene error boundary so a single scene's render
   // throw degrades to a silent transparent fill (other scenes still play)
   // instead of bubbling to the studio EvaluatorErrorBoundary. Defined
@@ -915,7 +946,7 @@ class __SceneBoundary extends React.Component {
 }
 
 const PARAMS = {
-${paramsSpreads}
+${imageUrlField}${paramsSpreads}
 } as const;
 
 const GeneratedAsset = (_props: typeof PARAMS = PARAMS) => {
@@ -940,21 +971,52 @@ export interface MultiStepResult {
   asset: GeneratedAsset;
   costRatio: number;
   costWarning: string | null;
+  /** TM-90 — present when the asset-gen stage produced a PNG. */
+  assetGen: AssetGenStageResult | null;
+}
+
+export interface MultiStepOptions {
+  answers?: ClarifyAnswers;
+  /** TM-90 — disable the asset-gen stage even when a living-entity hits.
+   *  Useful for tests / cost-sensitive bench runs. */
+  disableAssetGen?: boolean;
 }
 
 export async function generateAssetMultiStep(
   prompt: string,
   model: string = getModels().pro,
+  opts: MultiStepOptions = {},
 ): Promise<MultiStepResult> {
+  // Stage 1 — outline. Asset-gen runs in parallel with scene-spec
+  // (independent of both stages — only needs prompt + answers).
   const outline = await generateOutline(prompt, model);
 
+  // TM-90 — kick off PNG generation in parallel with sceneSpecs. Even at the
+  // worst case (gpt-image-1 ~10s @ low quality) this overlaps the spec stage
+  // (gpt-4o ~3-5s × N parallel) so the wall-clock cost is ~max(spec, image)
+  // not the sum. When opts.disableAssetGen or no living entity hits, this
+  // resolves to null with zero API cost.
+  const assetGenPromise: Promise<AssetGenStageResult | null> = opts.disableAssetGen
+    ? Promise.resolve(null)
+    : runAssetGenStage({ prompt, answers: opts.answers }).catch((err) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[TM-90] asset-gen stage failed, continuing without PNG:',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        return null;
+      });
+
   // Run scene-spec calls in parallel — they only depend on the outline.
-  const sceneSpecs = await Promise.all(
-    outline.scenes.map((_, i) => generateSceneSpec(outline, i, model)),
-  );
+  const [sceneSpecs, assetGen] = await Promise.all([
+    Promise.all(outline.scenes.map((_, i) => generateSceneSpec(outline, i, model))),
+    assetGenPromise,
+  ]);
+  const imageUrl = assetGen?.imageUrl ?? null;
   // Code calls also parallel — each depends only on its own spec + the outline.
   const sceneCodes = await Promise.all(
-    sceneSpecs.map((spec, i) => generateSceneCode(outline, spec, i, model)),
+    sceneSpecs.map((spec, i) => generateSceneCode(outline, spec, i, model, imageUrl)),
   );
 
   // TM-117 — per-scene transpile precheck. Even after TM-111 / TM-114 /
@@ -985,7 +1047,7 @@ export async function generateAssetMultiStep(
     }),
   );
 
-  const composedCode = composeSceneCodes(outline, prechecked);
+  const composedCode = composeSceneCodes(outline, prechecked, imageUrl);
 
   // TM-111 — apply forbidden-token sanitizer to the COMPOSED module too,
   // so any token introduced by the wrapper (or surviving sub-fragments)
@@ -1026,7 +1088,15 @@ export async function generateAssetMultiStep(
       ? `Multi-step generation projected to consume ~${costRatio.toFixed(1)}× the tokens of a single-shot run for this prompt (${outline.scenes.length} scenes). Set AI_MULTI_STEP=0 to fall back to single-shot.`
       : null;
 
-  return { outline, sceneSpecs, composedCode: composedScrubbed, asset, costRatio, costWarning };
+  return {
+    outline,
+    sceneSpecs,
+    composedCode: composedScrubbed,
+    asset,
+    costRatio,
+    costWarning,
+    assetGen,
+  };
 }
 
 /**
@@ -1037,14 +1107,20 @@ export async function generateAssetMultiStep(
 export async function generateAssetMultiStepAsApiResponse(
   prompt: string,
   model?: string,
-): Promise<GenerateApiResponse & { multiStep?: { costRatio: number; fallback?: 'single-shot' } }> {
+  opts: MultiStepOptions = {},
+): Promise<GenerateApiResponse & { multiStep?: { costRatio: number; fallback?: 'single-shot'; assetGen?: { imageUrl: string; cached: boolean; costUsd: number } } }> {
   try {
-    const result = await generateAssetMultiStep(prompt, model);
+    const result = await generateAssetMultiStep(prompt, model, opts);
     return {
       type: 'generate',
       asset: result.asset,
       ...(result.costWarning ? { warning: result.costWarning } : {}),
-      multiStep: { costRatio: result.costRatio },
+      multiStep: {
+        costRatio: result.costRatio,
+        ...(result.assetGen
+          ? { assetGen: { imageUrl: result.assetGen.imageUrl, cached: result.assetGen.cached, costUsd: result.assetGen.costUsd } }
+          : {}),
+      },
     };
   } catch (err) {
     // TM-111 — single-shot fallback for any sandbox / transpile / structural

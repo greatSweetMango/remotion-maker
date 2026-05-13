@@ -59,3 +59,8 @@ next-env.d.ts
 
 # TM-84 spike — live OpenAI asset outputs, never commit.
 /.spike-assets/
+
+# TM-90 — runtime-generated PNGs from asset-gen stage. User-uploaded
+# thumbnails (TM-109) and asset-gen outputs share public/uploads/ but
+# are filesystem-only (regenerable / re-uploadable).
+/public/uploads/
