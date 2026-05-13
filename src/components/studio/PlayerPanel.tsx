@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Player, type PlayerRef } from '@remotion/player';
+// TM-122: use the client-only dynamic wrapper to avoid SSR hydration
+// mismatches in Remotion-rendered SVG/CSS values. See ClientPlayer.tsx.
+import { Player, type PlayerRef } from './ClientPlayer';
 import { evaluateComponentDetailed } from '@/lib/remotion/evaluator';
 import { EvaluatorErrorBoundary } from './EvaluatorErrorBoundary';
 import { Badge } from '@/components/ui/badge';
@@ -268,7 +270,7 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
             <div style={{ width: '100%', maxWidth: '100%', aspectRatio: `${asset.width}/${asset.height}` }}>
               <EvaluatorErrorBoundary resetKey={asset.id}>
                 <Player
-                  ref={playerRef}
+                  playerRef={playerRef}
                   component={Component as React.ComponentType<Record<string, unknown>>}
                   inputProps={paramValues}
                   durationInFrames={Math.max(

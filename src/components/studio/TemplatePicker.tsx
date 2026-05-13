@@ -1,6 +1,7 @@
 'use client';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Player } from '@remotion/player';
+// TM-122: client-only Player to avoid SSR hydration mismatches.
+import { Player } from './ClientPlayer';
 import { evaluateComponent } from '@/lib/remotion/evaluator';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Zap } from 'lucide-react';

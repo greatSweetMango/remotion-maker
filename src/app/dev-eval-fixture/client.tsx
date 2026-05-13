@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import { Player } from '@remotion/player';
+// TM-122: client-only Player to avoid SSR hydration mismatches.
+import { Player } from '@/components/studio/ClientPlayer';
 import { evaluateComponentDetailed } from '@/lib/remotion/evaluator';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { EvaluatorErrorBoundary } from '@/components/studio/EvaluatorErrorBoundary';

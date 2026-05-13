@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
-import { Player } from '@remotion/player';
+// TM-122: client-only Player to avoid SSR hydration mismatches.
+import { Player } from '@/components/studio/ClientPlayer';
 import { FluidBlobs } from '@/remotion/templates/FluidBlobs';
 
 export function Client() {
