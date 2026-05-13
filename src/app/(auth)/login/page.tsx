@@ -15,7 +15,7 @@ import { Zap } from 'lucide-react';
  * Restrict callbackUrl to same-origin relative paths to prevent open-redirect.
  * Accepts "/foo", "/foo?bar=1"; rejects "//evil", "http://...", "javascript:".
  */
-function safeCallbackUrl(raw: string | null | undefined, fallback = '/studio') {
+function safeCallbackUrl(raw: string | null | undefined, fallback = '/welcome') {
   if (!raw) return fallback;
   if (!raw.startsWith('/')) return fallback;
   if (raw.startsWith('//')) return fallback;

@@ -11,7 +11,7 @@ import { useStudio } from '@/hooks/useStudio';
 import { ActiveSequenceProvider, useActiveSequence } from '@/hooks/useActiveSequence';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Zap, Settings2, Download, LayoutGrid } from 'lucide-react';
+import { Zap, Settings2, Download, LayoutGrid, FolderOpen } from 'lucide-react';
 import { ShareButton } from '@/components/share/ShareButton';
 import type { GeneratedAsset, Template, Tier } from '@/types';
 import Link from 'next/link';
@@ -123,6 +123,21 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
               )}
             </>
           )}
+          {/* TM-121: promote Dashboard from a hidden `lg:block` text link to a
+              persistent icon button so users can always find their saved
+              animations from inside the Studio, on any breakpoint. */}
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-slate-400 hover:text-white gap-1.5 px-2"
+            aria-label="My Projects"
+          >
+            <Link href="/dashboard">
+              <FolderOpen className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">My Projects</span>
+            </Link>
+          </Button>
           {userImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={userImage} alt="" className="w-7 h-7 rounded-full border border-slate-600 flex-shrink-0" />
@@ -131,9 +146,6 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
               {userName?.[0]?.toUpperCase() ?? 'U'}
             </div>
           )}
-          <Link href="/dashboard" className="text-xs text-slate-400 hover:text-white transition-colors hidden lg:block">
-            Dashboard
-          </Link>
         </div>
       </header>
 
