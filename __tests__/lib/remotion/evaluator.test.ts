@@ -81,18 +81,17 @@ describe('evaluateComponent — caching', () => {
 
 describe('TM-116 — expanded Remotion globals destructure', () => {
   // gpt-4o multi-step scenes regularly reach for less-common Remotion
-  // APIs (Series, Loop, random, Audio, staticFile, etc.). Prior to TM-116
+  // APIs (Series, Loop, random, staticFile, etc.). Prior to TM-116
   // the evaluator only destructured ~9 names, so any reference to e.g.
   // `Series` threw ReferenceError at render time and surfaced as a
   // `<Scene1>` ErrorBoundary in production. The destructure now covers
-  // the full Remotion public surface; verify each name is in scope.
+  // the visual portion of the Remotion public surface; verify each name
+  // is in scope. (TM-123 — Audio/Video/OffthreadVideo intentionally
+  // dropped; see TM-123 block below for the explicit deny assertion.)
   const EXPANDED_NAMES = [
     'Series',
     'Loop',
     'Freeze',
-    'Audio',
-    'Video',
-    'OffthreadVideo',
     'staticFile',
     'random',
     'delayRender',
@@ -111,6 +110,36 @@ describe('TM-116 — expanded Remotion globals destructure', () => {
     `;
     const C = evaluateComponent(jsCode);
     expect(C).not.toBeNull();
+  });
+});
+
+describe('TM-123 — media globals removed from destructure (visual-only)', () => {
+  // Defense-in-depth: the sandbox deny list already rejects `<Audio>` etc.
+  // before this code reaches the evaluator. But if a tag slips past (e.g.
+  // a future regression in validateCode or a direct call into evaluator
+  // bypassing validation), we want a ReferenceError at evaluation time
+  // rather than a broken <Html5Audio> tree that floods the console with
+  // AudioContext errors.
+  //
+  // NOTE: `Audio`/`Video` are NOT included here because they are also
+  // browser-level constructors (window.Audio / window.HTMLVideoElement) that
+  // resolve through the global scope inherited by `new Function(...)`. The
+  // sandbox deny list is the sole defense for those two. `OffthreadVideo`
+  // and `IFrame` are Remotion-specific identifiers with no global fallback,
+  // so removing them from the destructure DOES produce a ReferenceError
+  // path here.
+  const DENIED_MEDIA_NAMES = ['OffthreadVideo', 'IFrame'];
+
+  beforeEach(() => clearEvaluatorCache());
+
+  it.each(DENIED_MEDIA_NAMES)('does NOT expose `%s` to evaluated jsCode', name => {
+    const jsCode = `
+      const _typecheck_${name} = ${name};
+      const Component = () => null;
+    `;
+    // The evaluator returns a structured error rather than throwing.
+    const C = evaluateComponent(jsCode);
+    expect(C).toBeNull();
   });
 });
 

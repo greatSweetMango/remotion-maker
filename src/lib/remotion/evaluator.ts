@@ -216,13 +216,21 @@ function buildAndInvoke(jsCode: string): EvaluationResult {
       `
       "use strict";
       // TM-116 — destructure expanded so gpt-4o multi-step scenes that reach
-      // for less-common Remotion APIs (e.g. Series, Loop, random, Audio) no
+      // for less-common Remotion APIs (e.g. Series, Loop, random) no
       // longer throw ReferenceError at render time. Each name is a no-op if
       // unused; cost is a few extra local bindings per factory invocation.
+      // TM-123 — Audio/Video/OffthreadVideo/IFrame intentionally OMITTED.
+      // Generated assets are visual-only; emitting <Audio src={someNumber}/>
+      // triggers Remotion's "tag requires a string for src" runtime error
+      // plus a 100+ AudioContext error cascade. The sandbox deny list rejects
+      // those tags statically, and removing the locals here is the second
+      // line of defense: even if a tag slips through, the factory body will
+      // ReferenceError at evaluation time instead of producing a broken
+      // <Html5Audio> in the React tree.
       const {
         useCurrentFrame, useVideoConfig, interpolate, interpolateColors,
         spring, AbsoluteFill, Sequence, Series, Loop, Freeze, Img, Easing,
-        Audio, Video, OffthreadVideo, IFrame, staticFile, random,
+        staticFile, random,
         delayRender, continueRender, cancelRender, prefetch,
         getInputProps, getRemotionEnvironment, getStaticFiles, watchStaticFile,
         Composition, Still, Folder, registerRoot

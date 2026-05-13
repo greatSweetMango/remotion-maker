@@ -80,6 +80,18 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // WebAssembly — full alternative execution surface, deny entirely. (TM-85)
   { pattern: /\bWebAssembly\b/, label: 'Forbidden: WebAssembly' },
 
+  // Media components (TM-123). Generated assets are visual-only; <Audio>/
+  // <Video>/<OffthreadVideo>/<IFrame> require a `src` URL that the LLM has
+  // no source-of-truth for, and emitting them with a non-string `src` (or no
+  // `src` at all) triggers Remotion's runtime error
+  // `<Html5Audio> tag requires a string for `src`` plus a 100+ "AudioContext
+  // encountered an error" cascade in the studio. Reject statically so the
+  // user sees a friendly evaluator error instead of a flooded console.
+  { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
+  { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
+  { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
+  { pattern: /<\s*IFrame\b/, label: 'Forbidden: <IFrame> (visual-only assets — TM-123)' },
+
   // Worker spawning (avoid resource exhaustion via fanout)
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
