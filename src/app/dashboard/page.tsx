@@ -57,6 +57,7 @@ export default async function DashboardPage() {
     updatedAt: a.updatedAt.toISOString(),
     tags: decodeTags(a.tags),
     folder: a.folder,
+    thumbnailUrl: a.thumbnailUrl,
     _count: a._count,
   }));
 

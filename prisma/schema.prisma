@@ -123,6 +123,12 @@ model Asset {
   // from a "/"-separated path without a schema change.
   tags             String         @default("[]")
   folder           String?
+  // TM-109 — user-uploaded custom thumbnail for the asset card.
+  // Storage is local-only (public/uploads/thumbnails/<assetId>.<ext>) — value
+  // is the public-relative URL (e.g. `/uploads/thumbnails/abc.png`). Null
+  // means the dashboard falls back to the default Sparkles placeholder.
+  // Production R2/S3 backing is a separate task (do NOT swap here).
+  thumbnailUrl     String?
   versions         AssetVersion[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
