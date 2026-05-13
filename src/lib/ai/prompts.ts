@@ -25,22 +25,42 @@ const PARAMS = {
 \`\`\`
 
 COMPONENT FORMAT (REQUIRED):
+The shape below is a STRUCTURAL EXAMPLE ONLY — do NOT copy any of the example
+identifiers, comments, or strings verbatim into your output. Replace every
+example with content concretely derived from the user's prompt.
 \`\`\`typescript
+// Example shape (rename, expand, and customize for the user's prompt):
+const PARAMS = {
+  bgColor: "#0f0f17",       // type: color
+  accent: "#7C3AED",        // type: color
+  label: "Demo",            // type: text
+  speed: 1.0,                // type: range, min: 0.1, max: 3.0
+} as const;
+
 export const GeneratedAsset = ({
-  primaryColor = PARAMS.primaryColor,
+  bgColor = PARAMS.bgColor,
+  accent = PARAMS.accent,
+  label = PARAMS.label,
   speed = PARAMS.speed,
-  // ... all params
 }: typeof PARAMS = PARAMS) => {
   const frame = useCurrentFrame();
   const { durationInFrames, fps, width, height } = useVideoConfig();
-  // animation logic
+  const t = (frame * speed) / durationInFrames;
+  const opacity = interpolate(t, [0, 0.15, 0.85, 1], [0, 1, 1, 0]);
   return (
-    <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
-      {/* component content */}
+    <AbsoluteFill style={{ backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: accent, fontSize: 96, fontWeight: 700, opacity }}>
+        {label}
+      </div>
     </AbsoluteFill>
   );
 };
 \`\`\`
+FORBIDDEN in your output (these are EXAMPLES IN THIS PROMPT, not allowed in
+generated code): the literal placeholder comments \`// ... all params\`,
+\`// animation logic\`, the empty placeholder \`{/* component content */}\`,
+or the string \`// Complete TSX code here\`. Always emit a real component
+body with real JSX and real animation math.
 
 AVAILABLE REMOTION GLOBALS (already injected, no imports needed):
 - useCurrentFrame, useVideoConfig
@@ -142,15 +162,19 @@ CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
 - Loader: motion must be perfectly periodic so the result loops cleanly
   at \`durationInFrames\`.
 
-ALWAYS respond with valid JSON in this exact format:
+ALWAYS respond with valid JSON in this exact format. The "code" value MUST be
+the FULL TSX source as a JSON-escaped string (newlines as \\n, real content,
+NOT a comment or summary):
 {
   "title": "Descriptive asset name",
-  "code": "// Complete TSX code here",
+  "code": "const PARAMS = { /* real params */ } as const;\\n\\nexport const GeneratedAsset = (...) => { /* real animated JSX */ };",
   "durationInFrames": 150,
   "fps": 30,
   "width": 1920,
   "height": 1080
 }
+The placeholder string \`// Complete TSX code here\` is NEVER an acceptable
+value for "code" — it is shown above only to mark where YOUR TSX must go.
 
 CRITICAL JSON SERIALIZATION RULES (failure here breaks the whole pipeline):
 - The "code" field MUST be a standard JSON string delimited by double quotes ("...").

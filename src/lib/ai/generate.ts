@@ -640,9 +640,17 @@ async function generateAssetPlaceholderRetry(
  * tailored result."
  */
 const FALLBACK_TEMPLATE_FILENAME = 'CounterAnimation.tsx';
+// TM-120: improved UX. The previous wording was technically correct but
+// unhelpful — users got blocked without knowing what "rephrase" means.
+// The new copy is action-oriented with three concrete success patterns the
+// user can adapt.
 const FALLBACK_WARNING =
-  'AI returned a placeholder/empty component three times — we substituted a default template. ' +
-  'Please rephrase your prompt with more concrete details (subject, palette, timing, data) and regenerate.';
+  "We couldn't quite generate from that prompt and substituted a default template. " +
+  'Try adding a concrete subject + one of {palette, duration, data, style}. ' +
+  'Examples that work well:\n' +
+  '  • "Bar chart top 5 products by revenue, purple gradient, 4s"\n' +
+  '  • "픽셀아트 곰돌이가 걷는 애니메이션, 파스텔 톤"\n' +
+  '  • "Fade in fade out logo intro, neon cyan, 2 seconds"';
 
 async function buildFallbackAsset(
   prompt: string,
