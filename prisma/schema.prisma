@@ -113,6 +113,16 @@ model Asset {
   // duplicate assets and burn `monthlyUsage` past the first materialization.
   // Not a FK (templates are static code, not DB rows).
   templateSourceId String?
+  // TM-107 — tags/folders for Asset v2 organization.
+  // SQLite has no scalar lists, so `tags` is a JSON-encoded string array
+  // (always a JSON array literal, default `[]`). Read/write via
+  // `src/lib/asset/tags.ts` helpers — never touch the raw column directly
+  // from new code so we keep the encoding invariant in one place.
+  // `folder` is a single nullable string (null = root). MVP only models
+  // a flat per-user folder namespace; nested folders can be derived later
+  // from a "/"-separated path without a schema change.
+  tags             String         @default("[]")
+  folder           String?
   versions         AssetVersion[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -121,6 +131,7 @@ model Asset {
   @@index([sourceAssetId])
   @@index([userId, deletedAt])
   @@index([userId, templateSourceId])
+  @@index([userId, folder])
 }
 
 model AssetVersion {

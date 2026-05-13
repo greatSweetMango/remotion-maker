@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Zap, Plus, Sparkles, Download, Trash2 } from 'lucide-react';
 import { TIER_LIMITS } from '@/lib/usage';
 import { AssetGrid } from '@/components/dashboard/AssetGrid';
+import { decodeTags } from '@/lib/asset/tags';
 import type { Tier } from '@/types';
 
 const PAGE_SIZE = 24;
@@ -54,8 +55,31 @@ export default async function DashboardPage() {
     title: a.title,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
+    tags: decodeTags(a.tags),
+    folder: a.folder,
     _count: a._count,
   }));
+
+  // Compute initial facets server-side so the filter chips render without an
+  // extra round-trip on first paint (TM-107).
+  const allRowsForFacets = await prisma.asset.findMany({
+    where: { userId: user.id, deletedAt: null },
+    select: { tags: true, folder: true },
+  });
+  const folderSet = new Set<string>();
+  const tagCounts = new Map<string, number>();
+  for (const r of allRowsForFacets) {
+    if (r.folder) folderSet.add(r.folder);
+    for (const t of decodeTags(r.tags)) {
+      tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    }
+  }
+  const initialFacets = {
+    folders: Array.from(folderSet).sort((a, b) => a.localeCompare(b)),
+    tags: Array.from(tagCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+  };
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -156,6 +180,7 @@ export default async function DashboardPage() {
           <AssetGrid
             initialAssets={serializedAssets}
             initialPagination={initialPagination}
+            initialFacets={initialFacets}
             tier={tier}
           />
         </div>
