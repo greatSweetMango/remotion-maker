@@ -322,7 +322,9 @@ describe('generateAsset retry on placeholder (TM-51)', () => {
     if (result.type === 'generate') {
       // Fallback asset carries a `warning` so the UI can prompt the user.
       expect(result.warning).toBeTruthy();
-      expect(result.warning).toMatch(/placeholder|three times/i);
+      // TM-120: warning now uses action-oriented copy with concrete hints
+      // (the technical "placeholder/three times" phrasing was unhelpful).
+      expect(result.warning).toMatch(/default template|examples that work|substituted/i);
       // The fallback asset is built from the CounterAnimation template.
       expect(result.asset.code).toContain('PARAMS');
       expect(result.asset.code.length).toBeGreaterThan(200);
@@ -543,5 +545,42 @@ describe('generateAsset rescues ld-07-style malformed JSON (TM-53)', () => {
     if (result.type === 'generate') {
       expect(result.asset.title).toBe('Loading 42%');
     }
+  });
+});
+
+// TM-120: RCA showed gpt-4o-mini was leaking skeleton comments from the
+// system prompt verbatim into the `code` field (e.g. `// ... all params`,
+// `// animation logic`, `{/* component content */}`, `// Complete TSX code
+// here`). Root cause: those exact strings appeared as placeholder markers
+// inside GENERATION_SYSTEM_PROMPT's example block. The fix replaces the
+// markers with concrete example tokens. These tests guard the regression.
+describe('TM-120 system-prompt skeleton hygiene', () => {
+  // Import lazily so the jest.mock declarations above apply.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { GENERATION_SYSTEM_PROMPT } = require('@/lib/ai/prompts');
+
+  it('does not contain the bare "// ... all params" placeholder', () => {
+    // It MAY appear inside a FORBIDDEN block (escaped/quoted) — that's fine.
+    // What we forbid is the example BODY emitting it as a real code line.
+    // The example component body now destructures real param names instead.
+    const exampleBlockMatch = GENERATION_SYSTEM_PROMPT.match(
+      /COMPONENT FORMAT \(REQUIRED\):[\s\S]*?```typescript([\s\S]*?)```/,
+    );
+    expect(exampleBlockMatch).toBeTruthy();
+    const body = exampleBlockMatch![1];
+    expect(body).not.toMatch(/^\s*\/\/\s*\.\.\.\s*all params/m);
+    expect(body).not.toMatch(/^\s*\/\/\s*animation logic\s*$/m);
+    expect(body).not.toMatch(/\{\s*\/\*\s*component content\s*\*\/\s*\}/);
+  });
+
+  it('JSON-response example does not show "// Complete TSX code here" as the code value', () => {
+    // The literal string may appear inside the FORBIDDEN warning text, but
+    // the JSON example must show a real-looking code excerpt instead.
+    const jsonExample = GENERATION_SYSTEM_PROMPT.match(
+      /ALWAYS respond with valid JSON[\s\S]*?\{[\s\S]*?\}/,
+    );
+    expect(jsonExample).toBeTruthy();
+    expect(jsonExample![0]).not.toMatch(/"code":\s*"\/\/ Complete TSX code here"/);
+    expect(jsonExample![0]).toMatch(/"code":\s*"const PARAMS/);
   });
 });
