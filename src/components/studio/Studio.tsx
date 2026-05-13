@@ -7,6 +7,7 @@ import { PlayerPanel } from './PlayerPanel';
 import { CustomizePanel } from './CustomizePanel';
 import { ExportPanel } from './ExportPanel';
 import { TemplatePicker } from './TemplatePicker';
+import { PipelineTimingBadge } from './PipelineTimingBadge';
 import { useStudio } from '@/hooks/useStudio';
 import { ActiveSequenceProvider, useActiveSequence } from '@/hooks/useActiveSequence';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     isAttaching,
     attachUrl,
     detachContext,
+    pipelineTiming,
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
@@ -330,6 +332,8 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
         </div>
       </div>
       <SequenceHotkeys />
+      {/* TM-124 — dev badge proves whether the multi-step pipeline ran. */}
+      <PipelineTimingBadge timing={pipelineTiming} />
     </div>
     </ActiveSequenceProvider>
   );

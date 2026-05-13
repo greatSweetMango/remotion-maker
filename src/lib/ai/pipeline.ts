@@ -23,7 +23,13 @@ import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { runAssetGenStage, type AssetGenStageResult } from './asset-gen-stage';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers } from '@/types';
+import type {
+  GeneratedAsset,
+  GenerateApiResponse,
+  ClarifyAnswers,
+  PipelineTiming,
+  PipelineTimingStage,
+} from '@/types';
 
 /* ------------------------------------------------------------------ */
 /* TM-111 — Forbidden-token sanitizer (gpt-4o failure modes)           */
@@ -973,7 +979,21 @@ export interface MultiStepResult {
   costWarning: string | null;
   /** TM-90 — present when the asset-gen stage produced a PNG. */
   assetGen: AssetGenStageResult | null;
+  /**
+   * TM-124 — per-stage wall-clock timing so the studio UI can prove that
+   * the multi-step pipeline actually ran (vs the single-shot fast path).
+   * `mode` is always `multi-step` from `generateAssetMultiStep`; the
+   * route-level adapter rewrites it to `single-shot` on fallback.
+   */
+  timing: PipelineTiming;
 }
+
+/**
+ * TM-124 — execution trace surfaced to callers (route + UI dev badge).
+ * The wire-format shape lives in `@/types` (client-safe re-export); this
+ * type alias keeps server-side imports working unchanged.
+ */
+export type { PipelineTiming, PipelineTimingStage } from '@/types';
 
 export interface MultiStepOptions {
   answers?: ClarifyAnswers;
@@ -987,9 +1007,25 @@ export async function generateAssetMultiStep(
   model: string = getModels().pro,
   opts: MultiStepOptions = {},
 ): Promise<MultiStepResult> {
+  // TM-124 — per-stage timing. Wall-clock per stage; gather time for
+  // parallel stages (scene-spec || asset-gen, scene-code). `console.warn`
+  // is dev-only (NODE_ENV !== production) so prod logs aren't polluted.
+  const pipelineStart = Date.now();
+  const stages: PipelineTimingStage[] = [];
+  const recordStage = (name: string, ms: number, meta?: Record<string, string | number | boolean>): void => {
+    stages.push(meta ? { name, ms, meta } : { name, ms });
+  };
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      `[pipeline] mode=multi-step stages=outline,scene-specs,asset-gen,scene-code,compose model=${model}`,
+    );
+  }
+
   // Stage 1 — outline. Asset-gen runs in parallel with scene-spec
   // (independent of both stages — only needs prompt + answers).
+  const outlineStart = Date.now();
   const outline = await generateOutline(prompt, model);
+  recordStage('outline', Date.now() - outlineStart, { scenes: outline.scenes.length });
 
   // TM-90 — kick off PNG generation in parallel with sceneSpecs. Even at the
   // worst case (gpt-image-1 ~10s @ low quality) this overlaps the spec stage
@@ -1009,15 +1045,24 @@ export async function generateAssetMultiStep(
       });
 
   // Run scene-spec calls in parallel — they only depend on the outline.
+  const parallelStart = Date.now();
   const [sceneSpecs, assetGen] = await Promise.all([
     Promise.all(outline.scenes.map((_, i) => generateSceneSpec(outline, i, model))),
     assetGenPromise,
   ]);
+  const parallelMs = Date.now() - parallelStart;
+  recordStage('scene-specs+asset-gen', parallelMs, {
+    sceneSpecs: outline.scenes.length,
+    assetGenUsed: assetGen != null,
+    assetGenCached: assetGen?.cached ?? false,
+  });
   const imageUrl = assetGen?.imageUrl ?? null;
   // Code calls also parallel — each depends only on its own spec + the outline.
+  const sceneCodeStart = Date.now();
   const sceneCodes = await Promise.all(
     sceneSpecs.map((spec, i) => generateSceneCode(outline, spec, i, model, imageUrl)),
   );
+  recordStage('scene-code', Date.now() - sceneCodeStart, { count: sceneCodes.length });
 
   // TM-117 — per-scene transpile precheck. Even after TM-111 / TM-114 /
   // TM-116 sanitisation, gpt-4o occasionally emits a fragment that survives
@@ -1047,6 +1092,7 @@ export async function generateAssetMultiStep(
     }),
   );
 
+  const composeStart = Date.now();
   const composedCode = composeSceneCodes(outline, prechecked, imageUrl);
 
   // TM-111 — apply forbidden-token sanitizer to the COMPOSED module too,
@@ -1088,6 +1134,27 @@ export async function generateAssetMultiStep(
       ? `Multi-step generation projected to consume ~${costRatio.toFixed(1)}× the tokens of a single-shot run for this prompt (${outline.scenes.length} scenes). Set AI_MULTI_STEP=0 to fall back to single-shot.`
       : null;
 
+  recordStage('compose+validate', Date.now() - composeStart, {
+    composedChars: composedScrubbed.length,
+  });
+
+  const totalMs = Date.now() - pipelineStart;
+  const timing: PipelineTiming = {
+    mode: 'multi-step',
+    stages,
+    totalMs,
+    asset_gen_used: assetGen != null,
+    scenes: outline.scenes.length,
+  };
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      `[pipeline] done mode=multi-step totalMs=${totalMs} scenes=${outline.scenes.length} assetGen=${assetGen != null ? (assetGen.cached ? 'cached' : 'fresh') : 'none'}`,
+    );
+    for (const s of stages) {
+      console.warn(`[pipeline]   stage=${s.name} ms=${s.ms}${s.meta ? ' ' + JSON.stringify(s.meta) : ''}`);
+    }
+  }
+
   return {
     outline,
     sceneSpecs,
@@ -1096,6 +1163,7 @@ export async function generateAssetMultiStep(
     costRatio,
     costWarning,
     assetGen,
+    timing,
   };
 }
 
@@ -1108,7 +1176,15 @@ export async function generateAssetMultiStepAsApiResponse(
   prompt: string,
   model?: string,
   opts: MultiStepOptions = {},
-): Promise<GenerateApiResponse & { multiStep?: { costRatio: number; fallback?: 'single-shot'; assetGen?: { imageUrl: string; cached: boolean; costUsd: number } } }> {
+): Promise<GenerateApiResponse & {
+  multiStep?: {
+    costRatio: number;
+    fallback?: 'single-shot';
+    assetGen?: { imageUrl: string; cached: boolean; costUsd: number };
+  };
+  /** TM-124 — per-stage timing trace surfaced for the studio dev badge. */
+  assetGenStages?: PipelineTiming;
+}> {
   try {
     const result = await generateAssetMultiStep(prompt, model, opts);
     return {
@@ -1121,6 +1197,7 @@ export async function generateAssetMultiStepAsApiResponse(
           ? { assetGen: { imageUrl: result.assetGen.imageUrl, cached: result.assetGen.cached, costUsd: result.assetGen.costUsd } }
           : {}),
       },
+      assetGenStages: result.timing,
     };
   } catch (err) {
     // TM-111 — single-shot fallback for any sandbox / transpile / structural
@@ -1144,8 +1221,17 @@ export async function generateAssetMultiStepAsApiResponse(
     // this call only (process.env mutation in Node is process-local).
     const prev = process.env.AI_MULTI_STEP;
     process.env.AI_MULTI_STEP = '0';
+    const fallbackStart = Date.now();
     try {
       const fallback = await generateAsset(prompt, model);
+      const fallbackMs = Date.now() - fallbackStart;
+      const fallbackTiming: PipelineTiming = {
+        mode: 'single-shot',
+        stages: [{ name: 'single-shot-fallback', ms: fallbackMs, meta: { reason: message.slice(0, 120) } }],
+        totalMs: fallbackMs,
+        asset_gen_used: false,
+        scenes: 0,
+      };
       const fallbackWarning =
         `TM-111: multi-step pipeline failed (${message.split('\n')[0].slice(0, 160)}); served single-shot result.`;
       if (fallback.type === 'generate') {
@@ -1153,10 +1239,11 @@ export async function generateAssetMultiStepAsApiResponse(
           ...fallback,
           warning: fallback.warning ? `${fallback.warning} | ${fallbackWarning}` : fallbackWarning,
           multiStep: { costRatio: 1, fallback: 'single-shot' },
+          assetGenStages: fallbackTiming,
         };
       }
       // Clarify fallback — surface as-is (no warning slot in clarify shape).
-      return { ...fallback, multiStep: { costRatio: 1, fallback: 'single-shot' } };
+      return { ...fallback, multiStep: { costRatio: 1, fallback: 'single-shot' }, assetGenStages: fallbackTiming };
     } finally {
       if (prev === undefined) delete process.env.AI_MULTI_STEP;
       else process.env.AI_MULTI_STEP = prev;
