@@ -86,6 +86,22 @@ export async function POST(req: Request) {
     console.log(
       `[generate] done totalMs=${totalMs} firstTokenMs=${firstTokenMs} type=${result.type}`,
     );
+    // TM-124 — when the single-shot path executed (multi-step not enabled or
+    // clarify/answers branch), synthesize a single-stage timing trace so the
+    // UI dev badge can still distinguish modes. Multi-step responses arrive
+    // with `assetGenStages` already populated by the pipeline.
+    const resultWithStages = result as typeof result & {
+      assetGenStages?: import('@/lib/ai/pipeline').PipelineTiming;
+    };
+    if (!resultWithStages.assetGenStages && result.type === 'generate') {
+      resultWithStages.assetGenStages = {
+        mode: 'single-shot',
+        stages: [{ name: 'single-shot', ms: totalMs, meta: { firstTokenMs: firstTokenMs >= 0 ? firstTokenMs : -1 } }],
+        totalMs,
+        asset_gen_used: false,
+        scenes: 0,
+      };
+    }
 
     // Clarify-only response: do NOT consume monthly quota. We already reserved
     // a slot above; refund it here so clarify rounds remain free.
@@ -128,6 +144,7 @@ export async function POST(req: Request) {
       type: 'generate',
       asset: { ...asset, id: dbAsset.id },
       ...(result.warning ? { warning: result.warning } : {}),
+      ...(resultWithStages.assetGenStages ? { assetGenStages: resultWithStages.assetGenStages } : {}),
     });
   } catch (error: unknown) {
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a

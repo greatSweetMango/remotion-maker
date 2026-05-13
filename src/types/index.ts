@@ -115,9 +115,27 @@ export interface ClarifyResponse {
   questions: ClarifyQuestion[];
 }
 
+/**
+ * TM-124 — per-stage pipeline timing trace surfaced from /api/generate.
+ * Client-safe type (no server deps); the pipeline module re-exports the
+ * same shape under the same name for server callers.
+ */
+export interface PipelineTimingStage {
+  name: string;
+  ms: number;
+  meta?: Record<string, string | number | boolean>;
+}
+export interface PipelineTiming {
+  mode: 'multi-step' | 'single-shot';
+  stages: PipelineTimingStage[];
+  totalMs: number;
+  asset_gen_used: boolean;
+  scenes: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
-  | { type: 'generate'; asset: GeneratedAsset; warning?: string };
+  | { type: 'generate'; asset: GeneratedAsset; warning?: string; assetGenStages?: PipelineTiming };
 
 /** Map of clarify question id → selected choice id */
 export type ClarifyAnswers = Record<string, string>;

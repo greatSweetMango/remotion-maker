@@ -13,6 +13,7 @@ import {
   formatIngestForPrompt,
   type IngestedContext,
 } from '@/lib/ingest/format';
+import type { PipelineTiming } from '@/types';
 
 /**
  * Maximum number of undo steps retained for customize-panel parameter edits.
@@ -240,6 +241,9 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
   // ephemera (not undoable) and only impacts the next outgoing prompt.
   const [attachedContext, setAttachedContext] = useState<IngestedContext | null>(null);
   const [isAttaching, setIsAttaching] = useState(false);
+  // TM-124 — last generate/edit pipeline timing trace (dev badge in studio).
+  // Ephemeral state; cleared on new generate; not undoable.
+  const [pipelineTiming, setPipelineTiming] = useState<PipelineTiming | null>(null);
 
   const attachUrl = useCallback(async (url: string) => {
     setIsAttaching(true);
@@ -289,6 +293,12 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
       // type === 'generate' (or legacy plain asset shape)
       const asset = data.type === 'generate' ? data.asset : data;
       dispatch({ type: 'SET_ASSET', payload: asset });
+      // TM-124 — store pipeline timing trace for the dev badge in Studio.
+      if (data && typeof data === 'object' && 'assetGenStages' in data && data.assetGenStages) {
+        setPipelineTiming(data.assetGenStages as PipelineTiming);
+      } else {
+        setPipelineTiming(null);
+      }
       // TM-100: when the AI repeatedly returned placeholders the server falls
       // back to a default template and tags the response with `warning`. We
       // show a softer toast so the user knows to refine the prompt.
@@ -488,5 +498,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     isAttaching,
     attachUrl,
     detachContext,
+    // TM-124
+    pipelineTiming,
   };
 }
