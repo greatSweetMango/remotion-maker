@@ -76,6 +76,14 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bBuffer\b/, label: 'Forbidden: Buffer' },
   { pattern: /\bWebAssembly\b/, label: 'Forbidden: WebAssembly' },
 
+  // Media components (TM-123 sync). See src/lib/remotion/sandbox.ts for
+  // the user-blocking bug rationale (Html5Audio src type error + AudioContext
+  // cascade). Visual-only policy enforced at validation time.
+  { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
+  { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
+  { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
+  { pattern: /<\s*IFrame\b/, label: 'Forbidden: <IFrame> (visual-only assets — TM-123)' },
+
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
 

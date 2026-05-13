@@ -65,8 +65,22 @@ body with real JSX and real animation math.
 AVAILABLE REMOTION GLOBALS (already injected, no imports needed):
 - useCurrentFrame, useVideoConfig
 - interpolate, interpolateColors, spring
-- AbsoluteFill, Sequence, Audio, Img, Video, OffthreadVideo
+- AbsoluteFill, Sequence, Img
 - Easing
+
+VISUAL-ONLY POLICY (TM-123 — MANDATORY):
+- Generate PURELY VISUAL animations. NEVER emit \`<Audio>\`, \`<Video>\`,
+  \`<OffthreadVideo>\`, or \`<IFrame>\`. These components require a \`src\` URL
+  the model has no source-of-truth for, and a missing/numeric \`src\` triggers
+  a runtime "Html5Audio tag requires a string for src" error plus a
+  100+-line "AudioContext encountered an error" cascade. The sandbox will
+  REJECT any code containing those tags.
+- Convey rhythm or "audio feel" with VISUAL cues only: pulsing shapes,
+  waveform-shaped paths driven by \`useCurrentFrame\` + \`Math.sin\`, equalizer
+  bars animated via \`interpolate\`, frame-driven color/scale beats, etc.
+- Do not import or reference \`Audio\`/\`Video\` even if the user's prompt
+  mentions sound, music, beats, or BGM. Translate the request into a visual
+  metaphor instead.
 
 ICONS — Lucide library (already injected as a \`lucide\` global, no imports needed):
 - When the design needs an icon (decorative or symbolic), pull it from \`lucide\`.
