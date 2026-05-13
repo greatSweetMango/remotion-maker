@@ -157,7 +157,10 @@ export function AssetGrid({
     const qs = new URLSearchParams();
     qs.set('page', String(page));
     qs.set('pageSize', String(initialPagination.pageSize));
-    if (debouncedSearch) qs.set('search', debouncedSearch);
+    // TM-108 — search uses `q` (full-text across title + code + PARAMS body)
+    // instead of `search` (title-only). Param name change is server-compatible
+    // because the server still accepts `search` for legacy callers.
+    if (debouncedSearch) qs.set('q', debouncedSearch);
     qs.set('sort', sort);
     if (dateFrom) qs.set('dateFrom', dateFrom);
     if (dateTo) qs.set('dateTo', dateTo);
@@ -258,7 +261,7 @@ export function AssetGrid({
       const qs = new URLSearchParams();
       qs.set('page', String(page));
       qs.set('pageSize', String(initialPagination.pageSize));
-      if (debouncedSearch) qs.set('search', debouncedSearch);
+      if (debouncedSearch) qs.set('q', debouncedSearch);
       qs.set('sort', sort);
       if (dateFrom) qs.set('dateFrom', dateFrom);
       if (dateTo) qs.set('dateTo', dateTo);
@@ -421,7 +424,7 @@ export function AssetGrid({
             <Search className="h-4 w-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               type="search"
-              placeholder="Search by title…"
+              placeholder="Search title, code, parameters…"
               value={search}
               onChange={(e) => updateFilter(setSearch)(e.target.value)}
               className="pl-9 bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-500"
