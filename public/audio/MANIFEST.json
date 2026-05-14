@@ -1,0 +1,157 @@
+{
+  "$schema": "https://easymake.dev/schemas/audio-manifest.v1.json",
+  "version": 1,
+  "note": "TM-127 stub catalogue. ffmpeg-generated sine tones; replace with curated CC0/MIT-0 tracks before launch.",
+  "tracks": [
+    {
+      "filename": "chill-sunrise.mp3",
+      "mood": "chill",
+      "bpm": 72,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 220Hz)",
+      "sha256": "68a39afe73695953eb8a89fe81cff2f277330133e7b184374205ec52cc407122",
+      "bytes": 241414
+    },
+    {
+      "filename": "chill-driftwood.mp3",
+      "mood": "chill",
+      "bpm": 68,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 247Hz)",
+      "sha256": "cefd6b42290003214ff552463ca0bacccb8e028b84751e794c04c04b5c4157fd",
+      "bytes": 241414
+    },
+    {
+      "filename": "chill-hazelight.mp3",
+      "mood": "chill",
+      "bpm": 76,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 262Hz)",
+      "sha256": "9efbcc0d10eda8c382f6e5e4156294b4d34d7211898e8b814a96b3d307f7646e",
+      "bytes": 241414
+    },
+    {
+      "filename": "upbeat-runner.mp3",
+      "mood": "upbeat",
+      "bpm": 128,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 440Hz)",
+      "sha256": "fd04e4b62070a1147af52d551665c69cddb28b6e4dbd6a517e65138904d2402b",
+      "bytes": 241414
+    },
+    {
+      "filename": "upbeat-popfizz.mp3",
+      "mood": "upbeat",
+      "bpm": 124,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 466Hz)",
+      "sha256": "c568d035230d1e5c40ed22cc2691444e375f19a126f13b44dd9757bf106d0ebb",
+      "bytes": 241414
+    },
+    {
+      "filename": "upbeat-skylark.mp3",
+      "mood": "upbeat",
+      "bpm": 132,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 494Hz)",
+      "sha256": "b1190851c53977eaf67f6ab3e4934e19d9d8e5802537412c0751706d54301d98",
+      "bytes": 241414
+    },
+    {
+      "filename": "cinematic-horizon.mp3",
+      "mood": "cinematic",
+      "bpm": 90,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 330Hz)",
+      "sha256": "c7ca777bfdd1a0ead66bf4fecbd0de1fb3a57eccc075c6b47a932750d9f45059",
+      "bytes": 241414
+    },
+    {
+      "filename": "cinematic-aurora.mp3",
+      "mood": "cinematic",
+      "bpm": 84,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 349Hz)",
+      "sha256": "e0d47416ee1b96adadd35a3af3248c9d16ad9af301930170119832a507c30351",
+      "bytes": 241414
+    },
+    {
+      "filename": "cinematic-monolith.mp3",
+      "mood": "cinematic",
+      "bpm": 96,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 370Hz)",
+      "sha256": "8de87cd72fda04c1be963178afe84a6c7c9637e59afec9ba432edb992f607cb3",
+      "bytes": 241414
+    },
+    {
+      "filename": "lofi-cassette.mp3",
+      "mood": "lofi",
+      "bpm": 82,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 196Hz)",
+      "sha256": "87911907df1d63d1222beeac4817c07ed9a4064465f20a10a122e7117288c18a",
+      "bytes": 241414
+    },
+    {
+      "filename": "lofi-rainpane.mp3",
+      "mood": "lofi",
+      "bpm": 80,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 208Hz)",
+      "sha256": "96878834e2b0cfd8cf0312e27fa0fa0d2c78ecf830f5dc3f055fe1f1a711f316",
+      "bytes": 241414
+    },
+    {
+      "filename": "lofi-deskloop.mp3",
+      "mood": "lofi",
+      "bpm": 78,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 175Hz)",
+      "sha256": "3fa37a10e7580c4d2b5706c68ff9a38df12fb0f2984600592356b2a2e25d4b63",
+      "bytes": 241414
+    },
+    {
+      "filename": "electronic-pulse.mp3",
+      "mood": "electronic",
+      "bpm": 140,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 587Hz)",
+      "sha256": "93bd5d3f165958a33c14aa53ae7ba6436bad19c14c932dddbe573221f4862909",
+      "bytes": 241414
+    },
+    {
+      "filename": "electronic-neondrive.mp3",
+      "mood": "electronic",
+      "bpm": 136,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 622Hz)",
+      "sha256": "66b4346583127269a2449d756cfa320cd086c879df441603cfcc2bb34bf3a81d",
+      "bytes": 241414
+    },
+    {
+      "filename": "electronic-circuit.mp3",
+      "mood": "electronic",
+      "bpm": 144,
+      "durationSec": 10,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (sine 659Hz)",
+      "sha256": "4fd989339a995759b5a0c48b9df72c618fed13efe6f6b8da8155e17f83b869a0",
+      "bytes": 241414
+    }
+  ]
+}
