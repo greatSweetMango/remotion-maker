@@ -3,7 +3,7 @@ title: "ADR-0026: Audio integration policy — curated staticFile catalogue"
 created: 2026-05-14
 updated: 2026-05-14
 tags: [decision, ai, sandbox, remotion, ux]
-status: proposed
+status: active
 supersedes: []
 related:
   - "[[0001-edit-not-equal-render|ADR-0001]]"
@@ -204,6 +204,91 @@ Cons / accepted trade-offs:
   the expected audio track length.
 - Customize UI swap of `bgmTrack` does not trigger an LLM edit (track
   swap is pure PARAMS, ADR-0002).
+
+## §B amendment (TM-132, 2026-05-14) — `<CatalogueAudio>` wrapper
+
+### Problem discovered after spawn-2 + spawn-4 shipped
+
+The TM-128 sandbox allow-list (spawn-2) admits `<Audio>` ONLY when the
+`src` attribute is a literal `staticFile("audio/<slug>.mp3")` call. The
+TM-130 customize-tab BGM picker (spawn-4) shipped a Select that mutates
+`PARAMS.bgmTrack` and propagates it through `Player.inputProps`. These
+two contracts are mutually unsatisfiable:
+
+- The literal `<Audio src={staticFile("audio/chill-sunrise.mp3")} />`
+  ignores `PARAMS.bgmTrack` entirely — the picker's mutation is a no-op
+  for the rendered audio source.
+- Rewriting the literal to `staticFile(PARAMS.bgmTrack)` (variable arg)
+  would let the picker actually swap tracks, but the sandbox rejects
+  the variable-`src` shape.
+- Doing an LLM re-edit on every picker change defeats both ADR-0023
+  (PARAMS isolation = no LLM round-trip) and the latency budget.
+
+The picker therefore *appeared* to work in the UI but produced no
+runtime change. Reported by user; failing acceptance after TM-130
+landed.
+
+### Decision
+
+Adopt **Option B (CatalogueAudio wrapper)** from the TM-132 spec:
+
+- New component `src/remotion/CatalogueAudio.tsx` injected into the
+  evaluator scope as a global (alongside `useCurrentFrame`,
+  `interpolate`, etc. — see `src/lib/remotion/evaluator.ts`).
+- The component takes a `track` prop, validates it via
+  `isValidCatalogTrack` (filename regex + traversal guard, mirrors
+  the catalogue regex from §1), and emits the literal-shape
+  `<Audio src={staticFile("audio/<slug>.mp3")} />` internally. Invalid
+  `track` → render `null` (no Html5Audio cascade).
+- Sandbox: `<CatalogueAudio` does NOT match the existing `<\s*Audio\b`
+  deny regex (the `<` is followed by `C`, not `A`), so no allow-list
+  carve-out is needed. The wrapper is unconditionally accepted.
+- Prompt update (TM-129): the canonical BGM emission shape is now
+  `<CatalogueAudio track={bgmTrack} volume={bgmVolume} />` whenever
+  `PARAMS.bgmTrack` exists. The legacy literal `<Audio>` shape stays
+  valid as a fallback so already-generated compositions keep working.
+
+### Why not the alternatives
+
+- **(A) Allow `staticFile(PARAMS.<key>)` in the sandbox + key validation.**
+  Rejected: enlarges the attack surface (sandbox now needs a per-call
+  argument-source validator), and the validator must be a true static
+  analyzer rather than a regex — we'd be one-shot rewriting TM-128 to
+  match a pattern that's strictly harder to verify. The wrapper keeps
+  TM-128's narrow regex contract intact.
+- **(C) LLM re-edit on track swap.** Rejected: violates ADR-0023
+  (PARAMS swap = no LLM call), adds 2-5s latency per picker click,
+  burns Anthropic spend for a UI affordance.
+
+### Compatibility
+
+- **TM-128 literal `<Audio>` shape:** still passes the sandbox. No
+  generated-code regression.
+- **TM-130 picker:** now actually swaps tracks at runtime. The picker
+  emits `audio/<slug>.mp3`; the wrapper accepts both prefixed and bare
+  forms.
+- **ADR-0023 (PARAMS isolation):** preserved — track swap is a single
+  PARAMS mutation, no LLM call.
+- **ADR-0002 (PARAMS auto-extract):** preserved — `bgmTrack` is still
+  a string PARAMS entry with a `// type: bgmTrack` annotation (or
+  auto-detected via the `Track` suffix heuristic in
+  `src/lib/ai/extract-params.ts`).
+- **MCP plugin mirror** (`plugin/remotion-eval/src/validate.ts`): no
+  pattern change required (denylist-sync test still green); only a
+  comment update points at this amendment.
+
+### Validation
+
+Tests added in this PR:
+
+- `__tests__/lib/audio-catalog-track.test.ts` — predicate accepts
+  catalogue shapes, rejects traversal/external/wrong-extension/non-string.
+- `__tests__/remotion/catalogue-audio.test.tsx` — wrapper renders a
+  Remotion `<Audio>` for valid tracks, returns `null` for invalid
+  shapes (no Html5Audio crash), forwards `volume`.
+- `__tests__/lib/remotion/sandbox.test.ts` — new `TM-132 <CatalogueAudio>
+  wrapper allow` describe block; verifies wrapper passes sandbox and
+  doesn't accidentally re-open the literal `<Audio>` deny path.
 
 ## References
 

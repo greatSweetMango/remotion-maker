@@ -59,6 +59,37 @@ export class AudioManifestError extends Error {
 const FILENAME_RE = /^[a-z0-9-]+\.mp3$/;
 const SHA256_RE = /^[a-f0-9]{64}$/;
 
+/**
+ * TM-132 / ADR-0026 §B amendment — catalogue filename shape predicate.
+ *
+ * Synchronous, side-effect free (no fs read), safe to call inside a Remotion
+ * render frame. Accepts either a bare filename (`chill-sunrise.mp3`) or the
+ * `audio/`-prefixed form the picker emits (`audio/chill-sunrise.mp3`).
+ *
+ * The check is a SHAPE check, not a manifest membership check — it mirrors
+ * the regex the sandbox enforces (`^[a-z0-9-]+\.mp3$`) so that:
+ *   - an attacker setting `bgmTrack='../etc/passwd'` is rejected here,
+ *   - and `staticFile()` only ever receives a string of the form
+ *     `audio/<slug>.mp3` with `<slug>` matching the catalogue regex.
+ *
+ * Membership against the actual on-disk catalogue is enforced upstream:
+ *   - the BgmTrackControl picker only emits values it pulled from
+ *     `/api/audio/manifest`,
+ *   - and the LLM prompt restricts the literal string to catalogue moods.
+ *
+ * The wrapper component falls back to `null` on shape failure so a malformed
+ * `track` prop renders silently instead of cascading into Remotion's
+ * `Html5Audio src` runtime error (the very failure mode TM-123 fixed).
+ */
+export function isValidCatalogTrack(track: unknown): track is string {
+  if (typeof track !== 'string' || track.length === 0) return false;
+  const bare = track.replace(/^audio\//, '');
+  // Reject any embedded slash/backslash/traversal *after* the optional
+  // `audio/` prefix — the slug itself must be flat.
+  if (bare.includes('/') || bare.includes('\\') || bare.includes('..')) return false;
+  return FILENAME_RE.test(bare);
+}
+
 /** Default location when the loader is invoked from a Next.js server context. */
 export const DEFAULT_MANIFEST_PATH = path.join(
   process.cwd(),

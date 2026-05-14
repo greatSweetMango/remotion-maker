@@ -96,6 +96,15 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // string / external URL / path traversal / wrong extension / no src) still
   // hit this deny rule. `<Video>` / `<OffthreadVideo>` / `<IFrame>` remain
   // unconditionally denied — audio is the only escape hatch.
+  //
+  // TM-132 / ADR-0026 §B amendment: `<CatalogueAudio>` is the PARAMS-driven
+  // wrapper that lets the customize picker actually swap tracks. The
+  // `<\s*Audio\b` regex below requires the `<` to be IMMEDIATELY followed
+  // by `Audio` (modulo whitespace), so `<CatalogueAudio` does not match —
+  // no allow-list carve-out needed for the wrapper. The wrapper itself
+  // returns a literal `<Audio src={staticFile("audio/<slug>.mp3")} />`
+  // (see src/remotion/CatalogueAudio.tsx) which satisfies the TM-128
+  // structural shape without any user code reaching `<Audio>` directly.
   { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
   { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
@@ -234,6 +243,12 @@ export function sanitizeCode(code: string): string {
     // lucide-react is provided as a `lucide` global by the evaluator. Strip
     // any stray import the model might emit so the sandbox doesn't reject it.
     .replace(/^import\s+.*?from\s+['"]lucide-react['"];?\s*$/gm, '')
+    // TM-132 / ADR-0026 §B amendment: <CatalogueAudio> is injected as a local
+    // (see evaluator.ts) — strip any stray import the model might emit.
+    .replace(
+      /^import\s+\{\s*CatalogueAudio\s*\}\s+from\s+['"](?:@\/)?remotion\/CatalogueAudio['"];?\s*$/gm,
+      '',
+    )
     .replace(/^import\s+type\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
     .replace(/^export\s+default\s+/gm, 'const DefaultExport = ')
     .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')

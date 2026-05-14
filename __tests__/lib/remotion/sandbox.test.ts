@@ -283,6 +283,74 @@ describe('validateCode', () => {
   });
 });
 
+// TM-132 / ADR-0026 §B amendment — `<CatalogueAudio>` wrapper passes the
+// sandbox without an explicit allow-list because the existing `<\s*Audio\b`
+// deny regex requires `<` immediately followed by `Audio`. The wrapper's
+// runtime guard (`isValidCatalogTrack`) handles malformed `track` props at
+// render time, not at sandbox validation time. Verify both:
+//   - the wrapper tag is unconditionally accepted by the sandbox
+//   - the wrapper tag does NOT accidentally re-open the literal `<Audio>`
+//     deny path (e.g. via word-boundary regression)
+describe('TM-132 <CatalogueAudio> wrapper allow', () => {
+  const audioErr = (errors: string[]) =>
+    errors.find((e) => e.startsWith('Forbidden: <Audio>'));
+
+  it('accepts <CatalogueAudio track={bgmTrack} /> (PARAMS-bound)', () => {
+    const code = `
+      const PARAMS = { bgmTrack: 'audio/chill-sunrise.mp3', bgmVolume: 0.6 };
+      const C = ({ bgmTrack = PARAMS.bgmTrack, bgmVolume = PARAMS.bgmVolume }) =>
+        <AbsoluteFill>
+          <CatalogueAudio track={bgmTrack} volume={bgmVolume} />
+        </AbsoluteFill>;
+    `;
+    const r = validateCode(code);
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it('accepts <CatalogueAudio track="chill-sunrise.mp3" /> (literal string)', () => {
+    const code = `const C = () => <CatalogueAudio track="chill-sunrise.mp3" />;`;
+    const r = validateCode(code);
+    expect(r.valid).toBe(true);
+  });
+
+  it('accepts <CatalogueAudio track="../etc/passwd" /> at sandbox layer (runtime guard rejects)', () => {
+    // The sandbox cannot statically know the runtime value; the wrapper's
+    // `isValidCatalogTrack` guard is what protects against traversal at
+    // render time. Sandbox passing here is intentional + documented.
+    const code = `const C = () => <CatalogueAudio track="../etc/passwd" />;`;
+    const r = validateCode(code);
+    expect(r.valid).toBe(true);
+  });
+
+  it('does NOT trip the <Audio> deny when wrapper is used (no false-positive token match)', () => {
+    const code = `
+      const C = () => <CatalogueAudio track="chill-sunrise.mp3" volume={0.6} />;
+    `;
+    const r = validateCode(code);
+    expect(audioErr(r.errors)).toBeUndefined();
+  });
+
+  it('still denies a bare <Audio> tag even when <CatalogueAudio> is also present', () => {
+    const code = `
+      const A = () => <CatalogueAudio track="chill-sunrise.mp3" />;
+      const B = () => <Audio src={someVar} />;
+    `;
+    const r = validateCode(code);
+    expect(r.valid).toBe(false);
+    expect(audioErr(r.errors)).toBeDefined();
+  });
+
+  it('coexists with the legacy literal <Audio src={staticFile("audio/...")}/> shape', () => {
+    const code = `
+      const A = () => <CatalogueAudio track="chill-sunrise.mp3" />;
+      const B = () => <Audio src={staticFile("audio/upbeat-runner.mp3")} />;
+    `;
+    const r = validateCode(code);
+    expect(r.valid).toBe(true);
+  });
+});
+
 describe('sanitizeCode', () => {
   it('removes remotion import statements', () => {
     const code = `import { useCurrentFrame } from 'remotion';\nconst frame = useCurrentFrame();`;
@@ -295,5 +363,20 @@ describe('sanitizeCode', () => {
     const code = `import React from 'react';\nconst x = 1;`;
     const result = sanitizeCode(code);
     expect(result).not.toContain("from 'react'");
+  });
+
+  // TM-132 — strip stray `CatalogueAudio` import (wrapper is injected as a
+  // local in evaluator.ts; an explicit import would crash module resolution).
+  it('removes stray @/remotion/CatalogueAudio import', () => {
+    const code = `import { CatalogueAudio } from '@/remotion/CatalogueAudio';\nconst x = 1;`;
+    const result = sanitizeCode(code);
+    expect(result).not.toContain('CatalogueAudio');
+    expect(result).toContain('const x = 1');
+  });
+
+  it('removes stray remotion/CatalogueAudio import (no @ alias)', () => {
+    const code = `import { CatalogueAudio } from 'remotion/CatalogueAudio';\nconst x = 1;`;
+    const result = sanitizeCode(code);
+    expect(result).not.toContain('CatalogueAudio');
   });
 });

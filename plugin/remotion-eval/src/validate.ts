@@ -83,6 +83,10 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // strict literal `staticFile("audio/<slug>.mp3")` shape — see
   // `isAudioAllowListed` below. The deny entry stays in this list so the
   // TM-115 sync invariant continues to pass.
+  // TM-132 / ADR-0026 §B amendment: `<CatalogueAudio>` wrapper is the
+  // PARAMS-driven escape hatch (see src/remotion/CatalogueAudio.tsx). The
+  // `<\s*Audio\b` regex requires `<` immediately followed by `Audio`, so
+  // `<CatalogueAudio` does NOT match — no carve-out needed.
   { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
   { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
