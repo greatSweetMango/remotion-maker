@@ -87,6 +87,15 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // `<Html5Audio> tag requires a string for `src`` plus a 100+ "AudioContext
   // encountered an error" cascade in the studio. Reject statically so the
   // user sees a friendly evaluator error instead of a flooded console.
+  //
+  // TM-128 / ADR-0026 §2: <Audio> is re-permitted ONLY when every <Audio>
+  // tag's `src` is a literal call to `staticFile("audio/<slug>.mp3")` whose
+  // slug matches the catalogue regex (`^[a-z0-9-]+\.mp3$`). The check runs
+  // BEFORE the deny-list scan via `isAudioAllowListed`; when it returns true
+  // this row is skipped. All other shapes (numeric / variable / template
+  // string / external URL / path traversal / wrong extension / no src) still
+  // hit this deny rule. `<Video>` / `<OffthreadVideo>` / `<IFrame>` remain
+  // unconditionally denied — audio is the only escape hatch.
   { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
   { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
@@ -145,10 +154,67 @@ function detectRecursivePromiseChain(code: string): boolean {
   return false;
 }
 
+/**
+ * TM-128 / ADR-0026 §2 — `<Audio>` structural allow-list.
+ *
+ * Returns `true` iff the code contains at least one `<Audio` token AND every
+ * `<Audio` token in the source matches the strict allow shape:
+ *
+ *     <Audio src={staticFile("audio/<slug>.mp3")} ... />
+ *
+ * where `<slug>` matches the catalogue filename regex
+ * (`^[a-z0-9-]+\.mp3$` per `src/lib/audio/manifest.ts`). The literal-string
+ * argument shape is enforced — variable `src`, template literals, numeric
+ * values, external URLs, path traversal (`audio/../foo`), and wrong
+ * extensions all FAIL the match, so the caller will then hit the deny-list
+ * `<Audio>` rule.
+ *
+ * The match must succeed for EVERY `<Audio` occurrence. A file containing
+ * one allow-listed tag plus one variant tag is rejected (the variant tag
+ * still triggers the deny-list rule via the standard scan).
+ *
+ * Note: this is a deliberately narrow, regex-based shape check — not an AST
+ * matcher. It mirrors the existing FORBIDDEN_PATTERNS strategy and stays
+ * cheap enough to run on every edit. A later AST-based validator can replace
+ * this with stricter source-position checks; until then the regex is paired
+ * with a runtime manifest lookup at the customize / render layer (TM-130).
+ */
+const AUDIO_TAG_RE = /<\s*Audio\b/g;
+const AUDIO_ALLOWED_SHAPE_RE =
+  /<\s*Audio\b[^<>]*\bsrc\s*=\s*\{\s*staticFile\s*\(\s*['"]audio\/[a-z0-9-]+\.mp3['"]\s*\)\s*\}[^<>]*\/?\s*>/;
+
+export function isAudioAllowListed(code: string): boolean {
+  // Reset lastIndex defensively; AUDIO_TAG_RE is a module-level /g regex.
+  AUDIO_TAG_RE.lastIndex = 0;
+  let saw = false;
+  let m: RegExpExecArray | null;
+  while ((m = AUDIO_TAG_RE.exec(code)) !== null) {
+    saw = true;
+    const tail = code.slice(m.index);
+    const shape = tail.match(AUDIO_ALLOWED_SHAPE_RE);
+    if (!shape || shape.index !== 0) {
+      AUDIO_TAG_RE.lastIndex = 0;
+      return false;
+    }
+    // Advance past the matched tag so a malformed <Audio later in the file
+    // is still inspected on the next loop iteration.
+    AUDIO_TAG_RE.lastIndex = m.index + shape[0].length;
+  }
+  AUDIO_TAG_RE.lastIndex = 0;
+  return saw;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
+  const audioAllowed = isAudioAllowListed(code);
 
   for (const { pattern, label } of FORBIDDEN_PATTERNS) {
+    // TM-128: skip the <Audio> deny rule when every <Audio> tag in the
+    // source matches the strict allow-list shape (literal staticFile call
+    // with catalogue-regex slug). All other variants — including numeric
+    // src, dynamic var, template-string, external URL, path traversal — do
+    // NOT match the allow shape and therefore still trip this rule.
+    if (audioAllowed && label.startsWith('Forbidden: <Audio>')) continue;
     if (pattern.test(code) && !errors.includes(label)) {
       errors.push(label);
     }

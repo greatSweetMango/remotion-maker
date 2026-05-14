@@ -5,7 +5,11 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRemotionCode, countParamsKeys } from '../src/validate.ts';
+import {
+  isAudioAllowListed,
+  validateRemotionCode,
+  countParamsKeys,
+} from '../src/validate.ts';
 
 const GOOD = `
 const PARAMS = {
@@ -102,6 +106,73 @@ test('countParamsKeys handles multiline PARAMS', () => {
     c: 3,
   } as const;`;
   assert.equal(countParamsKeys(c), 3);
+});
+
+// TM-128 / ADR-0026 §2 mirror — Audio allow-list parity with sandbox.ts.
+test('TM-128: allows <Audio src={staticFile("audio/<slug>.mp3")} />', () => {
+  const code = `
+    const PARAMS = { bgm: "audio/chill-sunrise.mp3" };
+    const Scene = () => <Audio src={staticFile("audio/chill-sunrise.mp3")} />;
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, true, `expected ok=true, got errors=${JSON.stringify(r.errors)}`);
+  assert.equal(isAudioAllowListed(code), true);
+});
+
+test('TM-128: rejects numeric src (TM-123 regression case)', () => {
+  const r = validateRemotionCode(
+    `const PARAMS = { v: 0 }; const Scene = () => <Audio src={PARAMS.v} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: rejects dynamic-variable src', () => {
+  const r = validateRemotionCode(
+    `const p = "audio/chill.mp3"; const Scene = () => <Audio src={staticFile(p)} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: rejects template-literal src', () => {
+  const r = validateRemotionCode(
+    'const s = "chill"; const Scene = () => <Audio src={staticFile(`audio/${s}.mp3`)} />;',
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: rejects external URL src', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Audio src="https://example.com/x.mp3" />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: rejects path-traversal slug', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Audio src={staticFile("audio/../etc/passwd")} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: rejects wrong extension', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Audio src={staticFile("audio/chill.wav")} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.startsWith('Forbidden: <Audio>')));
+});
+
+test('TM-128: still rejects <Video> even with audio/ catalogue path', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Video src={staticFile("audio/chill.mp3")} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('Video')));
 });
 
 test('does not mistake SCREAMING_CASE for component (TM-58 gotcha)', () => {
