@@ -79,6 +79,10 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // Media components (TM-123 sync). See src/lib/remotion/sandbox.ts for
   // the user-blocking bug rationale (Html5Audio src type error + AudioContext
   // cascade). Visual-only policy enforced at validation time.
+  // TM-128 / ADR-0026 §2 mirror: <Audio> permitted iff every tag matches the
+  // strict literal `staticFile("audio/<slug>.mp3")` shape — see
+  // `isAudioAllowListed` below. The deny entry stays in this list so the
+  // TM-115 sync invariant continues to pass.
   { pattern: /<\s*Audio\b/, label: 'Forbidden: <Audio> (visual-only assets — TM-123)' },
   { pattern: /<\s*Video\b/, label: 'Forbidden: <Video> (visual-only assets — TM-123)' },
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
@@ -94,6 +98,41 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
     label: 'Forbidden: do…while(true) infinite loop',
   },
 ];
+
+/**
+ * TM-128 / ADR-0026 §2 mirror — `<Audio>` structural allow-list.
+ *
+ * Returns `true` iff the code contains at least one `<Audio` token AND every
+ * such token matches the strict shape
+ * `<Audio src={staticFile("audio/<slug>.mp3")} ... />` where `<slug>` matches
+ * the catalogue regex (`^[a-z0-9-]+\.mp3$`). Variants — variable / template
+ * / numeric / external URL / path traversal — fail the match and therefore
+ * still trigger the `<Audio>` deny entry in the standard scan.
+ *
+ * Mirror of `isAudioAllowListed` in `src/lib/remotion/sandbox.ts`. Keep in
+ * sync (TM-115 invariant).
+ */
+const AUDIO_TAG_RE = /<\s*Audio\b/g;
+const AUDIO_ALLOWED_SHAPE_RE =
+  /<\s*Audio\b[^<>]*\bsrc\s*=\s*\{\s*staticFile\s*\(\s*['"]audio\/[a-z0-9-]+\.mp3['"]\s*\)\s*\}[^<>]*\/?\s*>/;
+
+export function isAudioAllowListed(code: string): boolean {
+  AUDIO_TAG_RE.lastIndex = 0;
+  let saw = false;
+  let m: RegExpExecArray | null;
+  while ((m = AUDIO_TAG_RE.exec(code)) !== null) {
+    saw = true;
+    const tail = code.slice(m.index);
+    const shape = tail.match(AUDIO_ALLOWED_SHAPE_RE);
+    if (!shape || shape.index !== 0) {
+      AUDIO_TAG_RE.lastIndex = 0;
+      return false;
+    }
+    AUDIO_TAG_RE.lastIndex = m.index + shape[0].length;
+  }
+  AUDIO_TAG_RE.lastIndex = 0;
+  return saw;
+}
 
 function detectRecursivePromiseChain(code: string): boolean {
   const declRe =
@@ -150,7 +189,12 @@ export function validateRemotionCode(code: unknown): ValidateResult {
   }
 
   // 1. Deny list
+  const audioAllowed = isAudioAllowListed(code);
   for (const { pattern, label } of FORBIDDEN_PATTERNS) {
+    // TM-128 mirror: skip the <Audio> deny rule when every <Audio> tag in
+    // the source matches the strict allow shape (literal staticFile call
+    // with catalogue-regex slug).
+    if (audioAllowed && label.startsWith('Forbidden: <Audio>')) continue;
     if (pattern.test(code) && !errors.includes(label)) errors.push(label);
   }
   if (detectRecursivePromiseChain(code)) {

@@ -1,4 +1,8 @@
-import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
+import {
+  isAudioAllowListed,
+  sanitizeCode,
+  validateCode,
+} from '@/lib/remotion/sandbox';
 
 describe('validateCode', () => {
   it('allows clean Remotion component code', () => {
@@ -151,6 +155,130 @@ describe('validateCode', () => {
       `;
       const result = validateCode(code);
       expect(result.errors.find(e => e?.includes('TM-123'))).toBeUndefined();
+    });
+  });
+
+  // TM-128 / ADR-0026 §2 — structural Audio allow-list.
+  // <Audio src={staticFile("audio/<slug>.mp3")} /> is the ONLY shape that
+  // bypasses the TM-123 deny rule. Every other shape continues to reject.
+  describe('TM-128 <Audio> structural allow-list', () => {
+    const audioErr = (errors: string[]) =>
+      errors.find((e) => e.startsWith('Forbidden: <Audio>'));
+
+    describe('positive (allow)', () => {
+      it('passes <Audio src={staticFile("audio/chill-1.mp3")} />', () => {
+        const code = `const C = () => <Audio src={staticFile("audio/chill-1.mp3")} />;`;
+        expect(validateCode(code)).toEqual({ valid: true, errors: [] });
+        expect(isAudioAllowListed(code)).toBe(true);
+      });
+
+      it("passes single-quoted catalogue slug", () => {
+        const code = `const C = () => <Audio src={staticFile('audio/upbeat-runner.mp3')} />;`;
+        expect(validateCode(code).valid).toBe(true);
+      });
+
+      it('passes with extra props (volume, loop) before/after src', () => {
+        const code = `
+          const C = () => (
+            <Audio
+              volume={0.5}
+              src={staticFile("audio/lofi-cassette.mp3")}
+              loop
+            />
+          );
+        `;
+        expect(validateCode(code).valid).toBe(true);
+      });
+
+      it('passes when allow-listed Audio coexists with PARAMS const', () => {
+        const code = `
+          const PARAMS = { bgmTrack: "audio/cinematic-aurora.mp3" };
+          const C = () => <Audio src={staticFile("audio/cinematic-aurora.mp3")} />;
+        `;
+        expect(validateCode(code).valid).toBe(true);
+      });
+    });
+
+    describe('negative (reject)', () => {
+      it('rejects numeric src (the original TM-123 user-blocking case)', () => {
+        const code = `
+          const PARAMS = { volume: 0 };
+          const C = () => <Audio src={PARAMS.volume} />;
+        `;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects dynamic variable src (no staticFile call)', () => {
+        const code = `
+          const path = "audio/chill-sunrise.mp3";
+          const C = () => <Audio src={staticFile(path)} />;
+        `;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects template-string src (literal-string-only)', () => {
+        const code =
+          'const slug = "chill-sunrise"; const C = () => <Audio src={staticFile(`audio/${slug}.mp3`)} />;';
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects external URL src', () => {
+        const code = `const C = () => <Audio src="https://example.com/x.mp3" />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects path traversal slug (audio/../etc/passwd)', () => {
+        const code = `const C = () => <Audio src={staticFile("audio/../etc/passwd")} />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects wrong extension (.wav)', () => {
+        const code = `const C = () => <Audio src={staticFile("audio/chill.wav")} />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects uppercase / disallowed chars in slug', () => {
+        const code = `const C = () => <Audio src={staticFile("audio/Chill_1.mp3")} />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects mixed: one allow-listed + one variant in the same file', () => {
+        const code = `
+          const A = () => <Audio src={staticFile("audio/chill-sunrise.mp3")} />;
+          const B = () => <Audio src={someVar} />;
+        `;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('rejects slug outside the audio/ subdirectory', () => {
+        const code = `const C = () => <Audio src={staticFile("uploads/chill-1.mp3")} />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(audioErr(r.errors)).toBeDefined();
+      });
+
+      it('does NOT re-permit <Video> via the allow shape', () => {
+        const code = `const C = () => <Video src={staticFile("audio/chill-1.mp3")} />;`;
+        const r = validateCode(code);
+        expect(r.valid).toBe(false);
+        expect(r.errors.some((e) => e.includes('Video'))).toBe(true);
+      });
     });
   });
 });
