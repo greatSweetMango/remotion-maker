@@ -169,9 +169,25 @@ export function PromptPanel({
   const mode = effectiveMode(hasAsset, modeOverride);
   const [showHistory, setShowHistory] = useState(false);
   const [historyView, setHistoryView] = useState<'list' | 'graph'>('graph');
-  const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
+  // TM-125 — suggestion seed must be deterministic on first render to avoid
+  // SSR/CSR hydration mismatch. We start at 0 (server + client agree) and
+  // randomize once after mount in a useEffect; the initial paint thus matches
+  // the server HTML, and the user gets a fresh shuffle on the next frame.
+  // Don't replace this with `Math.random()` in the initializer — that's the
+  // exact bug we just fixed.
+  const [suggestionSeed, setSuggestionSeed] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Randomize suggestions on the client after hydration completes. The
+  // setState-in-effect is intentional: we are translating an "are we hydrated
+  // yet" signal (an external runtime fact, not derivable from props) into
+  // React state. The empty-dep array guarantees this fires exactly once per
+  // mount, so there is no cascading-render risk.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSuggestionSeed(Math.floor(Math.random() * 1_000_000));
+  }, []);
 
   const suggestions = React.useMemo<PromptSuggestion[]>(
     () => pickDiversifiedSuggestions(SUGGESTION_CARD_COUNT, suggestionSeed),
