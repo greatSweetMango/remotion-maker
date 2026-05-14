@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-126: Audio integration policy — curated staticFile catalogue"
+title: "ADR-0026: Audio integration policy — curated staticFile catalogue"
 created: 2026-05-14
 updated: 2026-05-14
 tags: [decision, ai, sandbox, remotion, ux]
@@ -12,7 +12,7 @@ related:
 spawned_from: TM-123
 ---
 
-# ADR-PENDING-TM-126 — Audio integration policy (curated staticFile catalogue)
+# ADR-0026 — Audio integration policy (curated staticFile catalogue)
 
 ## Context
 
@@ -120,7 +120,7 @@ during the final render.
 ## Decision
 
 **Option B — Curated `staticFile` catalogue with string-literal-only `src`
-validator, accepted as ADR-PENDING-TM-126.**
+validator, accepted as ADR-0026.**
 
 Rationale:
 
