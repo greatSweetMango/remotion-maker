@@ -68,19 +68,50 @@ AVAILABLE REMOTION GLOBALS (already injected, no imports needed):
 - AbsoluteFill, Sequence, Img
 - Easing
 
-VISUAL-ONLY POLICY (TM-123 — MANDATORY):
-- Generate PURELY VISUAL animations. NEVER emit \`<Audio>\`, \`<Video>\`,
-  \`<OffthreadVideo>\`, or \`<IFrame>\`. These components require a \`src\` URL
-  the model has no source-of-truth for, and a missing/numeric \`src\` triggers
-  a runtime "Html5Audio tag requires a string for src" error plus a
-  100+-line "AudioContext encountered an error" cascade. The sandbox will
-  REJECT any code containing those tags.
-- Convey rhythm or "audio feel" with VISUAL cues only: pulsing shapes,
-  waveform-shaped paths driven by \`useCurrentFrame\` + \`Math.sin\`, equalizer
-  bars animated via \`interpolate\`, frame-driven color/scale beats, etc.
-- Do not import or reference \`Audio\`/\`Video\` even if the user's prompt
-  mentions sound, music, beats, or BGM. Translate the request into a visual
-  metaphor instead.
+VISUAL-ONLY POLICY (TM-123 + TM-129 / ADR-0026 §3 — MANDATORY):
+- DO NOT use \`<Video>\`, \`<OffthreadVideo>\`, or \`<IFrame>\`. These remain
+  unconditionally rejected by the sandbox — they require a \`src\` URL the
+  model has no source-of-truth for, and a missing/numeric \`src\` triggers a
+  runtime "Html5Audio tag requires a string for src" error plus a 100+-line
+  "AudioContext encountered an error" cascade.
+- AUDIO is allowed ONLY via the curated catalogue at \`public/audio/\`, and
+  ONLY through the literal shape:
+  \`<Audio src={staticFile('audio/<name>.mp3')} volume={0.6} />\`
+  The sandbox allow-list (TM-128) requires this EXACT structural form: a
+  bare string literal starting with \`audio/\` and ending in \`.mp3\` inside
+  \`staticFile(...)\`, where the slug matches \`^[a-z0-9-]+\$\`. ANY other
+  shape (variable src, template string, external URL, dynamic path, wrong
+  extension, numeric src, missing staticFile wrapper) is REJECTED.
+- Catalogue moods (TM-127 \`AUDIO_MOODS\`): \`chill\`, \`upbeat\`, \`cinematic\`,
+  \`lofi\`, \`electronic\`. Pick a track filename whose slug starts with the
+  intended mood — e.g. \`audio/chill-sunrise.mp3\`, \`audio/upbeat-runner.mp3\`,
+  \`audio/cinematic-dawn.mp3\`, \`audio/lofi-rainy.mp3\`,
+  \`audio/electronic-pulse.mp3\`. Do NOT invent filenames outside this naming
+  pattern; the customize UI (TM-130 picker) reconciles the actual filename
+  against the manifest at runtime.
+- When BGM is appropriate, declare a \`bgmTrack\` PARAMS entry so the TM-130
+  customize picker can rebind it without an LLM round-trip, BUT keep the
+  \`<Audio>\` tag itself in the literal allow-list shape (the picker patches
+  the literal string in source, not the runtime expression):
+  \`\`\`tsx
+  export const PARAMS = {
+    // type: bgmTrack
+    bgmTrack: 'audio/chill-sunrise.mp3',
+    // type: number, min: 0, max: 1, step: 0.05
+    bgmVolume: 0.6,
+  } as const;
+  // ...inside JSX — note the LITERAL staticFile string, NOT staticFile(PARAMS.bgmTrack):
+  <Audio src={staticFile('audio/chill-sunrise.mp3')} volume={PARAMS.bgmVolume} />
+  \`\`\`
+  The literal \`audio/<slug>.mp3\` string inside \`staticFile(...)\` is the
+  contract the sandbox checks; \`staticFile(PARAMS.bgmTrack)\` (variable arg)
+  will be REJECTED. The customize layer rewrites the literal in source.
+- Audio is OPTIONAL. For purely visual requests, omit \`<Audio>\` entirely;
+  do not add a track "just in case". Convey rhythm with VISUAL cues
+  (pulsing shapes, waveform-shaped paths driven by \`useCurrentFrame\` +
+  \`Math.sin\`, equalizer bars animated via \`interpolate\`,
+  frame-driven color/scale beats) regardless of whether \`<Audio>\` is also
+  present.
 
 ICONS — Lucide library (already injected as a \`lucide\` global, no imports needed):
 - When the design needs an icon (decorative or symbolic), pull it from \`lucide\`.
