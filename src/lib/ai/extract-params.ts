@@ -10,10 +10,33 @@ export function extractParameters(code: string): Parameter[] {
   const lines = paramsBody.split('\n');
 
   for (const line of lines) {
-    const match = line.match(/^\s*(\w+)\s*:\s*(.+?),?\s*\/\/\s*type:\s*(\w+)(.*?)$/);
-    if (!match) continue;
+    let key: string;
+    let rawValue: string;
+    let typeStr: string;
+    let rest: string;
 
-    const [, key, rawValue, typeStr, rest] = match;
+    const annotated = line.match(/^\s*(\w+)\s*:\s*(.+?),?\s*\/\/\s*type:\s*(\w+)(.*?)$/);
+    if (annotated) {
+      [, key, rawValue, typeStr, rest] = annotated;
+    } else {
+      // TM-130 / ADR-0026 §4 — auto-detect bgmTrack PARAMS without an explicit
+      // `// type: bgmTrack` annotation. The LLM emits a plain string like
+      //   `bgmTrack: "audio/chill-sunrise.mp3"`
+      // The customize UI needs to surface a dropdown for these even when the
+      // generation prompt didn't include the annotation. Detection rule:
+      // (key ends in `Track` OR is exactly `bgmTrack`) AND value is a string
+      // literal whose contents match the catalogue regex (`audio/<name>.mp3`).
+      // This mirrors the sandbox allow-list (see ADR-0026 §B.2).
+      const auto = line.match(/^\s*(\w+)\s*:\s*(['"`])(audio\/[a-z0-9-]+\.mp3)\2\s*,?\s*(?:\/\/.*)?$/);
+      if (!auto) continue;
+      const [, autoKey, , autoPath] = auto;
+      if (!/Track$/.test(autoKey) && autoKey !== 'bgmTrack') continue;
+      key = autoKey;
+      rawValue = `"${autoPath}"`;
+      typeStr = 'bgmTrack';
+      rest = '';
+    }
+
     const type = typeStr as Parameter['type'];
 
     const parseNum = (s: string) => parseFloat(s.trim());
@@ -47,7 +70,7 @@ export function extractParameters(code: string): Parameter[] {
 
     let group: Parameter['group'] = 'other';
     if (type === 'color') group = 'color';
-    else if (type === 'image' || type === 'font') group = 'media';
+    else if (type === 'image' || type === 'font' || type === 'bgmTrack') group = 'media';
     else if (key.toLowerCase().includes('speed') || key.toLowerCase().includes('duration') || key.toLowerCase().includes('delay')) group = 'timing';
     else if (key.toLowerCase().includes('size') || key.toLowerCase().includes('font') || key.toLowerCase().includes('width') || key.toLowerCase().includes('height') || key.toLowerCase().includes('radius')) group = 'size';
     else if (type === 'text') group = 'text';
@@ -56,7 +79,7 @@ export function extractParameters(code: string): Parameter[] {
       ? rawValue.replace(/['"]/g, '').trim()
       : type === 'boolean'
         ? rawValue.trim() === 'true'
-        : type === 'text' || type === 'select' || type === 'icon' || type === 'image' || type === 'font'
+        : type === 'text' || type === 'select' || type === 'icon' || type === 'image' || type === 'font' || type === 'bgmTrack'
           ? rawValue.replace(/['"]/g, '').trim()
           : parseFloat(rawValue) || 0;
 

@@ -101,3 +101,63 @@ const PARAMS = {
     });
   });
 });
+
+describe('extractParameters — bgmTrack (TM-130 / ADR-0026 §4)', () => {
+  it('parses explicit `// type: bgmTrack` annotation', () => {
+    const code = `
+const PARAMS = {
+  bgmTrack: "audio/chill-sunrise.mp3", // type: bgmTrack
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('bgmTrack');
+    expect(params[0].group).toBe('media');
+    expect(params[0].value).toBe('audio/chill-sunrise.mp3');
+  });
+
+  it('auto-detects bgmTrack when key is exactly "bgmTrack" + value matches catalogue regex', () => {
+    const code = `
+const PARAMS = {
+  bgmTrack: "audio/upbeat-runner.mp3",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('bgmTrack');
+    expect(params[0].value).toBe('audio/upbeat-runner.mp3');
+  });
+
+  it('auto-detects bgmTrack when key suffix is "Track" + catalogue value', () => {
+    const code = `
+const PARAMS = {
+  introTrack: "audio/cinematic-aurora.mp3",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('bgmTrack');
+    expect(params[0].key).toBe('introTrack');
+  });
+
+  it('does NOT auto-detect when value is not a catalogue path', () => {
+    const code = `
+const PARAMS = {
+  bgmTrack: "https://example.com/foo.mp3",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(0);
+  });
+
+  it('does NOT auto-detect when key suffix differs (e.g. "title")', () => {
+    const code = `
+const PARAMS = {
+  songName: "audio/lofi-cassette.mp3",
+} as const;
+`;
+    const params = extractParameters(code);
+    // key doesn't end in `Track` and isn't `bgmTrack`, so we don't promote
+    expect(params).toHaveLength(0);
+  });
+});

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Play, Pause, Music2 } from 'lucide-react';
 import { searchLucideCatalog, DEFAULT_LUCIDE_ICON } from '@/lib/lucide-catalog';
 import type { Parameter } from '@/types';
 
@@ -186,6 +186,14 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
           ariaLabelledBy={labelId}
           param={param}
           value={value as string}
+          onChange={onChange}
+        />
+      )}
+
+      {param.type === 'bgmTrack' && (
+        <BgmTrackControl
+          ariaLabelledBy={labelId}
+          value={(value as string) || ''}
           onChange={onChange}
         />
       )}
@@ -638,5 +646,213 @@ function IconPickerControl({ value, onChange, ariaLabelledBy }: IconPickerContro
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+interface BgmTrackControlProps {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabelledBy?: string;
+}
+
+interface BgmManifestTrack {
+  filename: string;
+  mood: string;
+  bpm: number;
+  durationSec: number;
+  license: string;
+  attribution?: string;
+}
+
+interface BgmManifestResponse {
+  version: number;
+  tracks: BgmManifestTrack[];
+}
+
+/**
+ * TM-130 / ADR-0026 §4 — Customize-tab control for `type:bgmTrack` PARAMS.
+ *
+ * The PARAMS value is a curated catalogue path (`audio/<name>.mp3`); this
+ * control fetches `/api/audio/manifest` and renders a Select grouped by mood
+ * (chill / upbeat / cinematic / lofi / electronic) plus a play/pause preview
+ * button bound to a single shared `HTMLAudioElement`. No new runtime deps —
+ * the browser's native `<audio>` covers MP3 playback everywhere we ship.
+ *
+ * Per ADR-0023 (edit-PARAMS isolation): swapping a track is a pure PARAMS
+ * mutation, never an LLM edit. The picker only emits values that exist in
+ * the manifest, preserving the sandbox allow-list invariant (ADR-0026 §B.2).
+ */
+export function BgmTrackControl({ value, onChange, ariaLabelledBy }: BgmTrackControlProps) {
+  const [tracks, setTracks] = useState<BgmManifestTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch('/api/audio/manifest', { signal: controller.signal });
+        if (!r.ok) throw new Error(`manifest ${r.status}`);
+        const d = (await r.json()) as BgmManifestResponse;
+        if (!cancelled) {
+          setTracks(d.tracks ?? []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError((err as Error).message ?? 'failed to load');
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
+  // Tear down audio on unmount or when the user switches tracks (handled by
+  // pausing in `handleSelect`). Without this the preview keeps playing after
+  // the customize panel collapses or the user navigates away.
+  React.useEffect(() => {
+    return () => {
+      const a = audioRef.current;
+      if (a) {
+        a.pause();
+        a.src = '';
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, BgmManifestTrack[]>();
+    for (const t of tracks) {
+      const arr = map.get(t.mood) ?? [];
+      arr.push(t);
+      map.set(t.mood, arr);
+    }
+    // Stable mood ordering — keeps the dropdown visually predictable
+    // regardless of catalogue insertion order.
+    const moodOrder = ['chill', 'upbeat', 'cinematic', 'lofi', 'electronic'];
+    return moodOrder
+      .filter(m => map.has(m))
+      .map(m => ({ mood: m, items: map.get(m)! }))
+      .concat(
+        Array.from(map.keys())
+          .filter(m => !moodOrder.includes(m))
+          .map(m => ({ mood: m, items: map.get(m)! })),
+      );
+  }, [tracks]);
+
+  // The PARAMS value carries the `audio/` prefix (matches `staticFile` arg);
+  // the manifest stores bare filenames. Normalize both directions so the
+  // Select's `value` matches an option even if the LLM emitted either form.
+  const valueFilename = value.replace(/^audio\//, '');
+  const currentTrack = tracks.find(t => t.filename === valueFilename);
+
+  const handleSelect = React.useCallback(
+    (next: string) => {
+      // Stop any active preview when the selection changes — otherwise the
+      // user hears the previous track over the new one.
+      const a = audioRef.current;
+      if (a) {
+        a.pause();
+        a.currentTime = 0;
+      }
+      setPlaying(false);
+      // Re-emit with the canonical `audio/` prefix so the value is directly
+      // usable inside the generated component (`staticFile("audio/...")`).
+      onChange(`audio/${next}`);
+    },
+    [onChange],
+  );
+
+  const handleTogglePlay = React.useCallback(() => {
+    if (!valueFilename) return;
+    let a = audioRef.current;
+    if (!a) {
+      a = new Audio(`/audio/${valueFilename}`);
+      a.preload = 'none';
+      a.addEventListener('ended', () => setPlaying(false));
+      a.addEventListener('error', () => setPlaying(false));
+      audioRef.current = a;
+    } else if (a.src.endsWith(`/audio/${valueFilename}`) === false) {
+      a.src = `/audio/${valueFilename}`;
+    }
+    if (playing) {
+      a.pause();
+      setPlaying(false);
+    } else {
+      void a.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    }
+  }, [valueFilename, playing]);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <Select value={valueFilename} onValueChange={handleSelect} disabled={loading || !!error}>
+          <SelectTrigger
+            aria-labelledby={ariaLabelledBy}
+            className="bg-slate-700 border-slate-600 text-white text-xs flex-1"
+            data-testid="bgm-track-select"
+          >
+            <SelectValue placeholder={loading ? 'Loading…' : error ? 'Unavailable' : 'Pick a BGM track…'} />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-600 max-h-72">
+            {grouped.length === 0 && !loading && (
+              <div className="px-3 py-2 text-xs text-slate-400">No tracks available.</div>
+            )}
+            {grouped.map(group => (
+              <div key={group.mood} className="py-1">
+                <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
+                  {group.mood}
+                </div>
+                {group.items.map(t => (
+                  <SelectItem
+                    key={t.filename}
+                    value={t.filename}
+                    className="text-white hover:bg-slate-700 text-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Music2 aria-hidden className="h-3 w-3 text-slate-400" />
+                      <span className="truncate">{t.filename.replace(/\.mp3$/, '')}</span>
+                      <span className="text-[10px] text-slate-500 font-mono ml-auto">
+                        {t.bpm}bpm · {Math.round(t.durationSec)}s
+                      </span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </div>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!valueFilename}
+          onClick={handleTogglePlay}
+          className="h-8 w-8 p-0 border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200"
+          aria-label={playing ? 'Pause BGM preview' : 'Play BGM preview'}
+          data-testid="bgm-track-play"
+        >
+          {playing ? <Pause aria-hidden className="h-3.5 w-3.5" /> : <Play aria-hidden className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
+      {currentTrack && (
+        <div className="text-[10px] text-slate-500 font-mono truncate">
+          {currentTrack.mood} · {currentTrack.bpm} bpm · {Math.round(currentTrack.durationSec)}s · {currentTrack.license}
+        </div>
+      )}
+      {error && (
+        <p className="text-[10px] text-red-400" role="alert">
+          BGM catalogue unavailable: {error}
+        </p>
+      )}
+    </div>
   );
 }
