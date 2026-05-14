@@ -45,7 +45,11 @@
  *   (TM-129) is updated to prefer it whenever PARAMS.bgmTrack exists.
  */
 import { Audio, staticFile } from 'remotion';
-import { isValidCatalogTrack } from '@/lib/audio/manifest';
+// TM-133: import from the client-safe `manifest-types` module directly so the
+// Remotion bundle never reaches the fs-touching `manifest-loader`. Even via
+// the (now client-safe) `./manifest` barrel this would work, but a direct
+// import documents intent and removes a hop the bundler has to inline.
+import { isValidCatalogTrack } from '@/lib/audio/manifest-types';
 
 export interface CatalogueAudioProps {
   /**

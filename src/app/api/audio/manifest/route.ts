@@ -13,7 +13,12 @@
  * security upside.
  */
 import { NextResponse } from 'next/server';
-import { loadAudioManifest, type AudioTrack } from '@/lib/audio/manifest';
+// TM-133: `loadAudioManifest` lives in the server-only loader (it touches
+// `node:fs/promises`). The route handler runs in node, so we import it
+// directly. `AudioTrack` is a pure type and can come from either module —
+// take it from the client-safe types module.
+import { loadAudioManifest } from '@/lib/audio/manifest-loader';
+import type { AudioTrack } from '@/lib/audio/manifest-types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-static';

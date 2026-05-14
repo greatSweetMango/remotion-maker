@@ -1,13 +1,17 @@
 import path from 'node:path';
+// TM-133: server-only loader split out of `manifest.ts`. Pure types/regex
+// stay in `manifest-types`; fs-touching helpers live in `manifest-loader`.
 import {
   AUDIO_MOODS,
   AudioManifestError,
+  parseAudioManifest,
+} from '@/lib/audio/manifest-types';
+import {
   DEFAULT_MANIFEST_PATH,
   hashAudioAsset,
   loadAudioManifest,
-  parseAudioManifest,
   verifyAudioCatalogueIntegrity,
-} from '@/lib/audio/manifest';
+} from '@/lib/audio/manifest-loader';
 
 const FIXTURE_PATH = path.join(process.cwd(), 'public', 'audio', 'MANIFEST.json');
 
