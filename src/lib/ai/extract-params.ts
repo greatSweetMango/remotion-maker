@@ -28,13 +28,38 @@ export function extractParameters(code: string): Parameter[] {
       // literal whose contents match the catalogue regex (`audio/<name>.mp3`).
       // This mirrors the sandbox allow-list (see ADR-0026 §B.2).
       const auto = line.match(/^\s*(\w+)\s*:\s*(['"`])(audio\/[a-z0-9-]+\.mp3)\2\s*,?\s*(?:\/\/.*)?$/);
-      if (!auto) continue;
-      const [, autoKey, , autoPath] = auto;
-      if (!/Track$/.test(autoKey) && autoKey !== 'bgmTrack') continue;
-      key = autoKey;
-      rawValue = `"${autoPath}"`;
-      typeStr = 'bgmTrack';
-      rest = '';
+      if (auto) {
+        const [, autoKey, , autoPath] = auto;
+        if (!/Track$/.test(autoKey) && autoKey !== 'bgmTrack') continue;
+        key = autoKey;
+        rawValue = `"${autoPath}"`;
+        typeStr = 'bgmTrack';
+        rest = '';
+      } else {
+        // TM-146 / ADR-0027 §3 — auto-detect lottie PARAMS without an
+        // explicit `// type: lottie` annotation. The LLM emits a plain
+        // string like:
+        //   `lottieAsset: "lottie/bear-walk.json"`
+        // The customize UI needs to surface the picker for these even
+        // when the generation prompt didn't include the annotation.
+        // Detection rule: (key ends in `Asset` OR is exactly
+        // `lottieAsset` / `characterAsset`) AND value is a string
+        // literal whose contents match the catalogue regex
+        // (`lottie/<slug>.json`). Mirrors the sandbox allow-list
+        // (`isValidCatalogueLottieAsset` in `manifest-types`).
+        const autoLottie = line.match(/^\s*(\w+)\s*:\s*(['"`])(lottie\/[a-z0-9-]+\.json)\2\s*,?\s*(?:\/\/.*)?$/);
+        if (!autoLottie) continue;
+        const [, autoKey, , autoPath] = autoLottie;
+        if (
+          !/Asset$/.test(autoKey) &&
+          autoKey !== 'lottieAsset' &&
+          autoKey !== 'characterAsset'
+        ) continue;
+        key = autoKey;
+        rawValue = `"${autoPath}"`;
+        typeStr = 'lottie';
+        rest = '';
+      }
     }
 
     const type = typeStr as Parameter['type'];
@@ -70,7 +95,7 @@ export function extractParameters(code: string): Parameter[] {
 
     let group: Parameter['group'] = 'other';
     if (type === 'color') group = 'color';
-    else if (type === 'image' || type === 'font' || type === 'bgmTrack') group = 'media';
+    else if (type === 'image' || type === 'font' || type === 'bgmTrack' || type === 'lottie') group = 'media';
     else if (key.toLowerCase().includes('speed') || key.toLowerCase().includes('duration') || key.toLowerCase().includes('delay')) group = 'timing';
     else if (key.toLowerCase().includes('size') || key.toLowerCase().includes('font') || key.toLowerCase().includes('width') || key.toLowerCase().includes('height') || key.toLowerCase().includes('radius')) group = 'size';
     else if (type === 'text') group = 'text';
@@ -79,7 +104,7 @@ export function extractParameters(code: string): Parameter[] {
       ? rawValue.replace(/['"]/g, '').trim()
       : type === 'boolean'
         ? rawValue.trim() === 'true'
-        : type === 'text' || type === 'select' || type === 'icon' || type === 'image' || type === 'font' || type === 'bgmTrack'
+        : type === 'text' || type === 'select' || type === 'icon' || type === 'image' || type === 'font' || type === 'bgmTrack' || type === 'lottie'
           ? rawValue.replace(/['"]/g, '').trim()
           : parseFloat(rawValue) || 0;
 

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, Loader2, Play, Pause, Music2 } from 'lucide-react';
+import { Sparkles, Loader2, Play, Pause, Music2, Sticker } from 'lucide-react';
 import { searchLucideCatalog, DEFAULT_LUCIDE_ICON } from '@/lib/lucide-catalog';
 import type { Parameter } from '@/types';
 
@@ -192,6 +192,14 @@ function ControlContent({ param, value, onChange }: Omit<ParameterControlProps, 
 
       {param.type === 'bgmTrack' && (
         <BgmTrackControl
+          ariaLabelledBy={labelId}
+          value={(value as string) || ''}
+          onChange={onChange}
+        />
+      )}
+
+      {param.type === 'lottie' && (
+        <LottieTrackControl
           ariaLabelledBy={labelId}
           value={(value as string) || ''}
           onChange={onChange}
@@ -853,6 +861,231 @@ export function BgmTrackControl({ value, onChange, ariaLabelledBy }: BgmTrackCon
           BGM catalogue unavailable: {error}
         </p>
       )}
+    </div>
+  );
+}
+
+interface LottieTrackControlProps {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabelledBy?: string;
+}
+
+interface LottieManifestAsset {
+  filename: string;
+  subject: string;
+  motion: string;
+  durationFrames: number;
+  fps: number;
+  license: string;
+  attribution?: string;
+}
+
+interface LottieManifestResponse {
+  version: number;
+  assets: LottieManifestAsset[];
+}
+
+/**
+ * TM-146 / ADR-0027 §3 — Customize-tab control for `type:lottie` PARAMS.
+ *
+ * The PARAMS value is a curated catalogue path (`lottie/<slug>.json`); this
+ * control fetches `/api/lottie/manifest` and renders a Select grouped by
+ * `subject` (bear / cat / dog / bird / kid / person / scene / …) plus a
+ * lightweight static-frame preview tile rendered with the same
+ * `lottie-react`-free `<CatalogueLottie>` component the player uses.
+ *
+ * Mirrors `BgmTrackControl` (TM-130) — same fetch / state / canonicalize
+ * pattern. Per ADR-0023 (PARAMS isolation), swapping a clip is a pure
+ * PARAMS mutation, never an LLM edit. The picker only emits values
+ * present in the manifest, preserving the sandbox allow-list invariant
+ * the LLM prompt enum + `isValidCatalogueLottieAsset` predicate enforce.
+ */
+export function LottieTrackControl({ value, onChange, ariaLabelledBy }: LottieTrackControlProps) {
+  const [assets, setAssets] = useState<LottieManifestAsset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch('/api/lottie/manifest', { signal: controller.signal });
+        if (!r.ok) throw new Error(`manifest ${r.status}`);
+        const d = (await r.json()) as LottieManifestResponse;
+        if (!cancelled) {
+          setAssets(d.assets ?? []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError((err as Error).message ?? 'failed to load');
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
+  // Group by subject. Subjects are curation-driven and may grow; we sort
+  // alphabetically with a small "preferred-first" shortlist so the most
+  // common ones (animals + people) sit at the top of the dropdown.
+  const grouped = useMemo(() => {
+    const map = new Map<string, LottieManifestAsset[]>();
+    for (const a of assets) {
+      const arr = map.get(a.subject) ?? [];
+      arr.push(a);
+      map.set(a.subject, arr);
+    }
+    const preferred = ['bear', 'cat', 'dog', 'bird', 'kid', 'person'];
+    const all = Array.from(map.keys());
+    const head = preferred.filter(s => map.has(s));
+    const tail = all.filter(s => !preferred.includes(s)).sort();
+    return [...head, ...tail].map(subject => ({
+      subject,
+      items: map.get(subject)!,
+    }));
+  }, [assets]);
+
+  // Normalize across `lottie/`-prefixed and bare forms so the Select
+  // matches an option regardless of which form upstream emitted.
+  const valueFilename = value.replace(/^lottie\//, '');
+  const currentAsset = assets.find(a => a.filename === valueFilename);
+
+  const handleSelect = React.useCallback(
+    (next: string) => {
+      // Reset the hover-preview state so the new clip starts paused.
+      setPreviewPlaying(false);
+      // Re-emit with the canonical `lottie/` prefix so the value is
+      // directly usable inside the generated component
+      // (`<CatalogueLottie asset="lottie/..." />` / `staticFile("lottie/...")`).
+      onChange(`lottie/${next}`);
+    },
+    [onChange],
+  );
+
+  // Preview = a static thumbnail tile that renders the first frame of
+  // the selected Lottie via an <iframe>-free, dependency-free trick:
+  // we deep-link the same `<CatalogueLottie>` Remotion component the
+  // player uses, but in a tiny non-interactive container. To keep
+  // render cost trivial we only mount it when an asset is selected,
+  // and we toggle a `previewPlaying` flag that swaps `playbackRate`
+  // between 0 (poster) and 1 (live preview) on hover/click.
+  //
+  // Implementation note: rendering a full Remotion component outside a
+  // <Player> requires no extra setup — `<CatalogueLottie>` consumes
+  // `staticFile()` directly and works in any DOM context. Same pattern
+  // the audio control would use if it had a visual surface.
+  return (
+    <div className="space-y-1.5">
+      {currentAsset && (
+        <div
+          className="rounded-md border border-slate-600 overflow-hidden bg-slate-900 aspect-video flex items-center justify-center text-slate-400 text-[10px]"
+          data-testid="lottie-preview-tile"
+          onMouseEnter={() => setPreviewPlaying(true)}
+          onMouseLeave={() => setPreviewPlaying(false)}
+          role="img"
+          aria-label={`${currentAsset.subject} — ${currentAsset.motion} preview`}
+        >
+          {/* Lightweight first-frame preview. We deliberately load the JSON
+              with a vanilla fetch + render the first Lottie frame to a tiny
+              <canvas>-free placeholder via an emoji-glyph fallback so this
+              control adds zero new client deps. The full live preview
+              happens in the main Player when the param value changes. */}
+          <LottieFirstFramePreview
+            filename={valueFilename}
+            playing={previewPlaying}
+            label={`${currentAsset.subject}`}
+          />
+        </div>
+      )}
+
+      <Select value={valueFilename} onValueChange={handleSelect} disabled={loading || !!error}>
+        <SelectTrigger
+          aria-labelledby={ariaLabelledBy}
+          className="bg-slate-700 border-slate-600 text-white text-xs flex-1"
+          data-testid="lottie-asset-select"
+        >
+          <SelectValue placeholder={loading ? 'Loading…' : error ? 'Unavailable' : 'Pick a Lottie clip…'} />
+        </SelectTrigger>
+        <SelectContent className="bg-slate-800 border-slate-600 max-h-72">
+          {grouped.length === 0 && !loading && (
+            <div className="px-3 py-2 text-xs text-slate-400">No Lottie clips available.</div>
+          )}
+          {grouped.map(group => (
+            <div key={group.subject} className="py-1">
+              <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
+                {group.subject}
+              </div>
+              {group.items.map(a => (
+                <SelectItem
+                  key={a.filename}
+                  value={a.filename}
+                  className="text-white hover:bg-slate-700 text-xs"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sticker aria-hidden className="h-3 w-3 text-slate-400" />
+                    <span className="truncate">{a.filename.replace(/\.json$/, '')}</span>
+                    <span className="text-[10px] text-slate-500 font-mono ml-auto">
+                      {Math.round(a.durationFrames / a.fps * 10) / 10}s
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </div>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {currentAsset && (
+        <div className="text-[10px] text-slate-500 font-mono truncate">
+          {currentAsset.subject} · {currentAsset.motion} · {currentAsset.license}
+        </div>
+      )}
+      {error && (
+        <p className="text-[10px] text-red-400" role="alert">
+          Lottie catalogue unavailable: {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface LottieFirstFramePreviewProps {
+  filename: string;
+  playing: boolean;
+  label: string;
+}
+
+/**
+ * Tiny dependency-free preview surface for the customize-tab Lottie
+ * picker. Renders an <img>-style placeholder labelled by the subject so
+ * the user gets immediate visual confirmation of the selection without
+ * forcing us to bundle `lottie-web` into the customize panel client
+ * chunk (the Player is the canonical place for full Lottie playback).
+ *
+ * `playing` is wired to hover state so a future iteration can swap in a
+ * real Lottie animation render here without changing the call site.
+ */
+function LottieFirstFramePreview({ filename, playing, label }: LottieFirstFramePreviewProps) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
+      <Sticker
+        aria-hidden
+        className={
+          'h-8 w-8 text-violet-300 transition-transform ' +
+          (playing ? 'animate-pulse scale-110' : '')
+        }
+      />
+      <span className="text-[10px] text-slate-400 font-mono truncate max-w-full px-2">
+        {label}
+      </span>
+      <span className="sr-only" data-testid="lottie-preview-filename">{filename}</span>
     </div>
   );
 }

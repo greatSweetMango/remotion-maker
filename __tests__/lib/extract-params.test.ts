@@ -161,3 +161,89 @@ const PARAMS = {
     expect(params).toHaveLength(0);
   });
 });
+
+describe('extractParameters — lottie (TM-146 / ADR-0027 §3)', () => {
+  it('parses explicit `// type: lottie` annotation', () => {
+    const code = `
+const PARAMS = {
+  lottieAsset: "lottie/bear-walk.json", // type: lottie
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('lottie');
+    expect(params[0].group).toBe('media');
+    expect(params[0].value).toBe('lottie/bear-walk.json');
+  });
+
+  it('auto-detects lottie when key is "lottieAsset" + catalogue value', () => {
+    const code = `
+const PARAMS = {
+  lottieAsset: "lottie/cat-walk.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('lottie');
+    expect(params[0].key).toBe('lottieAsset');
+    expect(params[0].value).toBe('lottie/cat-walk.json');
+  });
+
+  it('auto-detects lottie when key is "characterAsset" + catalogue value', () => {
+    const code = `
+const PARAMS = {
+  characterAsset: "lottie/dog-run.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('lottie');
+    expect(params[0].key).toBe('characterAsset');
+  });
+
+  it('auto-detects lottie when key suffix is "Asset" + catalogue value', () => {
+    const code = `
+const PARAMS = {
+  heroAsset: "lottie/person-dance.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(1);
+    expect(params[0].type).toBe('lottie');
+    expect(params[0].key).toBe('heroAsset');
+  });
+
+  it('does NOT auto-detect lottie when value is not a catalogue path', () => {
+    const code = `
+const PARAMS = {
+  lottieAsset: "https://example.com/foo.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(0);
+  });
+
+  it('does NOT auto-detect lottie when key suffix differs (e.g. random key)', () => {
+    const code = `
+const PARAMS = {
+  clipName: "lottie/bird-fly.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    // key doesn't end in `Asset` and isn't `lottieAsset`/`characterAsset`
+    expect(params).toHaveLength(0);
+  });
+
+  it('still parses bgmTrack alongside lottie in the same PARAMS block', () => {
+    const code = `
+const PARAMS = {
+  bgmTrack: "audio/upbeat-runner.mp3",
+  characterAsset: "lottie/cat-idle.json",
+} as const;
+`;
+    const params = extractParameters(code);
+    expect(params).toHaveLength(2);
+    expect(params.find(p => p.key === 'bgmTrack')?.type).toBe('bgmTrack');
+    expect(params.find(p => p.key === 'characterAsset')?.type).toBe('lottie');
+  });
+});
