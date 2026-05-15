@@ -503,7 +503,18 @@ export async function generateAsset(
   // prompts that need it most: living-entity prompts ALWAYS go through
   // clarify, so by the time we have answers we'd never enter the branch
   // that calls runAssetGenStage. See `wiki/05-reports/2026-05-15-TM-135-quality-rca-research.md`.
-  if (process.env.AI_MULTI_STEP === '1') {
+  //
+  // TM-139 — multi-step default ON for character/scene prompts. TM-135
+  // RCA D4: AI_MULTI_STEP env was unset in prod, so multi-step (and the
+  // ≥2-scene outline + scene-level reasoning depth it provides) never ran
+  // for the living-entity prompts that benefit most. Now: if a living
+  // entity is detected, auto-route to multi-step UNLESS the operator has
+  // explicitly opted out via `AI_MULTI_STEP=0`. Generic motion-graphics
+  // prompts retain the single-shot default (latency budget preserved).
+  const envFlag = process.env.AI_MULTI_STEP;
+  const livingEntityHit = detectLivingEntity(prompt, opts.answers);
+  const autoMultiStep = livingEntityHit.matched && envFlag !== '0';
+  if (envFlag === '1' || autoMultiStep) {
     const { generateAssetMultiStepAsApiResponse } = await import('./pipeline');
     return await generateAssetMultiStepAsApiResponse(prompt, model, {
       answers: opts.answers,

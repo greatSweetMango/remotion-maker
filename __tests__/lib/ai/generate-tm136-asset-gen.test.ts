@@ -119,6 +119,18 @@ describe('TM-136 injectAssetImageUrl (pure)', () => {
 });
 
 describe('TM-136 generateAsset single-shot asset-gen wiring', () => {
+  // TM-139 — living-entity prompts auto-route to multi-step unless the
+  // operator explicitly opts out via `AI_MULTI_STEP=0`. These tests assert
+  // the single-shot wiring contract specifically, so we pin the env to the
+  // explicit opt-out for the duration of the suite.
+  const prevMultiStep = process.env.AI_MULTI_STEP;
+  beforeAll(() => {
+    process.env.AI_MULTI_STEP = '0';
+  });
+  afterAll(() => {
+    if (prevMultiStep === undefined) delete process.env.AI_MULTI_STEP;
+    else process.env.AI_MULTI_STEP = prevMultiStep;
+  });
   beforeEach(() => mockedChat.mockReset());
 
   it('living-entity prompt triggers asset-gen and injects imageUrl into final code', async () => {
