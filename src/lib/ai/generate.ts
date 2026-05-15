@@ -21,6 +21,11 @@ import {
   retrieveForcedReferenceForPrompt,
   readTemplateSource,
 } from './retrieval';
+import {
+  runAssetGenStage,
+  detectLivingEntity,
+  type AssetGenStageResult,
+} from './asset-gen-stage';
 import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
 
 export interface GenerateOptions {
@@ -33,6 +38,19 @@ export interface GenerateOptions {
   onFirstToken?: (msSinceStart: number) => void;
   /** TM-54 — fired on every text delta from the LLM stream. */
   onDelta?: (chunk: string, sofar: string) => void;
+  /**
+   * TM-136 — escape hatch to opt-out of the single-shot asset-gen branch.
+   * Tests / cost-sensitive bench runs set this to true to skip gpt-image-1
+   * even when a living-entity prompt would otherwise trigger it. Default
+   * = false (asset-gen runs whenever a living-entity hits).
+   */
+  disableAssetGen?: boolean;
+  /**
+   * TM-136 — test seam. Lets unit tests inject a stubbed `runAssetGenStage`
+   * implementation so they don't hit OpenAI / the filesystem. When omitted,
+   * the real `runAssetGenStage` is used.
+   */
+  __assetGenStage?: typeof runAssetGenStage;
 }
 
 export interface GenerateLatency {
@@ -372,18 +390,266 @@ async function generateOnce(
   };
 }
 
+/**
+ * TM-136 — system-prompt addendum injected when an asset-gen PNG is
+ * available for the current prompt. Tells the LLM that a pre-generated
+ * character/animal/person image lives at `PARAMS.imageUrl` and that it
+ * should splice it via `<Img src={PARAMS.imageUrl} />` instead of trying
+ * to draw the figure with primitives (the failure mode that ships
+ * "갈색 원" instead of a bear — see TM-135 RCA).
+ *
+ * Cache stability (ADR-0003): we APPEND this block to the base system
+ * prompt verbatim; cache key remains stable across (prompt, has-image)
+ * variants because the addendum is suffix-only.
+ */
+export const ASSET_GEN_SYSTEM_PROMPT_ADDENDUM = `
+
+============== ASSET-GEN IMAGE AVAILABLE (TM-136) ==============
+
+A pre-generated PNG of the prompt's character/animal/person SUBJECT is
+available at \`PARAMS.imageUrl\`. You MUST:
+
+  1. Add \`imageUrl: "<provided>"\` to the PARAMS const annotated with
+     \`// type: text\` so the customize UI can swap it.
+  2. Render the subject via \`<Img src={PARAMS.imageUrl}
+     style={{ position: 'absolute', width, height, objectFit: 'contain' }} />\`
+     positioned inside the AbsoluteFill. Do NOT attempt to draw the
+     subject from <div>/SVG primitives — the PNG is the visual.
+  3. Animate position / scale / opacity AROUND the <Img> (e.g. translateX
+     for a horizontal scroll, spring on scale, opacity fade) using the
+     standard interpolate/spring helpers. The Img component is a Remotion
+     global — no import needed.
+
+The exact imageUrl string will be substituted server-side after you
+respond, so emit \`imageUrl: "TM136_IMAGE_URL_PLACEHOLDER", // type: text\`
+verbatim and we will rewrite it.
+`;
+
+/**
+ * TM-136 — substitute the LLM's placeholder string with the real asset-gen
+ * URL, AND back-fill a PARAMS.imageUrl entry if the LLM forgot to add one.
+ * Returns the rewritten code; never throws.
+ *
+ * Strategy:
+ *   1. If the placeholder \`TM136_IMAGE_URL_PLACEHOLDER\` is present,
+ *      replace every occurrence with the real URL (handles single OR
+ *      double-quote literals).
+ *   2. If no \`imageUrl\` field exists in PARAMS at all (LLM ignored the
+ *      addendum), inject one as the first field of the PARAMS object.
+ *      We deliberately do NOT also inject the <Img> usage — when the LLM
+ *      ignored the addendum, the imageUrl entry is at least surfaced in
+ *      the customize UI so the user can see the asset and the next edit
+ *      round can pick it up.
+ */
+export function injectAssetImageUrl(code: string, imageUrl: string): string {
+  let out = code;
+
+  // 1. Replace placeholder occurrences (the canonical happy path).
+  if (out.includes('TM136_IMAGE_URL_PLACEHOLDER')) {
+    out = out.replace(/TM136_IMAGE_URL_PLACEHOLDER/g, imageUrl);
+    return out;
+  }
+
+  // 2. Back-fill: PARAMS exists but no imageUrl key. Inject as first field.
+  // Detect ` imageUrl:` already present (any whitespace) → bail.
+  if (/\bimageUrl\s*:/.test(out)) {
+    return out;
+  }
+  // Match `const PARAMS = {` followed by optional newline.
+  const paramsRe = /(const\s+PARAMS\s*=\s*\{)([\s\S]*?)(\}\s*(?:as\s+const)?)/;
+  const m = out.match(paramsRe);
+  if (!m) return out; // no PARAMS — placeholder/empty handler will catch it
+  const [, head, body, tail] = m;
+  const safeUrl = JSON.stringify(imageUrl);
+  const injectedField = `\n  imageUrl: ${safeUrl}, // type: text`;
+  // Place the new field as the FIRST field so it renders at the top of the
+  // customize panel — most prominent slot for user-replaceable assets.
+  const newBody = injectedField + (body.startsWith('\n') ? body : '\n' + body);
+  out = out.replace(paramsRe, `${head}${newBody}${tail}`);
+  return out;
+}
+
 export async function generateAsset(
   prompt: string,
   model: string = getModels().free,
   opts: GenerateOptions = {},
-): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
+): Promise<
+  GenerateApiResponse & {
+    latency?: GenerateLatency;
+    assetGen?: AssetGenStageResult;
+  }
+> {
   // TM-102 — opt-in multi-step pipeline (outline → scene → code).
   // Off by default; flipped on per-request via AI_MULTI_STEP=1 until
   // bench (TM-46 r7) shows uplift. ADR-PENDING-TM-102.
-  if (process.env.AI_MULTI_STEP === '1' && !opts.answers) {
+  //
+  // TM-136 — removed the legacy `!opts.answers` co-guard. The original
+  // intent was to keep clarify-answer rounds on the proven single-shot
+  // path, but it had the unintended consequence of making asset-gen (which
+  // ONLY ran inside the multi-step branch) unreachable for the exact
+  // prompts that need it most: living-entity prompts ALWAYS go through
+  // clarify, so by the time we have answers we'd never enter the branch
+  // that calls runAssetGenStage. See `wiki/05-reports/2026-05-15-TM-135-quality-rca-research.md`.
+  if (process.env.AI_MULTI_STEP === '1') {
     const { generateAssetMultiStepAsApiResponse } = await import('./pipeline');
-    return await generateAssetMultiStepAsApiResponse(prompt, model);
+    return await generateAssetMultiStepAsApiResponse(prompt, model, {
+      answers: opts.answers,
+    });
   }
+
+  const result = await generateAssetSingleShot(prompt, model, opts);
+  return result;
+}
+
+/**
+ * TM-136 — finalize a single-shot generate result by:
+ *   1. Substituting the LLM's TM136_IMAGE_URL_PLACEHOLDER (or back-filling
+ *      a missing imageUrl PARAMS field) with the real asset-gen URL.
+ *   2. Re-extracting parameters so the customize UI sees the new field.
+ *   3. Re-transpiling the modified TSX so jsCode stays in sync with code.
+ *   4. Attaching the AssetGenStageResult on the return value for telemetry.
+ *
+ * If `assetGen` is null OR the result is a clarify response, the input
+ * is returned unchanged (modulo the assetGen marker for telemetry).
+ */
+async function finalizeWithAssetGen<T extends GenerateApiResponse & { latency?: GenerateLatency }>(
+  result: T,
+  assetGen: AssetGenStageResult | null,
+): Promise<T & { assetGen?: AssetGenStageResult }> {
+  if (!assetGen) return result as T & { assetGen?: AssetGenStageResult };
+  if (result.type !== 'generate') {
+    // Clarify path — surface the asset-gen marker but don't touch the
+    // questions payload.
+    return { ...result, assetGen } as T & { assetGen?: AssetGenStageResult };
+  }
+  const original = result.asset.code;
+  const injected = injectAssetImageUrl(original, assetGen.imageUrl);
+  if (injected === original) {
+    // Nothing to substitute (no placeholder, no back-fill). Still
+    // surface the marker so the UI can display the asset.
+    return { ...result, assetGen } as T & { assetGen?: AssetGenStageResult };
+  }
+  // Re-validate + re-transpile. Validation must still pass (we only
+  // substituted a string literal). On any failure, fall back to the
+  // original code rather than blocking the user.
+  try {
+    const validation = validateCode(injected);
+    if (!validation.valid) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[TM-136] post-injection validation failed, keeping original code:',
+          validation.errors.join(', '),
+        );
+      }
+      return { ...result, assetGen } as T & { assetGen?: AssetGenStageResult };
+    }
+    const sanitized = sanitizeCode(injected);
+    const jsCode = await transpileTSX(sanitized);
+    const parameters = extractParameters(injected);
+    return {
+      ...result,
+      asset: { ...result.asset, code: injected, jsCode, parameters },
+      assetGen,
+    } as T & { assetGen?: AssetGenStageResult };
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[TM-136] post-injection transpile failed, keeping original code:',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+    return { ...result, assetGen } as T & { assetGen?: AssetGenStageResult };
+  }
+}
+
+/**
+ * TM-136 — single-shot path extracted so the asset-gen pre-stage and the
+ * post-LLM URL injection share one code path with all the existing retry
+ * branches (TM-51 placeholder retry, TM-52 force-generate, TM-67 transpile
+ * retry, TM-105 dynamic clarify, etc.) without sprinkling injection logic
+ * at every `return` site.
+ */
+async function generateAssetSingleShot(
+  prompt: string,
+  model: string,
+  opts: GenerateOptions,
+): Promise<
+  GenerateApiResponse & {
+    latency?: GenerateLatency;
+    assetGen?: AssetGenStageResult;
+  }
+> {
+  // ----- TM-136 — single-shot asset-gen (D1 fix) ---------------------
+  //
+  // Detect living-entity → kick off PNG generation BEFORE the LLM call so
+  // we can append the addendum and inject the real URL into the response.
+  // Cached hits return synchronously (~0ms) so this only adds wall-clock
+  // on the very first generation per (prompt, answers, style) tuple.
+  //
+  // Failures swallow to null → the LLM proceeds with the un-addended
+  // system prompt and the user sees the previous (vector-only) behaviour.
+  // Never let asset-gen failure block a generation.
+  // TM-136 — Gate on `opts.answers` presence: living-entity prompts always
+  // go through clarify on round 1 (TM-95 narrow rule), so running asset-gen
+  // before that clarify response is $0.04 of guaranteed waste. We only fire
+  // asset-gen when answers are present (round 2 → guaranteed to hit
+  // mode=generate) OR when the prompt is concrete enough to have skipped
+  // clarify entirely (scoreConcreteness handled inside the LLM core path
+  // can't be predicted here without re-prompting; we accept the false
+  // negative for round-1 concrete living-entity prompts — the next edit
+  // round will populate the cache anyway).
+  const eligibleForAssetGen = !!opts.answers && Object.keys(opts.answers).length > 0;
+  let assetGen: AssetGenStageResult | null = null;
+  if (!opts.disableAssetGen && eligibleForAssetGen) {
+    const hit = detectLivingEntity(prompt, opts.answers);
+    if (hit.matched) {
+      const stage = opts.__assetGenStage ?? runAssetGenStage;
+      try {
+        assetGen = await stage({ prompt, answers: opts.answers });
+      } catch (err) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[generateAsset] TM-136 asset-gen stage failed, continuing without PNG:',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        assetGen = null;
+      }
+      if (process.env.NODE_ENV !== 'production' && assetGen) {
+        console.warn(
+          '[generateAsset] TM-136 asset-gen ready:',
+          { cached: assetGen.cached, hash: assetGen.hash.slice(0, 12), token: assetGen.matchedToken },
+        );
+      }
+    }
+  }
+  const assetGenAddendum = assetGen ? ASSET_GEN_SYSTEM_PROMPT_ADDENDUM : '';
+
+  // Wrap the existing generation flow so EVERY return path passes
+  // through finalizeWithAssetGen — keeps URL injection + parameter
+  // re-extraction in one place instead of sprinkling at each return.
+  const rawResult = await generateAssetSingleShotCore(
+    prompt,
+    model,
+    opts,
+    assetGenAddendum,
+  );
+  return await finalizeWithAssetGen(rawResult, assetGen);
+}
+
+/**
+ * TM-136 — the LLM orchestration core, lifted verbatim from the original
+ * `generateAsset`. Takes a pre-computed asset-gen system-prompt addendum
+ * (empty string when no PNG is being generated for this prompt). All
+ * existing retry / clarify / placeholder branches preserved unchanged —
+ * the wrapper applies post-injection in one place.
+ */
+async function generateAssetSingleShotCore(
+  prompt: string,
+  model: string,
+  opts: GenerateOptions,
+  assetGenAddendum: string,
+): Promise<GenerateApiResponse & { latency?: GenerateLatency }> {
 
   // TM-74 — Reference-template RAG. We resolve a reference once for this
   // prompt and append it to the system prompt for all attempts. Stable
@@ -394,7 +660,8 @@ export async function generateAsset(
   const rag = ragDisabled
     ? { addendum: '', reference: null, category: null }
     : retrieveReferenceForPrompt(prompt);
-  const baseSystemPrompt = GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + rag.addendum;
+  const baseSystemPrompt =
+    GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + rag.addendum + assetGenAddendum;
   if (process.env.NODE_ENV !== 'production' && rag.reference) {
     console.warn(
       '[generateAsset] TM-74 RAG hit:',

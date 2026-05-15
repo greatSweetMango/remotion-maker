@@ -90,15 +90,34 @@ export async function POST(req: Request) {
     // clarify/answers branch), synthesize a single-stage timing trace so the
     // UI dev badge can still distinguish modes. Multi-step responses arrive
     // with `assetGenStages` already populated by the pipeline.
+    //
+    // TM-136 — surface `asset_gen_used: true` whenever the single-shot path
+    // produced a PNG (the previous hardcoded `false` predates the TM-136 fix
+    // and would mask the new behaviour from the dev badge / telemetry).
     const resultWithStages = result as typeof result & {
       assetGenStages?: import('@/lib/ai/pipeline').PipelineTiming;
+      assetGen?: import('@/lib/ai/asset-gen-stage').AssetGenStageResult;
     };
     if (!resultWithStages.assetGenStages && result.type === 'generate') {
+      const assetGenUsed = !!resultWithStages.assetGen;
       resultWithStages.assetGenStages = {
         mode: 'single-shot',
-        stages: [{ name: 'single-shot', ms: totalMs, meta: { firstTokenMs: firstTokenMs >= 0 ? firstTokenMs : -1 } }],
+        stages: [{
+          name: 'single-shot',
+          ms: totalMs,
+          meta: {
+            firstTokenMs: firstTokenMs >= 0 ? firstTokenMs : -1,
+            ...(assetGenUsed
+              ? {
+                  assetGenCached: resultWithStages.assetGen!.cached,
+                  assetGenLatencyMs: resultWithStages.assetGen!.latencyMs,
+                  assetGenCostUsd: resultWithStages.assetGen!.costUsd,
+                }
+              : {}),
+          },
+        }],
         totalMs,
-        asset_gen_used: false,
+        asset_gen_used: assetGenUsed,
         scenes: 0,
       };
     }
