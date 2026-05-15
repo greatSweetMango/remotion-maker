@@ -658,14 +658,18 @@ async function generateAssetSingleShotCore(
   // retrieval to measure RAG-ON vs RAG-OFF visual quality.
   const ragDisabled = process.env.RAG_DISABLE === '1';
   const rag = ragDisabled
-    ? { addendum: '', reference: null, category: null }
+    ? { addendum: '', reference: null, category: null, community: null }
     : retrieveReferenceForPrompt(prompt);
   const baseSystemPrompt =
     GENERATION_WITH_CLARIFY_SYSTEM_PROMPT + rag.addendum + assetGenAddendum;
-  if (process.env.NODE_ENV !== 'production' && rag.reference) {
+  if (process.env.NODE_ENV !== 'production' && (rag.reference || rag.community)) {
     console.warn(
-      '[generateAsset] TM-74 RAG hit:',
-      { category: rag.category, ref: rag.reference.id },
+      '[generateAsset] TM-74/TM-141 RAG hit:',
+      {
+        category: rag.category,
+        ref: rag.reference?.id ?? null,
+        community: rag.community?.id ?? null,
+      },
     );
   }
   if (process.env.NODE_ENV !== 'production' && ragDisabled) {

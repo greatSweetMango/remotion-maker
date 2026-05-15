@@ -25,6 +25,11 @@
 
 import fs from 'fs';
 import path from 'path';
+import {
+  buildCommunityReferenceBlock,
+  pickCommunityReferenceForPrompt,
+  type CommunityReference,
+} from './community-templates';
 
 /** Categories used by the retriever. Aligns with `Template['category']`. */
 export type RagCategory =
@@ -298,14 +303,27 @@ export function readTemplateSource(filename: string): string | null {
  */
 export function buildReferenceBlock(
   prompt: string,
-  opts: { sourceLoader?: (filename: string) => string | null } = {},
+  opts: {
+    sourceLoader?: (filename: string) => string | null;
+    /** TM-141: when true, skip the community alternative-pattern addendum. */
+    skipCommunity?: boolean;
+  } = {},
 ): string {
   const category = inferCategoryFromPrompt(prompt);
-  if (!category) return '';
+  // TM-141 — community fallback. When the in-house catalog misses (no
+  // category inferred), a community pattern can still hit (e.g. "character",
+  // "audiogram") and is a better signal than nothing.
+  if (!category) {
+    return opts.skipCommunity ? '' : buildCommunityReferenceBlock(prompt);
+  }
   const ref = pickReferenceTemplate(category, prompt);
-  if (!ref) return '';
+  if (!ref) {
+    return opts.skipCommunity ? '' : buildCommunityReferenceBlock(prompt);
+  }
   const source = (opts.sourceLoader ?? readTemplateSource)(ref.filename);
-  if (!source) return '';
+  if (!source) {
+    return opts.skipCommunity ? '' : buildCommunityReferenceBlock(prompt);
+  }
 
   // Keep the reference code under ~6KB so we don't blow the system-prompt
   // budget. Templates in the catalog are typically 2-4KB; truncate just in
@@ -316,7 +334,7 @@ export function buildReferenceBlock(
       ? source.slice(0, MAX_REF_CHARS) + '\n// ... (truncated for context budget)'
       : source;
 
-  return `
+  const primary = `
 
 ============== REFERENCE TEMPLATE (RAG, TM-74) ==============
 
@@ -337,6 +355,10 @@ ${truncated}
 
 ============== END REFERENCE ==============
 `;
+  // TM-141 — append community alternative pattern when the prompt also
+  // matches a community signal (e.g. "character", "audiogram"). Empty string
+  // when nothing matched, so concatenation is a no-op.
+  return opts.skipCommunity ? primary : primary + buildCommunityReferenceBlock(prompt);
 }
 
 /**
@@ -346,14 +368,24 @@ ${truncated}
 export function retrieveReferenceForPrompt(prompt: string): {
   category: RagCategory | null;
   reference: ReferenceTemplate | null;
+  /** TM-141 — community pattern matched alongside (or instead of) primary. */
+  community: CommunityReference | null;
   addendum: string;
 } {
+  const community = pickCommunityReferenceForPrompt(prompt);
   const category = inferCategoryFromPrompt(prompt);
-  if (!category) return { category: null, reference: null, addendum: '' };
+  if (!category) {
+    // No primary hit — community block becomes the sole addendum (possibly empty).
+    const addendum = buildReferenceBlock(prompt);
+    return { category: null, reference: null, community, addendum };
+  }
   const reference = pickReferenceTemplate(category, prompt);
-  if (!reference) return { category, reference: null, addendum: '' };
+  if (!reference) {
+    const addendum = buildReferenceBlock(prompt);
+    return { category, reference: null, community, addendum };
+  }
   const addendum = buildReferenceBlock(prompt);
-  return { category, reference, addendum };
+  return { category, reference, community, addendum };
 }
 
 /**
