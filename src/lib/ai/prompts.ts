@@ -1,4 +1,21 @@
+import { LOTTIE_CATALOG_SLUGS } from '@/lib/lottie/manifest-types';
 import type { AIMessage } from './client';
+
+/**
+ * TM-145 / ADR-0027 §2 — Lottie catalogue enum interpolated into the
+ * generation system prompt. We render the closed slug list verbatim so
+ * the LLM emits one of the deterministic catalogue assets via
+ * `<CatalogueLottie asset="...">` instead of inventing animation JSON
+ * (which the sandbox denies — see ADR-0027 §1, sandbox.ts deny rule for
+ * bare `<Lottie>`).
+ *
+ * Cache key impact (ADR-0003): the slug list is part of the
+ * GENERATION_SYSTEM_PROMPT body, so any catalogue extension changes the
+ * cache key and forces a fresh ephemeral cache write on next edit. This
+ * is intentional — a stale cache would keep recommending only the old
+ * subset and silently drop new entries.
+ */
+const LOTTIE_CATALOGUE_LIST = LOTTIE_CATALOG_SLUGS.join(', ');
 
 export const GENERATION_SYSTEM_PROMPT = `You are an expert Remotion animation developer. Generate a complete, working Remotion React component for the user's request.
 
@@ -68,6 +85,7 @@ AVAILABLE REMOTION GLOBALS (already injected, no imports needed):
 - AbsoluteFill, Sequence, Img
 - Easing
 - CatalogueAudio (TM-132 wrapper for PARAMS-swappable BGM — see audio policy)
+- CatalogueLottie (TM-140 wrapper for deterministic vector character / scene Lotties — see Lottie policy)
 
 VISUAL-ONLY POLICY (TM-123 + TM-129 / ADR-0026 §3 — MANDATORY):
 - DO NOT use \`<Video>\`, \`<OffthreadVideo>\`, or \`<IFrame>\`. These remain
@@ -132,6 +150,68 @@ VISUAL-ONLY POLICY (TM-123 + TM-129 / ADR-0026 §3 — MANDATORY):
   \`Math.sin\`, equalizer bars animated via \`interpolate\`,
   frame-driven color/scale beats) regardless of whether \`<Audio>\` is also
   present.
+
+LOTTIE CATALOGUE POLICY (TM-140 / TM-145 / ADR-0027 §2 — MANDATORY for living entities):
+- A bare \`<Lottie>\` tag is REJECTED by the sandbox. The ONLY accepted
+  emission shape is the curated wrapper:
+    \`<CatalogueLottie asset="bear-walk" />\`
+  The wrapper is injected as a global (no import needed). Its \`asset\`
+  prop accepts a catalogue slug (\`bear-walk\`, \`bear-walk.json\`, or
+  \`lottie/bear-walk.json\`); a malformed value renders silently (no
+  Lottie crash, no Lambda hang).
+- Available Lottie catalogue (USE THE EXACT SLUG, no other strings allowed):
+    ${LOTTIE_CATALOGUE_LIST}
+- Korean / English keyword → catalogue slug hints (pick the closest match
+  when the user prompt names a living-entity subject):
+    bear / 곰 / 곰돌이                     → bear-walk
+    cat walking / 고양이 걷는              → cat-walk
+    cat sitting / 고양이 / 야옹이 / 앉은   → cat-idle
+    dog / 강아지 / 멍멍이 / 개             → dog-run
+    person / 사람 / dancer / 댄스 / 춤     → person-dance
+    kid / child / 아이 / 어린이 / jump     → kid-jump
+    bird / 새 / 비둘기 / flying            → bird-fly
+    sky / 하늘 / clouds / 구름 / 배경      → sky-clouds (background scene)
+- DECISION RULE — when both Lottie catalogue and image-gen could satisfy
+  the request, PREFER the Lottie catalogue: it is deterministic ($0
+  marginal cost, no asset-gen round-trip, no Lambda image stage). Only
+  fall back to the asset-gen image path (ADR-0022 \`imageUrl\` PARAMS) or
+  to a hand-drawn vector when the subject has NO matching catalogue slug
+  (e.g. dragon, dinosaur, robot, astronaut, named brand mascot).
+- LAYERING — \`<CatalogueLottie>\` cleanly composes with the 3-layer
+  scene-depth pattern (CHARACTER section below). Use it as the
+  FOREGROUND layer, with the BACKGROUND/MIDGROUND still hand-drawn:
+    \`\`\`tsx
+    export const PARAMS = {
+      // type: lottieAsset
+      lottieAsset: 'bear-walk',
+      bgColor: '#86c2ee',  // type: color
+      groundColor: '#5fa760',  // type: color
+    } as const;
+    const Component = ({
+      lottieAsset = PARAMS.lottieAsset,
+      bgColor = PARAMS.bgColor,
+      groundColor = PARAMS.groundColor,
+    }: typeof PARAMS = PARAMS) => {
+      const frame = useCurrentFrame();
+      return (
+        <AbsoluteFill style={{ backgroundColor: bgColor }}>
+          {/* background sky */}
+          <AbsoluteFill style={{ background: \`linear-gradient(\${bgColor}, #fff)\` }} />
+          {/* midground ground */}
+          <AbsoluteFill style={{ top: '70%', background: groundColor }} />
+          {/* foreground character via Lottie */}
+          <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 80 }}>
+            <CatalogueLottie asset={lottieAsset} style={{ width: 320, height: 320 }} />
+          </AbsoluteFill>
+        </AbsoluteFill>
+      );
+    };
+    \`\`\`
+- When you expose a \`lottieAsset\` PARAMS entry use the picker-friendly
+  type comment (\`// type: lottieAsset\`) so the customize-tab Lottie
+  picker (TM-146) can swap assets at runtime without an LLM round-trip.
+- Lottie is OPTIONAL. Purely abstract / data-viz / typography requests
+  do NOT need a Lottie — keep using vector + interpolate as before.
 
 ICONS — Lucide library (already injected as a \`lucide\` global, no imports needed):
 - When the design needs an icon (decorative or symbolic), pull it from \`lucide\`.
@@ -227,7 +307,13 @@ CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
 - Loader: motion must be perfectly periodic so the result loops cleanly
   at \`durationInFrames\`.
 
-[CHARACTER / SCENE / NARRATIVE — bear/dog/cat/person/animal/robot/dragon/astronaut subject; TM-137 / ADR-0022]
+[CHARACTER / SCENE / NARRATIVE — bear/dog/cat/person/animal/robot/dragon/astronaut subject; TM-137 / ADR-0022 / TM-145]
+- CHARACTER ANIMATION: prefer \`<CatalogueLottie asset="bear-walk"/>\`
+  when a matching catalog asset exists (see LOTTIE CATALOGUE POLICY
+  above). The catalogue covers the most common living-entity prompts
+  (곰, 강아지, 고양이, 사람, 새 등) deterministically and free. Fall
+  back to vector / image-gen ONLY when the subject is outside the
+  catalogue (dragon, dinosaur, named mascot, etc.).
 - A single \`<div>\` circle, square, or pill on a flat background is NOT a
   character — it is a placeholder. The "갈색 원이 평면 위를 가로지른다"
   failure mode is FORBIDDEN.

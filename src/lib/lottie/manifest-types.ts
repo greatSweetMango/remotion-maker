@@ -64,6 +64,47 @@ export const LOTTIE_FILENAME_RE = /^[a-z0-9-]+\.json$/;
 export const LOTTIE_SHA256_RE = /^[a-f0-9]{64}$/;
 
 /**
+ * TM-145 / ADR-0027 §2 — closed prompt-enum of catalogue slugs.
+ *
+ * Mirrors the `AUDIO_MOODS` shape (audio policy / TM-127). The system
+ * prompt embeds this list verbatim so the LLM can pick a deterministic
+ * Lottie asset by slug instead of inventing animation JSON. Membership
+ * is enforced upstream by the customize picker (TM-146) and at render
+ * time by `<CatalogueLottie>` (TM-140).
+ *
+ * Each slug corresponds to `<slug>.json` under `public/lottie/` and the
+ * matching entry in `public/lottie/MANIFEST.json` (TM-144). Adding a new
+ * catalogue asset is a 3-step change: drop the JSON in `public/lottie/`,
+ * update the manifest, append the slug here. The catalogue integrity
+ * verifier (`verifyLottieCatalogueIntegrity`) still gates checksum + sha
+ * mismatch.
+ *
+ * NOTE: A future ADR may close `LottieAsset.subject` into an enum once
+ * curation stabilises; for now the slug list is the source of truth for
+ * the prompt + picker.
+ */
+export type LottieCatalogSlug =
+  | 'bear-walk'
+  | 'cat-walk'
+  | 'dog-run'
+  | 'cat-idle'
+  | 'person-dance'
+  | 'kid-jump'
+  | 'bird-fly'
+  | 'sky-clouds';
+
+export const LOTTIE_CATALOG_SLUGS: readonly LottieCatalogSlug[] = [
+  'bear-walk',
+  'cat-walk',
+  'dog-run',
+  'cat-idle',
+  'person-dance',
+  'kid-jump',
+  'bird-fly',
+  'sky-clouds',
+] as const;
+
+/**
  * TM-140 / ADR-0027 — catalogue filename shape predicate.
  *
  * Synchronous, side-effect free (no fs read), safe to call inside a
