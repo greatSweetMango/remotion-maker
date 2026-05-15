@@ -262,6 +262,18 @@ export function sanitizeCode(code: string): string {
       /^import\s+\{\s*CatalogueAudio\s*\}\s+from\s+['"](?:@\/)?remotion\/CatalogueAudio['"];?\s*$/gm,
       '',
     )
+    // TM-142 — <SpriteAnimator> is injected as a local (see evaluator.ts);
+    // strip any stray import the model might emit after seeing it in the
+    // sprite-sheet system-prompt addendum.
+    .replace(
+      /^import\s+\{\s*SpriteAnimator\s*\}\s+from\s+['"](?:@\/)?remotion\/SpriteAnimator['"];?\s*$/gm,
+      '',
+    )
+    // Same for CatalogueLottie (TM-140 missed this in the original sanitiser).
+    .replace(
+      /^import\s+\{\s*CatalogueLottie\s*\}\s+from\s+['"](?:@\/)?remotion\/CatalogueLottie['"];?\s*$/gm,
+      '',
+    )
     .replace(/^import\s+type\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
     .replace(/^export\s+default\s+/gm, 'const DefaultExport = ')
     .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')
