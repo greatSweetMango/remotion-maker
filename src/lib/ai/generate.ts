@@ -24,8 +24,15 @@ import {
 import {
   runAssetGenStage,
   detectLivingEntity,
+  ASSET_GEN_DIR_REL,
   type AssetGenStageResult,
 } from './asset-gen-stage';
+import {
+  judgeAndMaybeRegenerate,
+  isSelfCritiqueEnabled,
+  type SelfCritiqueResult,
+} from './self-critique';
+import path from 'node:path';
 import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
 
 export interface GenerateOptions {
@@ -51,6 +58,12 @@ export interface GenerateOptions {
    * the real `runAssetGenStage` is used.
    */
   __assetGenStage?: typeof runAssetGenStage;
+  /**
+   * TM-138 — test seam for the vision-guided self-critique loop. When
+   * present, replaces `judgeAndMaybeRegenerate` so unit tests can stub
+   * the judge + regen path. Production code uses the default.
+   */
+  __selfCritique?: typeof judgeAndMaybeRegenerate;
 }
 
 export interface GenerateLatency {
@@ -623,6 +636,73 @@ async function generateAssetSingleShot(
       }
     }
   }
+
+  // ----- TM-138 — vision-guided self-critique on the asset-gen PNG ----
+  //
+  // Judge the freshly-generated PNG against the user's prompt. If the
+  // judge score < threshold (default 70), regenerate ONCE with a critique-
+  // augmented prompt and keep whichever scored higher. NEVER blocks the
+  // pipeline — judge/regen failures fall through to the original PNG.
+  //
+  // Skipped when:
+  //   - asset-gen produced nothing (no living-entity hit),
+  //   - the PNG was a cache hit (already judged on the prior generation),
+  //   - AI_SELF_CRITIQUE=0 escape hatch is set.
+  //
+  // See `src/lib/ai/self-critique.ts` and TM-138 task spec.
+  let selfCritique: SelfCritiqueResult | null = null;
+  if (assetGen && !assetGen.cached && isSelfCritiqueEnabled()) {
+    const initialDiskPath = path.join(
+      process.cwd(),
+      ASSET_GEN_DIR_REL,
+      `${assetGen.hash}.png`,
+    );
+    // Test ergonomics: when callers stub `__assetGenStage` (TM-136 unit
+    // tests) without also stubbing self-critique, the fake PNG isn't on
+    // disk → judge would always fail. Default the self-critique to a noop
+    // pass-through in that case so existing tests stay green and only
+    // tests that explicitly opt into TM-138 behaviour exercise the loop.
+    const defaultFn = opts.__assetGenStage
+      ? async (input: { initial: AssetGenStageResult }): Promise<SelfCritiqueResult> => ({
+          chosen: input.initial,
+          scores: [],
+          reasoning: [],
+          retried: false,
+          extraCostUsd: 0,
+        })
+      : judgeAndMaybeRegenerate;
+    try {
+      const fn = opts.__selfCritique ?? defaultFn;
+      selfCritique = await fn({
+        prompt,
+        answers: opts.answers,
+        initial: assetGen,
+        initialDiskPath,
+      });
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] TM-138 self-critique:',
+          {
+            scores: selfCritique.scores,
+            retried: selfCritique.retried,
+            extraCostUsd: selfCritique.extraCostUsd.toFixed(3),
+            chosenHash: selfCritique.chosen.hash.slice(0, 12),
+          },
+        );
+      }
+      // Swap in the chosen (possibly retried) asset-gen result so URL
+      // injection downstream points at the better PNG.
+      assetGen = selfCritique.chosen;
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] TM-138 self-critique threw, keeping initial asset-gen:',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
+
   const assetGenAddendum = assetGen ? ASSET_GEN_SYSTEM_PROMPT_ADDENDUM : '';
 
   // Wrap the existing generation flow so EVERY return path passes
