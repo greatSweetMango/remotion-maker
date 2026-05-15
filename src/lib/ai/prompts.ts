@@ -227,6 +227,66 @@ CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
 - Loader: motion must be perfectly periodic so the result loops cleanly
   at \`durationInFrames\`.
 
+[CHARACTER / SCENE / NARRATIVE — bear/dog/cat/person/animal/robot/dragon/astronaut subject; TM-137 / ADR-0022]
+- A single \`<div>\` circle, square, or pill on a flat background is NOT a
+  character — it is a placeholder. The "갈색 원이 평면 위를 가로지른다"
+  failure mode is FORBIDDEN.
+- **Scene depth (3-layer composition)** — render BACKGROUND + MIDGROUND +
+  FOREGROUND as three nested \`<AbsoluteFill>\` layers (back-to-front),
+  each translating at a DIFFERENT speed (parallax). Static one-plane
+  scenes are a FAILURE.
+  * background: sky / gradient / distant mountains, slowest scroll (~0.2×).
+  * midground: ground, trees, buildings, mid-distance props (~0.5×).
+  * foreground: character, near props, frame elements (1.0× or anchored).
+- **Character with separated limbs** — every living entity MUST be
+  composed of distinct moving parts: head + body + ≥2 limbs (legs / arms)
+  + face features (eyes, mouth). Use SVG \`<g transform>\` groups (or
+  nested absolutely-positioned \`<div>\`s) so each part can animate
+  independently. A monolithic shape with one transform is a FAILURE.
+- **Walk-cycle keyframes** — limbs MUST oscillate. Legs/arms in
+  anti-phase, body bobbing on a sine. Pure \`translateX\` with no limb
+  motion is NOT walking.
+  \`\`\`tsx
+  // Walking character pattern (foreground layer):
+  const charX  = interpolate(frame, [0, durationInFrames], [-200, width + 200]);
+  const bobY   = Math.sin(frame * 0.25) * 8;            // body bob
+  const legA   = Math.sin(frame * 0.3) * 30;            // front leg
+  const legB   = Math.sin(frame * 0.3 + Math.PI) * 30;  // back leg (anti-phase)
+  const armA   = Math.sin(frame * 0.3 + Math.PI) * 20;  // arm swings opposite to its leg
+  // <svg><g transform={\`translate(\${charX}, \${bobY})\`}>
+  //   <ellipse cx={0} cy={-40} rx={28} ry={26} fill={furColor}/>  {/* head */}
+  //   <ellipse cx={0} cy={10}  rx={40} ry={32} fill={furColor}/>  {/* body */}
+  //   <line x1={-12} y1={40} x2={-12} y2={70} stroke={furColor} strokeWidth={10}
+  //         transform={\`rotate(\${legA}, -12, 40)\`}/>           {/* leg A */}
+  //   <line x1={ 12} y1={40} x2={ 12} y2={70} stroke={furColor} strokeWidth={10}
+  //         transform={\`rotate(\${legB},  12, 40)\`}/>           {/* leg B */}
+  //   <circle cx={-8} cy={-46} r={2} fill="#000"/>               {/* eyes */}
+  //   <circle cx={ 8} cy={-46} r={2} fill="#000"/>
+  // </g></svg>
+  \`\`\`
+- **Motion arc** — character translation MUST combine horizontal travel
+  with at least one secondary motion (vertical bob, rotation, scale
+  breathing). A pure \`translateX\` slide is FAILURE-grade.
+- **Color palette** — minimum THREE distinct colors with clear value
+  contrast: sky/background, ground/midground, character body. Honor the
+  user's tone hint ("따뜻한", "warm", "pastel", "neon") across every
+  layer, not just the character.
+- **Composition (rule of thirds)** — character should occupy roughly
+  1/4–1/3 of the frame height (NOT the whole canvas). Place the horizon
+  line near the top or bottom third, never dead-center.
+- **Asset-gen hand-off (ADR-0022 / TM-137)** — if PARAMS exposes
+  \`imageUrl\` (or \`characterImage\`, \`bearImage\`, \`spriteUrl\`, etc.)
+  populated by the asset-gen stage, render the character via
+  \`<Img src={imageUrl} ... />\` instead of vector-drawing it; still
+  apply the bobY + scene-depth + parallax pattern around the image.
+- **Anti-patterns (each is an automatic FAILURE)**:
+  * single circle / square / pill as the character, no limbs.
+  * flat one-layer scene, no foreground/midground/background.
+  * \`translateX\`-only motion with no bob, no limb cycling.
+  * monochrome scene (character same color as ground).
+  * character occupies 80%+ of the frame (no scene context).
+  * "head + body" only with no legs / arms / face features.
+
 ALWAYS respond with valid JSON in this exact format. The "code" value MUST be
 the FULL TSX source as a JSON-escaped string (newlines as \\n, real content,
 NOT a comment or summary):
