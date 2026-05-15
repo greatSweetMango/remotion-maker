@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-143: Text-to-video hybrid (Runway / Kling / Sora / Pika / Luma) — defer with single PILOT"
+title: "ADR-0028: Text-to-video hybrid (Runway / Kling / Sora / Pika / Luma) — defer with single PILOT"
 created: 2026-05-15
 updated: 2026-05-15
 tags: [decision, ai, area/cost, area/edit, area/render, research]
@@ -19,7 +19,7 @@ depends_on: [TM-135]
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-143 — Text-to-video hybrid: DEFER with optional single-vendor PILOT
+# ADR-0028 — Text-to-video hybrid: DEFER with optional single-vendor PILOT
 
 ## TL;DR
 

@@ -27,6 +27,7 @@ status: active
 - [[0025-branch-locks-mutex|ADR-0025: branch-locks mutex + pre-PR duplicate guard (TM-96)]]
 - [[0026-audio-policy|ADR-0026: Audio integration policy — curated staticFile catalogue]]
 - [[0027-lottie-catalogue|ADR-0027: Lottie integration policy — curated staticFile catalogue for living-entity motion]]
+- [[0028-text-to-video|ADR-0028: Text-to-video hybrid (Runway / Kling / Sora / Pika / Luma) — defer with single PILOT]]
 
 ## 새 ADR 만들기
 
