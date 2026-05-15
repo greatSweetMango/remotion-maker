@@ -28,6 +28,10 @@ import {
   type AssetGenStageResult,
 } from './asset-gen-stage';
 import {
+  runSpriteSheetStage,
+  type SpriteSheetStageResult,
+} from './sprite-sheet-stage';
+import {
   judgeAndMaybeRegenerate,
   isSelfCritiqueEnabled,
   type SelfCritiqueResult,
@@ -64,6 +68,18 @@ export interface GenerateOptions {
    * the judge + regen path. Production code uses the default.
    */
   __selfCritique?: typeof judgeAndMaybeRegenerate;
+  /**
+   * TM-142 — opt-in sprite-sheet pipeline. When true (or when the
+   * `AI_SPRITE_SHEET=1` env flag is set), the single-shot path runs the
+   * 4-frame sprite-sheet stage INSTEAD OF the single-PNG asset-gen
+   * stage. Living-entity detection still gates whether the stage fires
+   * at all. Disabled by default — costs ~$0.16/first-gen vs ~$0.04 for
+   * single-PNG, so feature stays opt-in until visual-quality bench
+   * justifies the default flip.
+   */
+  enableSpriteSheet?: boolean;
+  /** TM-142 — test seam mirroring `__assetGenStage`. */
+  __spriteSheetStage?: typeof runSpriteSheetStage;
 }
 
 export interface GenerateLatency {
@@ -482,6 +498,84 @@ export function injectAssetImageUrl(code: string, imageUrl: string): string {
   return out;
 }
 
+/**
+ * TM-142 — system-prompt addendum for the 4-frame walk-cycle pipeline.
+ *
+ * Replaces the single-image addendum when `enableSpriteSheet`/AI_SPRITE_SHEET=1
+ * is active. Tells the LLM to use `<SpriteAnimator frames={PARAMS.spriteFrames}>`
+ * instead of `<Img src={PARAMS.imageUrl}>` so the subject actually walks.
+ *
+ * Cache stability (ADR-0003): suffix-only block, swappable with the
+ * single-image addendum without changing the base prompt cache prefix.
+ */
+export const SPRITE_SHEET_SYSTEM_PROMPT_ADDENDUM = `
+
+============== SPRITE-SHEET WALK-CYCLE AVAILABLE (TM-142) ==============
+
+A pre-generated 4-frame walk-cycle sprite sheet of the prompt's
+character/animal/person SUBJECT is available at \`PARAMS.spriteFrames\`
+(an array of 4 PNG URLs in walk-cycle order). You MUST:
+
+  1. Add \`spriteFrames: ["TM142_SPRITE_FRAMES_PLACEHOLDER"]\` verbatim to
+     the PARAMS const annotated with \`// type: text\`. The placeholder
+     will be replaced server-side with the real 4-URL array.
+  2. Render the subject via
+     \`<SpriteAnimator frames={PARAMS.spriteFrames} fps={8}
+        style={{ position: 'absolute', width, height, objectFit: 'contain' }} />\`
+     positioned inside the AbsoluteFill. Do NOT attempt to draw the
+     subject from <div>/SVG primitives — the sprite sheet is the visual.
+  3. Animate position (translateX for walking across the screen, etc.)
+     AROUND the <SpriteAnimator> using the standard interpolate/spring
+     helpers. The component cycles internally; you only animate where
+     the subject MOVES, not its leg poses.
+
+The SpriteAnimator component is a sandbox-injected global — no import
+needed. The exact spriteFrames array will be substituted server-side
+after you respond, so emit the placeholder verbatim.
+`;
+
+/**
+ * TM-142 — inject the sprite-frame URLs into PARAMS.spriteFrames.
+ *
+ * Mirrors `injectAssetImageUrl`:
+ *   1. Replace the literal placeholder array element with the real URLs.
+ *   2. If no `spriteFrames` field exists at all (LLM ignored the
+ *      addendum), back-fill one as the first PARAMS field so the
+ *      customize UI at least surfaces the asset.
+ */
+export function injectSpriteFrames(code: string, frames: string[]): string {
+  const safeFrames = JSON.stringify(frames);
+
+  // 1. Replace the placeholder array form
+  // `["TM142_SPRITE_FRAMES_PLACEHOLDER"]` with the real array. Tolerate
+  // single OR double quotes and inner whitespace.
+  const placeholderRe =
+    /\[\s*["']TM142_SPRITE_FRAMES_PLACEHOLDER["']\s*\]/g;
+  if (placeholderRe.test(code)) {
+    return code.replace(placeholderRe, safeFrames);
+  }
+
+  // 2. Back-fill: PARAMS exists but no spriteFrames key.
+  if (/\bspriteFrames\s*:/.test(code)) return code;
+  const paramsRe = /(const\s+PARAMS\s*=\s*\{)([\s\S]*?)(\}\s*(?:as\s+const)?)/;
+  const m = code.match(paramsRe);
+  if (!m) return code;
+  const [, head, body, tail] = m;
+  const injectedField = `\n  spriteFrames: ${safeFrames}, // type: text`;
+  const newBody = injectedField + (body.startsWith('\n') ? body : '\n' + body);
+  return code.replace(paramsRe, `${head}${newBody}${tail}`);
+}
+
+/**
+ * TM-142 — env helper. The single-shot path consults this to decide
+ * whether to swap asset-gen for sprite-sheet. Kept as a tiny helper so
+ * tests can stub `process.env.AI_SPRITE_SHEET` without re-importing.
+ */
+export function isSpriteSheetEnabled(opts: GenerateOptions): boolean {
+  if (opts.enableSpriteSheet) return true;
+  return process.env.AI_SPRITE_SHEET === '1';
+}
+
 export async function generateAsset(
   prompt: string,
   model: string = getModels().free,
@@ -490,6 +584,7 @@ export async function generateAsset(
   GenerateApiResponse & {
     latency?: GenerateLatency;
     assetGen?: AssetGenStageResult;
+    spriteSheet?: SpriteSheetStageResult;
   }
 > {
   // TM-102 — opt-in multi-step pipeline (outline → scene → code).
@@ -593,6 +688,54 @@ async function finalizeWithAssetGen<T extends GenerateApiResponse & { latency?: 
  * retry, TM-105 dynamic clarify, etc.) without sprinkling injection logic
  * at every `return` site.
  */
+/**
+ * TM-142 — finalize a single-shot generate result for the sprite-sheet
+ * path. Mirrors `finalizeWithAssetGen` but injects the 4-frame array
+ * into PARAMS.spriteFrames instead of a single imageUrl string.
+ */
+async function finalizeWithSpriteSheet<T extends GenerateApiResponse & { latency?: GenerateLatency }>(
+  result: T,
+  spriteSheet: SpriteSheetStageResult | null,
+): Promise<T & { spriteSheet?: SpriteSheetStageResult }> {
+  if (!spriteSheet) return result as T & { spriteSheet?: SpriteSheetStageResult };
+  if (result.type !== 'generate') {
+    return { ...result, spriteSheet } as T & { spriteSheet?: SpriteSheetStageResult };
+  }
+  const original = result.asset.code;
+  const injected = injectSpriteFrames(original, spriteSheet.frames);
+  if (injected === original) {
+    return { ...result, spriteSheet } as T & { spriteSheet?: SpriteSheetStageResult };
+  }
+  try {
+    const validation = validateCode(injected);
+    if (!validation.valid) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[TM-142] post-injection validation failed, keeping original code:',
+          validation.errors.join(', '),
+        );
+      }
+      return { ...result, spriteSheet } as T & { spriteSheet?: SpriteSheetStageResult };
+    }
+    const sanitized = sanitizeCode(injected);
+    const jsCode = await transpileTSX(sanitized);
+    const parameters = extractParameters(injected);
+    return {
+      ...result,
+      asset: { ...result.asset, code: injected, jsCode, parameters },
+      spriteSheet,
+    } as T & { spriteSheet?: SpriteSheetStageResult };
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[TM-142] post-injection transpile failed, keeping original code:',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+    return { ...result, spriteSheet } as T & { spriteSheet?: SpriteSheetStageResult };
+  }
+}
+
 async function generateAssetSingleShot(
   prompt: string,
   model: string,
@@ -601,8 +744,63 @@ async function generateAssetSingleShot(
   GenerateApiResponse & {
     latency?: GenerateLatency;
     assetGen?: AssetGenStageResult;
+    spriteSheet?: SpriteSheetStageResult;
   }
 > {
+  // ----- TM-142 — sprite-sheet branch (opt-in, mutually exclusive with asset-gen) ---
+  //
+  // When AI_SPRITE_SHEET=1 (or opts.enableSpriteSheet), run the 4-frame
+  // walk-cycle pipeline INSTEAD OF the single-PNG asset-gen stage. The
+  // two are mutually exclusive — sharing PARAMS would confuse the LLM
+  // (which subject does it animate?) and double the cost ($0.20).
+  //
+  // Same gating as TM-136: only fire when answers are present (round 2)
+  // so we never burn 4× $0.04 on a clarify round. Failures swallow to
+  // null and the LLM proceeds without the sprite addendum.
+  if (
+    isSpriteSheetEnabled(opts) &&
+    !opts.disableAssetGen &&
+    !!opts.answers &&
+    Object.keys(opts.answers).length > 0
+  ) {
+    const hit = detectLivingEntity(prompt, opts.answers);
+    if (hit.matched) {
+      const stage = opts.__spriteSheetStage ?? runSpriteSheetStage;
+      let spriteSheet: SpriteSheetStageResult | null = null;
+      try {
+        spriteSheet = await stage({ prompt, answers: opts.answers });
+      } catch (err) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[generateAsset] TM-142 sprite-sheet stage failed, continuing without sprite:',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        spriteSheet = null;
+      }
+      if (process.env.NODE_ENV !== 'production' && spriteSheet) {
+        console.warn(
+          '[generateAsset] TM-142 sprite-sheet ready:',
+          {
+            frames: spriteSheet.frames.length,
+            cached: spriteSheet.cached,
+            costUsd: spriteSheet.costUsd.toFixed(3),
+            hash: spriteSheet.hash.slice(0, 12),
+            token: spriteSheet.matchedToken,
+          },
+        );
+      }
+      const spriteAddendum = spriteSheet ? SPRITE_SHEET_SYSTEM_PROMPT_ADDENDUM : '';
+      const rawResult = await generateAssetSingleShotCore(
+        prompt,
+        model,
+        opts,
+        spriteAddendum,
+      );
+      return await finalizeWithSpriteSheet(rawResult, spriteSheet);
+    }
+  }
+
   // ----- TM-136 — single-shot asset-gen (D1 fix) ---------------------
   //
   // Detect living-entity → kick off PNG generation BEFORE the LLM call so
