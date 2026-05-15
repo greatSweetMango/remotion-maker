@@ -1,0 +1,36 @@
+name: Lint — server-only leaks
+
+# TM-134: catch the TM-81 / TM-133 pattern (server-only modules sneaking
+# into the client bundle through a 'use client' import chain) BEFORE the
+# Next.js build error surfaces it. Static-only check; runs in seconds.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/ci/check-server-only-leaks.mjs'
+      - '.github/workflows/lint-server-only-leaks.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/ci/check-server-only-leaks.mjs'
+      - '.github/workflows/lint-server-only-leaks.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run server-only leak detector
+        run: node scripts/ci/check-server-only-leaks.mjs
