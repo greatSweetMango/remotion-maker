@@ -1,0 +1,18 @@
+{
+  "$schema": "https://easymake.dev/schemas/lottie-manifest.v1.json",
+  "version": 1,
+  "note": "TM-140 / ADR-0027 placeholder catalogue. Single bobbing-circle stub so the wrapper renders non-null in dev/tests. Real LottieFiles curation lands in TM-140-spawn-1 (CC0/MIT only, license-vetted).",
+  "assets": [
+    {
+      "filename": "bear-walk.json",
+      "subject": "bear",
+      "motion": "placeholder bobbing circle (TM-140 stub — replace with real bear walk-cycle)",
+      "durationFrames": 60,
+      "fps": 30,
+      "license": "CC0-1.0",
+      "attribution": "EasyMake stub (placeholder)",
+      "sha256": "0d95fc9184207744540eb73f905ac64db1c08e588f4b199f4bf365e4aed1545c",
+      "bytes": 865
+    }
+  ]
+}

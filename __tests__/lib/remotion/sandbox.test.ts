@@ -158,6 +158,40 @@ describe('validateCode', () => {
     });
   });
 
+  // TM-140 / ADR-0027 — bare <Lottie> denied; <CatalogueLottie> accepted.
+  describe('TM-140 <Lottie> deny + <CatalogueLottie> wrapper allow', () => {
+    it('blocks bare <Lottie animationData={...} />', () => {
+      const code = `const C = () => <Lottie animationData={data} />;`;
+      const result = validateCode(code);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Lottie') && e.includes('ADR-0027'))).toBe(true);
+    });
+
+    it('blocks bare < Lottie /> with whitespace', () => {
+      const code = `const C = () => < Lottie animationData={x} />;`;
+      expect(validateCode(code).valid).toBe(false);
+    });
+
+    it('accepts <CatalogueLottie asset={lottieAsset} />', () => {
+      const code = `
+        const PARAMS = { lottieAsset: 'lottie/bear-walk.json' };
+        const C = () => <CatalogueLottie asset={PARAMS.lottieAsset} loop />;
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('Lottie'))).toBeUndefined();
+    });
+
+    it('does NOT flag identifiers that merely contain "Lottie" as a substring', () => {
+      const code = `
+        const PARAMS = { showLottieBadge: true };
+        const lottieReady = 1;
+        const C = () => <AbsoluteFill>{lottieReady}</AbsoluteFill>;
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('Lottie'))).toBeUndefined();
+    });
+  });
+
   // TM-128 / ADR-0026 §2 — structural Audio allow-list.
   // <Audio src={staticFile("audio/<slug>.mp3")} /> is the ONLY shape that
   // bypasses the TM-123 deny rule. Every other shape continues to reject.

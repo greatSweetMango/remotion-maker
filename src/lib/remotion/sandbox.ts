@@ -110,6 +110,19 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
   { pattern: /<\s*IFrame\b/, label: 'Forbidden: <IFrame> (visual-only assets — TM-123)' },
 
+  // TM-140 / ADR-0027: bare `<Lottie>` is denied for the same reason as
+  // bare `<Audio>` — Lottie JSON can carry embedded expressions that
+  // break Remotion's per-frame determinism (per @remotion/lottie docs)
+  // and a freely-emittable `<Lottie>` would let the LLM point at
+  // attacker-controlled JSON. Use `<CatalogueLottie asset=...>` instead;
+  // the wrapper validates the catalogue slug shape and emits a
+  // known-good `<Lottie animationData={...}>` internally. The deny
+  // regex requires `<` immediately followed by `Lottie` (modulo
+  // whitespace), so `<CatalogueLottie` does not match — no allow-list
+  // carve-out needed for the wrapper (mirrors the ADR-0026 §B
+  // `<CatalogueAudio>` pattern).
+  { pattern: /<\s*Lottie\b/, label: 'Forbidden: <Lottie> (use <CatalogueLottie asset=...> — ADR-0027)' },
+
   // Worker spawning (avoid resource exhaustion via fanout)
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
