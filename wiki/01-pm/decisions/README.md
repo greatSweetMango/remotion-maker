@@ -26,6 +26,7 @@ status: active
 - [[0024-workflow-tooling|ADR-0024: Agent workflow tooling — specialized agents, MCP servers, skills, orchestrator guards]]
 - [[0025-branch-locks-mutex|ADR-0025: branch-locks mutex + pre-PR duplicate guard (TM-96)]]
 - [[0026-audio-policy|ADR-0026: Audio integration policy — curated staticFile catalogue]]
+- [[0027-lottie-catalogue|ADR-0027: Lottie integration policy — curated staticFile catalogue for living-entity motion]]
 
 ## 새 ADR 만들기
 

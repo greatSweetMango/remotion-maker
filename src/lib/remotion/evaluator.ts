@@ -3,6 +3,7 @@ import * as RemotionLib from 'remotion';
 import * as LucideLib from 'lucide-react';
 import React from 'react';
 import { CatalogueAudio } from '@/remotion/CatalogueAudio';
+import { CatalogueLottie } from '@/remotion/CatalogueLottie';
 
 /**
  * Component evaluator — turns a transpiled jsCode string into a React
@@ -215,6 +216,7 @@ function buildAndInvoke(jsCode: string): EvaluationResult {
       'remotion',
       'lucide',
       'CatalogueAudio',
+      'CatalogueLottie',
       `
       "use strict";
       // TM-116 — destructure expanded so gpt-4o multi-step scenes that reach
@@ -250,7 +252,7 @@ function buildAndInvoke(jsCode: string): EvaluationResult {
 
   let result: unknown;
   try {
-    result = factory(React, RemotionLib, LucideLib, CatalogueAudio);
+    result = factory(React, RemotionLib, LucideLib, CatalogueAudio, CatalogueLottie);
   } catch (err) {
     const { kind, raw } = classifyThrow(err);
     return { component: null, error: makeError(kind, raw) };
