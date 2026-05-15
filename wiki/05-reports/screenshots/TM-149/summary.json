@@ -1,0 +1,58 @@
+{
+  "startedAt": "2026-05-15T17:56:16.355Z",
+  "reaggregatedAt": "2026-05-15T18:06:23.859Z",
+  "base": "http://127.0.0.1:3149",
+  "totalPrompts": 10,
+  "byCategory": {
+    "character": {
+      "n": 5,
+      "asset_gen_used": 5,
+      "lottie_used": 0,
+      "multi_step_2plus": 5,
+      "avg_scene_count": 2,
+      "avg_params": 1,
+      "skeleton_hits_total": 0,
+      "avg_latency_ms": 56986
+    },
+    "motion-graphics": {
+      "n": 3,
+      "asset_gen_used": 0,
+      "lottie_used": 0,
+      "multi_step_2plus": 0,
+      "avg_scene_count": 0,
+      "avg_params": 6.3,
+      "skeleton_hits_total": 0,
+      "avg_latency_ms": 9421
+    },
+    "data-viz": {
+      "n": 2,
+      "asset_gen_used": 0,
+      "lottie_used": 0,
+      "multi_step_2plus": 0,
+      "avg_scene_count": 0,
+      "avg_params": 8.5,
+      "skeleton_hits_total": 0,
+      "avg_latency_ms": 17520
+    }
+  },
+  "acceptance": {
+    "character_asset_gen_gte_4": true,
+    "character_multi_step_gte_4": true,
+    "motion_graphics_full_generate": true,
+    "data_viz_full_generate": true,
+    "skeleton_hits_zero": true
+  },
+  "notes": {
+    "clarify_bypass": "character prompts skipped clarify-gate (TM-52 concreteness scoring) but still routed to multi-step via TM-139 detectLivingEntity. asset-gen + ≥2-scene outline both fired. Original task assumption (clarify→answer→generate) is obsolete post-TM-139 for prompts that already include subject+duration.",
+    "api_mode_field": "API returned mode=generate directly (no clarify round) for all 10 prompts — not a regression; TM-52 + TM-139 path."
+  },
+  "characterAssetGen": 5,
+  "characterMultiStep": 5,
+  "characterTotal": 5,
+  "motionGenerated": 3,
+  "motionTotal": 3,
+  "dataGenerated": 2,
+  "dataTotal": 2,
+  "skeletonTotal": 0,
+  "verdict": "APPROVE"
+}
