@@ -22,7 +22,7 @@ import {
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
-import { runAssetGenStage, type AssetGenStageResult } from './asset-gen-stage';
+import { runAssetGenStage, detectLivingEntity, type AssetGenStageResult } from './asset-gen-stage';
 import type {
   GeneratedAsset,
   GenerateApiResponse,
@@ -502,19 +502,44 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 /* Stage 1 — Outline                                                  */
 /* ------------------------------------------------------------------ */
 
-export async function generateOutline(prompt: string, model: string): Promise<Outline> {
+export async function generateOutline(
+  prompt: string,
+  model: string,
+  opts: { minScenes?: number } = {},
+): Promise<Outline> {
   // TM-104 — extract duration hint up-front so we can:
   //   (a) inject a hard directive into the outline prompt,
   //   (b) post-fix the LLM result if it ignores the directive.
+  // TM-139 — `opts.minScenes` (typically 2) lets the caller force a scene
+  // floor for character/scene prompts where a single-scene outline collapses
+  // the multi-step reasoning into single-shot equivalent (TM-124 RCA).
   const hint = extractDurationHint(prompt);
+  const minScenes = Math.max(1, opts.minScenes ?? 1);
   let userMessage = prompt;
   let plan: ReturnType<typeof planSceneDurations> | null = null;
-  if (hint.seconds && hint.seconds > 10) {
-    plan = planSceneDurations(hint.seconds, DEFAULT_FPS);
+  // Compute a duration plan whenever we either (a) have an explicit
+  // user-supplied length hint > 10s, OR (b) need to enforce a scene floor
+  // from `opts.minScenes` (TM-139). For (b) without a hint we fall back to
+  // a sensible default so the directive arithmetic still works.
+  const effectiveSeconds = hint.seconds && hint.seconds > 0 ? hint.seconds : null;
+  const needsPlan = (effectiveSeconds !== null && effectiveSeconds > 10) || minScenes > 1;
+  if (needsPlan) {
+    const baseSeconds = effectiveSeconds ?? Math.max(10, minScenes * MIN_SECONDS_PER_SCENE);
+    const autoCount = planSceneCount(baseSeconds);
+    const sceneCount = Math.max(autoCount, minScenes);
+    plan = planSceneDurations(baseSeconds, DEFAULT_FPS, sceneCount);
     const directive =
-      `\n\n---\nDURATION DIRECTIVE (TM-104): The user asked for a ~${hint.seconds}s video. ` +
+      `\n\n---\nDURATION DIRECTIVE (TM-104${minScenes > 1 ? '/TM-139' : ''}): ` +
+      (effectiveSeconds
+        ? `The user asked for a ~${effectiveSeconds}s video. `
+        : `Target a ${baseSeconds}s composition. `) +
       `Target totalDurationInFrames=${plan.totalFrames} at fps=${plan.fps}. ` +
-      `Use ${plan.sceneFrames.length} scenes with durations [${plan.sceneFrames.join(', ')}] frames respectively.`;
+      `Use ${plan.sceneFrames.length} scenes (minimum ${minScenes}) with durations ` +
+      `[${plan.sceneFrames.join(', ')}] frames respectively. ` +
+      (minScenes > 1
+        ? `A single-scene outline is REJECTED for this prompt — split the narrative into ` +
+          `at least ${minScenes} distinct beats (e.g. setup → action, intro → climax).`
+        : '');
     userMessage = prompt + directive;
   }
   const text = await chatComplete({
@@ -524,10 +549,15 @@ export async function generateOutline(prompt: string, model: string): Promise<Ou
   });
   const parsed = extractJsonObject(text);
   if (!parsed) throw new Error('TM-102 outline: AI did not return valid JSON');
-  const outline = validateOutline(parsed);
+  let outline = validateOutline(parsed);
   // Post-fix: if the LLM ignored the duration directive, force the plan.
   if (plan && Math.abs(outline.totalDurationInFrames - plan.totalFrames) > plan.fps) {
-    return enforceScenePlan(outline, plan);
+    outline = enforceScenePlan(outline, plan);
+  }
+  // TM-139 — even if duration matched, enforce the scene floor. The LLM
+  // commonly returns N=1 for short prompts despite the directive.
+  if (plan && outline.scenes.length < minScenes) {
+    outline = enforceScenePlan(outline, plan);
   }
   return outline;
 }
@@ -1023,9 +1053,18 @@ export async function generateAssetMultiStep(
 
   // Stage 1 — outline. Asset-gen runs in parallel with scene-spec
   // (independent of both stages — only needs prompt + answers).
+  // TM-139 — for character/scene prompts, force a ≥2-scene outline so the
+  // multi-step branch actually exercises scene-level reasoning instead of
+  // collapsing to single-shot equivalent (TM-124 RCA finding).
+  const livingEntityHit = detectLivingEntity(prompt, opts.answers);
+  const minScenes = livingEntityHit.matched ? 2 : 1;
   const outlineStart = Date.now();
-  const outline = await generateOutline(prompt, model);
-  recordStage('outline', Date.now() - outlineStart, { scenes: outline.scenes.length });
+  const outline = await generateOutline(prompt, model, { minScenes });
+  recordStage('outline', Date.now() - outlineStart, {
+    scenes: outline.scenes.length,
+    living_entity: livingEntityHit.matched,
+    min_scenes: minScenes,
+  });
 
   // TM-90 — kick off PNG generation in parallel with sceneSpecs. Even at the
   // worst case (gpt-image-1 ~10s @ low quality) this overlaps the spec stage
