@@ -766,7 +766,107 @@ RULES:
    \`return null\`, no empty fragments.
 5. Respond strictly in JSON. The "code" string follows the same JSON
    escaping rules as the single-shot path: \\n for newlines, \\" for
-   quotes, no backticks at JSON-string boundary.`;
+   quotes, no backticks at JSON-string boundary.
+
+[CHARACTER / SCENE / NARRATIVE — TM-167 / TM-137 / ADR-0022 (mandatory when the scene depicts a living-entity subject: bear/dog/cat/person/animal/robot/dragon/astronaut/곰/강아지/고양이/사람 etc.)]
+
+The single-shot \`GENERATION_SYSTEM_PROMPT\` carries an extensive
+CHARACTER block; the multi-step path historically dropped it and the
+result was the TM-166 "곰돌이 산책" failure — a perfectly good
+asset-gen PNG mangled by a purple band and pink lucide flowers
+bolted on top. The following rules MUST be honored in every scene
+fragment.
+
+A. **imageUrl-bearing scenes (PARAMS.imageUrl present — TM-90 / ADR-0022)**:
+   - The PNG is the FULL scene (background + ground + character +
+     decoration ALL baked in by asset-gen). It is NOT a sprite of the
+     character alone. Treat it as a complete picture.
+   - Render it as a FULL-BLEED bottom layer:
+     \`\`\`tsx
+     <Img
+       src={PARAMS.imageUrl}
+       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+     />
+     \`\`\`
+     \`objectFit: 'cover'\` is REQUIRED — \`'contain'\` leaves letterbox
+     bars of bare background, which the user reads as "70% of the
+     frame is black".
+   - Reference the URL via \`PARAMS.imageUrl\` (or a destructured prop
+     defaulting to it). NEVER write a bare \`imageUrl\` identifier —
+     it is not in scope inside per-scene fragments and throws
+     \`ReferenceError\` at render time (TM-166 Scene2 failure mode).
+     NEVER hard-code the URL string — it must stay PARAMS-bound so
+     the customize UI can swap the asset.
+   - DO NOT add a second background. NO \`<AbsoluteFill style={{
+     backgroundColor: ... }}>\` ABOVE the Img. NO full-width solid
+     \`<div>\` bands. NO opaque colored rectangles. NO \`<lucide.X>\`
+     decoration (flowers, stars, hearts) on top of the PNG — the PNG
+     already contains its own decoration. NO vector character drawn
+     ON TOP of the PNG — the PNG already contains the character.
+   - Motion = transforms/opacity on a SIBLING transparent layer above
+     the Img, OR on the Img itself (scale, translateX for parallax
+     camera, opacity fade). Camera-style horizontal scroll =
+     \`translateX\` on a wrapper around the \`<Img>\` itself, NOT a
+     separate "character" sprite that slides over a static
+     background.
+   - Foreground / midground / background depth + separated-limbs +
+     walk-cycle keyframes (section B below) are ONLY for the
+     no-imageUrl case. With imageUrl, the PNG handles all of that.
+   - **Anti-patterns (each is an automatic FAILURE — TM-166 burn list)**:
+     * Opaque \`<AbsoluteFill>\` or solid \`<div>\` (any height, any
+       \`backgroundColor\`) placed AFTER the \`<Img>\` in DOM order.
+     * \`<lucide.Flower>\`, \`<lucide.Star>\`, \`<lucide.Heart>\`, etc.
+       placed over an imageUrl PNG as "decoration".
+     * Vector circle / ellipse / svg character drawn over the
+       imageUrl PNG as "the bear" — the bear is IN the PNG.
+     * \`<Img src={imageUrl}>\` (bare identifier) — ReferenceError.
+     * \`<Img src="https://...">\` (hard-coded literal URL) — breaks
+       customize-tab swap (ADR-0002).
+     * \`<Img>\` without \`objectFit: 'cover'\` (or with
+       \`objectFit: 'contain'\` / no objectFit / explicit
+       \`width: 1024, height: 1024\` numbers) — leaves letterbox bars.
+     * Full-frame colored overlay (\`<div>\` with \`width: '100%',
+       height: '100%', backgroundColor: ...\`) at non-zero opacity
+       above the PNG.
+
+B. **no-imageUrl scenes with a living-entity subject** (no PARAMS.imageUrl):
+   - 3-layer scene depth (back-to-front, three nested \`<AbsoluteFill>\`s):
+     * background: sky / gradient / distant mountains (slowest parallax ~0.2x).
+     * midground: ground / trees / mid-distance props (~0.5x).
+     * foreground: character + near props (1.0x or anchored).
+     Static one-plane scenes are a FAILURE.
+   - Character = head + body + separated limbs (≥2 legs / arms) +
+     face features (eyes, mouth) as distinct \`<g transform>\` groups
+     (or nested absolutely-positioned \`<div>\`s) so each part animates
+     independently. A monolithic shape with one transform is a FAILURE.
+   - Walk-cycle keyframes — limbs MUST oscillate in anti-phase
+     (\`Math.sin(frame * 0.3)\` vs \`Math.sin(frame * 0.3 + Math.PI)\`),
+     body bobs on a sine. Pure \`translateX\` with no limb motion is
+     NOT walking. Use \`Math.PI\` offsets and \`Math.sin\` driven by
+     \`useCurrentFrame()\` to drive bob + limb cycling.
+   - Motion arc = horizontal travel + at least one secondary motion
+     (vertical bob, rotation, scale breathing). Pure \`translateX\`
+     slide is FAILURE-grade.
+   - Prefer \`<CatalogueLottie asset="bear-walk"/>\` (TM-140) when a
+     matching catalogue slug exists — it is deterministic and free.
+
+C. **Color palette (both paths)** — minimum THREE distinct colors with
+   clear value contrast (sky/background, ground/midground,
+   character/foreground). Honor the OUTLINE palette's tone hint
+   ("따뜻한", "warm", "pastel", "neon") across every layer.
+
+D. **Composition (rule of thirds, both paths)** — character (or PNG
+   subject) should occupy roughly 1/4 - 1/3 of the frame height (NOT
+   the whole canvas). Place the horizon line near the top or bottom
+   third, never dead-center.
+
+E. **Anti-patterns shared by both paths**:
+   * Single \`<div>\` circle / square / pill as the character.
+   * Flat one-layer scene with no foreground/midground/background.
+   * \`translateX\`-only motion with no bob, no limb cycling.
+   * Monochrome scene (character same color as ground).
+   * Character occupies 80%+ of the frame (no scene context).
+   * "Head + body" only with no legs / arms / face features.`;
 
 export const EDIT_SYSTEM_PROMPT = `You are an expert Remotion animation developer modifying existing code.
 

@@ -713,10 +713,15 @@ export async function generateSceneCode(
   // single class of TM-46 visual-judge failures.
   const systemPrompt = imageUrl
     ? SCENE_CODE_SYSTEM_PROMPT +
-      `\n\nIMAGE ASSET (TM-90): A pre-generated PNG of the prompt's character/animal/person is available at \`imageUrl\` in this payload. ` +
-      `If the scene's narrativeBeat features that subject, render it via \`<Img src={imageUrl} style={{ width, height, objectFit: 'contain' }} />\` ` +
-      `(absolute-positioned inside the AbsoluteFill) and animate position/scale/opacity around it instead of drawing a vector approximation. ` +
-      `The Img component is a Remotion global — no import needed.`
+      `\n\nIMAGE ASSET (TM-90 / TM-167): A pre-generated PNG of the prompt's character/animal/person scene is available at \`imageUrl\` in this payload. ` +
+      `Follow the CHARACTER / SCENE / NARRATIVE block's "imageUrl-bearing scenes" rules (section A) STRICTLY: ` +
+      `the PNG is the FULL scene (background + ground + character + decoration); ` +
+      `render it as a full-bleed bottom layer via \`<Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />\` ` +
+      `(reference \`PARAMS.imageUrl\` — NOT a bare \`imageUrl\` identifier, NOT a hard-coded URL string); ` +
+      `do NOT add opaque AbsoluteFill backgrounds, solid colored \`<div>\` bands, lucide decoration, or vector characters ON TOP of the PNG; ` +
+      `motion = transforms/opacity on a sibling transparent layer above the Img, or on the Img wrapper itself (camera-style parallax \`translateX\`). ` +
+      `The Img component is a Remotion global — no import needed. Also expose \`imageUrl\` in this scene's PARAMS block (with \`// type: text\`) ` +
+      `defaulting to the payload's imageUrl, so the destructured prop default reaches the JSX.`
     : SCENE_CODE_SYSTEM_PROMPT;
   const text = await chatComplete({
     model,
