@@ -164,6 +164,12 @@ export async function POST(req: Request) {
       asset: { ...asset, id: dbAsset.id },
       ...(result.warning ? { warning: result.warning } : {}),
       ...(resultWithStages.assetGenStages ? { assetGenStages: resultWithStages.assetGenStages } : {}),
+      // TM-150 — surface TM-138 self-critique judge metadata when present so
+      // clients + QA harnesses can verify the loop actually ran (score,
+      // retried, threshold, per-attempt ms) without grepping server logs.
+      ...((result as typeof result & { selfCritique?: import('@/types').SelfCritiqueMetadata }).selfCritique
+        ? { selfCritique: (result as typeof result & { selfCritique?: import('@/types').SelfCritiqueMetadata }).selfCritique }
+        : {}),
     });
   } catch (error: unknown) {
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a

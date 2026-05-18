@@ -133,9 +133,38 @@ export interface PipelineTiming {
   scenes: number;
 }
 
+/**
+ * TM-150 — self-critique judge metadata surfaced on the API response so
+ * clients and QA can verify TM-138 actually ran (TM-149 verification could
+ * not distinguish a no-op pass-through from an actual judge call).
+ *
+ * Populated only when the single-shot asset-gen path ran the vision-guided
+ * self-critique loop (i.e. living-entity prompt + uncached PNG + the
+ * `AI_SELF_CRITIQUE=0` escape hatch is NOT set). Absent otherwise.
+ */
+export interface SelfCritiqueMetadata {
+  /** Final (kept) judge score 0-100. Equal to max of `runs[].score`. */
+  score: number;
+  /** Whether the regen branch fired (initial < threshold). */
+  retried: boolean;
+  /** Threshold the run was judged against (env or default 70). */
+  threshold: number;
+  /** Per-attempt score + wall-clock ms (length 1 or 2). */
+  runs: Array<{ score: number; ms: number }>;
+  /** Total $ spent on extra judge + regen calls (0 when judge failed before billing). */
+  extraCostUsd: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
-  | { type: 'generate'; asset: GeneratedAsset; warning?: string; assetGenStages?: PipelineTiming };
+  | {
+      type: 'generate';
+      asset: GeneratedAsset;
+      warning?: string;
+      assetGenStages?: PipelineTiming;
+      /** TM-150 — present when TM-138 self-critique ran. */
+      selfCritique?: SelfCritiqueMetadata;
+    };
 
 /** Map of clarify question id → selected choice id */
 export type ClarifyAnswers = Record<string, string>;

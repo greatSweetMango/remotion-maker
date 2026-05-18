@@ -37,7 +37,7 @@ import {
   type SelfCritiqueResult,
 } from './self-critique';
 import path from 'node:path';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion } from '@/types';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata } from '@/types';
 
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
@@ -878,6 +878,8 @@ async function generateAssetSingleShot(
           reasoning: [],
           retried: false,
           extraCostUsd: 0,
+          latenciesMs: [],
+          threshold: 70,
         })
       : judgeAndMaybeRegenerate;
     try {
@@ -923,7 +925,31 @@ async function generateAssetSingleShot(
     opts,
     assetGenAddendum,
   );
-  return await finalizeWithAssetGen(rawResult, assetGen);
+  const finalized = await finalizeWithAssetGen(rawResult, assetGen);
+
+  // ----- TM-150 — surface self-critique metadata on the API response ----
+  //
+  // TM-149 verification could not distinguish a no-op pass-through from
+  // an actual judge call because the score never escaped the server. Attach
+  // a compact summary (matches `SelfCritiqueMetadata` in src/types) when
+  // the loop ran so the client + QA harness can confirm wiring without
+  // grepping server logs. Absent when self-critique was skipped (no PNG,
+  // cache hit, AI_SELF_CRITIQUE=0) — the type field is optional.
+  if (selfCritique && finalized.type === 'generate' && selfCritique.scores.length > 0) {
+    const runs = selfCritique.scores.map((score, i) => ({
+      score,
+      ms: selfCritique!.latenciesMs[i] ?? 0,
+    }));
+    const bestScore = Math.max(...selfCritique.scores);
+    (finalized as typeof finalized & { selfCritique?: SelfCritiqueMetadata }).selfCritique = {
+      score: bestScore,
+      retried: selfCritique.retried,
+      threshold: selfCritique.threshold,
+      runs,
+      extraCostUsd: selfCritique.extraCostUsd,
+    };
+  }
+  return finalized;
 }
 
 /**
