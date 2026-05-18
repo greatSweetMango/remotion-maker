@@ -155,6 +155,46 @@ function detectRecursivePromiseChain(code: string): boolean {
   return false;
 }
 
+/**
+ * TM-170 / TM-166 composition lint — mirror of
+ * `detectOpaqueOverlayAboveImg` in `src/lib/remotion/sandbox.ts`.
+ * Keep in sync (TM-115 invariant).
+ *
+ * Rejects an opaque (no `opacity:` style) full-frame fill emitted AFTER a
+ * subject `<Img>` in source order:
+ *   - <AbsoluteFill style={{ ...backgroundColor:... }} /> empty + no opacity
+ *   - <div style={{ position:'absolute', width:'100%', backgroundColor:... }}/>
+ *     empty + no opacity
+ */
+export function detectOpaqueOverlayAboveImg(code: string): boolean {
+  const imgIdx = code.search(/<\s*Img\b/);
+  if (imgIdx < 0) return false;
+  const tail = code.slice(imgIdx);
+
+  const absFillRe =
+    /<\s*AbsoluteFill\b([^<>]*?style\s*=\s*\{\{[^}]*backgroundColor\s*:[^}]*\}\}[^<>]*?)(\/>|>\s*<\/\s*AbsoluteFill\s*>)/g;
+  let m: RegExpExecArray | null;
+  while ((m = absFillRe.exec(tail)) !== null) {
+    const attrs = m[1];
+    if (!/\bopacity\s*:/.test(attrs)) return true;
+  }
+
+  const divRe =
+    /<\s*div\b([^<>]*?style\s*=\s*\{\{[^}]*\}\}[^<>]*?)(\/>|>\s*<\/\s*div\s*>)/g;
+  while ((m = divRe.exec(tail)) !== null) {
+    const attrs = m[1];
+    if (!/\bbackgroundColor\s*:/.test(attrs)) continue;
+    if (!/\bposition\s*:\s*['"]absolute['"]/.test(attrs)) continue;
+    if (!/\bwidth\s*:\s*['"]100%['"]/.test(attrs)) continue;
+    if (/\bopacity\s*:/.test(attrs)) continue;
+    return true;
+  }
+  return false;
+}
+
+const COMPOSITION_LINT_LABEL =
+  'Composition: opaque full-frame fill above <Img> (TM-170 — fade with opacity or remove)';
+
 /** Count keys in `const PARAMS = { ... }`. Returns 0 when no PARAMS const. */
 export function countParamsKeys(code: string): number {
   const m = code.match(/const\s+PARAMS\s*=\s*\{([\s\S]*?)\}\s*(?:as\s+const)?/);
@@ -203,6 +243,11 @@ export function validateRemotionCode(code: unknown): ValidateResult {
   }
   if (detectRecursivePromiseChain(code)) {
     errors.push('Forbidden: recursive Promise chain');
+  }
+
+  // TM-170 mirror — structural composition lint.
+  if (detectOpaqueOverlayAboveImg(code)) {
+    errors.push(COMPOSITION_LINT_LABEL);
   }
 
   // 2. Structural checks (warnings — ADR-0002 advises PARAMS, but absence
