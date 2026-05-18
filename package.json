@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lint:server-only-leaks": "node scripts/ci/check-server-only-leaks.mjs",
+    "check:circular": "npx --yes dependency-cruiser -c .dependency-cruiser.cjs 'src/**/*.{ts,tsx}'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
