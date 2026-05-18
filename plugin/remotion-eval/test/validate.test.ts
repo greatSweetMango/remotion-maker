@@ -175,6 +175,60 @@ test('TM-128: still rejects <Video> even with audio/ catalogue path', () => {
   assert.ok(r.errors.some((e) => e.includes('Video')));
 });
 
+// TM-169 mirror — `<Img src={...}>` expression allow-list.
+test('TM-169: allows <Img src={PARAMS.imageUrl} />', () => {
+  const code = `
+    const PARAMS = { imageUrl: '/uploads/x.png' };
+    const Scene = () => <Img src={PARAMS.imageUrl} />;
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, true, `expected ok=true, got errors=${JSON.stringify(r.errors)}`);
+});
+
+test('TM-169: allows <Img src="/uploads/x.png" /> (string-literal attribute)', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Img src="/uploads/x.png" />;`,
+  );
+  assert.equal(r.ok, true);
+});
+
+test('TM-169: allows <Img src={staticFile("hero.png")} />', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Img src={staticFile("hero.png")} />;`,
+  );
+  assert.equal(r.ok, true);
+});
+
+test('TM-169: rejects bare identifier <Img src={imageUrl}> (TM-166 #4 case)', () => {
+  const r = validateRemotionCode(
+    `const PARAMS = { imageUrl: '/x.png' }; const Scene = () => <Img src={imageUrl} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('<Img')));
+});
+
+test('TM-169: rejects function-call src <Img src={fetchUrl()}>', () => {
+  const r = validateRemotionCode(
+    `const Scene = () => <Img src={fetchUrl()} />;`,
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('<Img')));
+});
+
+test('TM-169: rejects template-literal src', () => {
+  const r = validateRemotionCode(
+    'const slug = "x"; const Scene = () => <Img src={`/uploads/${slug}.png`} />;',
+  );
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('<Img')));
+});
+
+test('TM-169: rejects <Img /> with missing src', () => {
+  const r = validateRemotionCode(`const Scene = () => <Img />;`);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('<Img')));
+});
+
 test('does not mistake SCREAMING_CASE for component (TM-58 gotcha)', () => {
   const code = `const PARAMS = { x: 1 /* type: range */ };
 const Scene = () => null;`;
