@@ -99,6 +99,9 @@ export function EvalFixtureClient({ initialCode }: { initialCode: string }) {
                 style={{ width: '100%', height: '100%' }}
                 autoPlay
                 loop
+                // TM-179 — dev fixture is visual-only, no shared audio tags.
+                numberOfSharedAudioTags={0}
+                acknowledgeRemotionLicense
               />
             </div>
           </EvaluatorErrorBoundary>

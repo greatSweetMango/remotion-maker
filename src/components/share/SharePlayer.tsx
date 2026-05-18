@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 // TM-122: client-only Player to avoid SSR hydration mismatches.
 import { Player } from '@/components/studio/ClientPlayer';
 import { evaluateComponent } from '@/lib/remotion/evaluator';
+import { sharedAudioTagsForAsset } from '@/lib/remotion/audio-usage';
 import type { Parameter } from '@/types';
 
 interface SharePlayerProps {
@@ -59,6 +60,9 @@ export function SharePlayer({
         loop
         controls={false}
         clickToPlay={false}
+        // TM-179 — suppress AudioContext error cascade for visual-only assets.
+        numberOfSharedAudioTags={sharedAudioTagsForAsset(jsCode)}
+        acknowledgeRemotionLicense
       />
       {watermark && (
         <div
