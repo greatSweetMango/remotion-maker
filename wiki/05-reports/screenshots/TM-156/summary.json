@@ -1,0 +1,132 @@
+{
+  "iterations": 5,
+  "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘",
+  "client_step1_wall": {
+    "p50": 41762,
+    "mean": 43595,
+    "max": 53509
+  },
+  "stages": {
+    "route.auth": {
+      "n": 5,
+      "p50": 9,
+      "mean": 10,
+      "max": 15
+    },
+    "route.body-parse": {
+      "n": 5,
+      "p50": 1,
+      "mean": 1,
+      "max": 1
+    },
+    "route.user-lookup": {
+      "n": 5,
+      "p50": 0,
+      "mean": 1,
+      "max": 4
+    },
+    "route.quota-reserve": {
+      "n": 5,
+      "p50": 1,
+      "mean": 1,
+      "max": 2
+    },
+    "pipeline.outline": {
+      "n": 5,
+      "p50": 2190,
+      "mean": 2183,
+      "max": 2375
+    },
+    "pipeline.scene-specs+asset-gen": {
+      "n": 5,
+      "p50": 34604,
+      "mean": 36875,
+      "max": 47375
+    },
+    "pipeline.scene-code": {
+      "n": 5,
+      "p50": 4089,
+      "mean": 4403,
+      "max": 5393
+    },
+    "pipeline.compose+validate": {
+      "n": 5,
+      "p50": 8,
+      "mean": 7,
+      "max": 14
+    },
+    "pipeline.total": {
+      "n": 5,
+      "p50": 41328,
+      "mean": 43477,
+      "max": 53462
+    },
+    "asset-gen-stage.prompt-build": {
+      "n": 5,
+      "p50": 0,
+      "mean": 0,
+      "max": 1
+    },
+    "asset-gen-stage.generate-total": {
+      "n": 5,
+      "p50": 34599,
+      "mean": 36867,
+      "max": 47364
+    },
+    "asset-gen-stage.disk-write": {
+      "n": 5,
+      "p50": 2,
+      "mean": 4,
+      "max": 11
+    },
+    "asset-gen.client-init": {
+      "n": 5,
+      "p50": 0,
+      "mean": 0,
+      "max": 0
+    },
+    "asset-gen.openai-wire": {
+      "n": 5,
+      "p50": 34597,
+      "mean": 36865,
+      "max": 47362
+    },
+    "asset-gen.decode": {
+      "n": 5,
+      "p50": 1,
+      "mean": 1,
+      "max": 1
+    },
+    "route.generateAsset": {
+      "n": 5,
+      "p50": 41332,
+      "mean": 43478,
+      "max": 53463
+    },
+    "route.db-write": {
+      "n": 5,
+      "p50": 5,
+      "mean": 5,
+      "max": 7
+    },
+    "route.total": {
+      "n": 5,
+      "p50": 41362,
+      "mean": 43499,
+      "max": 53481
+    },
+    "generateAsset.total": {
+      "n": 5,
+      "p50": 41332,
+      "mean": 43478,
+      "max": 53462
+    }
+  },
+  "marksPerReq": {
+    "9adcf1de": 20,
+    "08b545a0": 20,
+    "8699002b": 20,
+    "ea045033": 20,
+    "830f89a2": 20
+  }
+}

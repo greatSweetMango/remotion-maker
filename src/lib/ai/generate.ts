@@ -80,6 +80,13 @@ export interface GenerateOptions {
   enableSpriteSheet?: boolean;
   /** TM-142 — test seam mirroring `__assetGenStage`. */
   __spriteSheetStage?: typeof runSpriteSheetStage;
+  /**
+   * TM-156 — request id forwarded from the route handler so every
+   * structured latency mark emitted deeper in the stack (asset-gen,
+   * pipeline, client) shares a single key. Optional; auto-generated
+   * when missing so direct callers (tests, scripts) also profile cleanly.
+   */
+  __latencyReqId?: string;
 }
 
 export interface GenerateLatency {
@@ -606,17 +613,32 @@ export async function generateAsset(
   // entity is detected, auto-route to multi-step UNLESS the operator has
   // explicitly opted out via `AI_MULTI_STEP=0`. Generic motion-graphics
   // prompts retain the single-shot default (latency budget preserved).
+  // TM-156 — resolve a profile request id once at the entry of generateAsset
+  // so every downstream stage (multi-step pipeline, asset-gen, transpile)
+  // tags its marks under the same key as the HTTP route handler.
+  const { newRequestId: _newReqId, recordMark: _mark } = await import('./latency-profile');
+  const __reqId = opts.__latencyReqId ?? _newReqId();
+  const __genStart = Date.now();
+
   const envFlag = process.env.AI_MULTI_STEP;
   const livingEntityHit = detectLivingEntity(prompt, opts.answers);
   const autoMultiStep = livingEntityHit.matched && envFlag !== '0';
   if (envFlag === '1' || autoMultiStep) {
+    _mark({ req: __reqId, phase: 'generateAsset.dispatch', ms: 0, meta: { branch: 'multi-step', livingEntity: livingEntityHit.matched } });
     const { generateAssetMultiStepAsApiResponse } = await import('./pipeline');
-    return await generateAssetMultiStepAsApiResponse(prompt, model, {
+    const out = await generateAssetMultiStepAsApiResponse(prompt, model, {
       answers: opts.answers,
-    });
+      __latencyReqId: __reqId,
+    } as Parameters<typeof generateAssetMultiStepAsApiResponse>[2]);
+    _mark({ req: __reqId, phase: 'generateAsset.total', ms: Date.now() - __genStart, meta: { branch: 'multi-step', type: out.type } });
+    return out;
   }
+  _mark({ req: __reqId, phase: 'generateAsset.dispatch', ms: 0, meta: { branch: 'single-shot', livingEntity: livingEntityHit.matched } });
 
-  const result = await generateAssetSingleShot(prompt, model, opts);
+  // TM-156 — forward request id into the single-shot core via opts so any
+  // future mark inside generateAssetSingleShot can tag under the same key.
+  const result = await generateAssetSingleShot(prompt, model, { ...opts, __latencyReqId: __reqId });
+  _mark({ req: __reqId, phase: 'generateAsset.total', ms: Date.now() - __genStart, meta: { branch: 'single-shot', type: result.type } });
   return result;
 }
 

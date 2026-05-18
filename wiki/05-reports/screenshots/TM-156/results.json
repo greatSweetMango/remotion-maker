@@ -1,0 +1,66 @@
+{
+  "startedAt": "2026-05-18T05:19:54.669Z",
+  "base": "http://127.0.0.1:3156",
+  "runs": [
+    {
+      "iter": 1,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 #run1-1779081594703",
+      "step1": {
+        "wallMs": 41762,
+        "status": 200,
+        "type": "generate",
+        "reqId": "9adcf1de"
+      },
+      "step2": null,
+      "totalWallMs": 41764
+    },
+    {
+      "iter": 2,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 #run2-1779081636467",
+      "step1": {
+        "wallMs": 43951,
+        "status": 200,
+        "type": "generate",
+        "reqId": "08b545a0"
+      },
+      "step2": null,
+      "totalWallMs": 43953
+    },
+    {
+      "iter": 3,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 #run3-1779081680420",
+      "step1": {
+        "wallMs": 53509,
+        "status": 200,
+        "type": "generate",
+        "reqId": "8699002b"
+      },
+      "step2": null,
+      "totalWallMs": 53510
+    },
+    {
+      "iter": 4,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 #run4-1779081733932",
+      "step1": {
+        "wallMs": 40711,
+        "status": 200,
+        "type": "generate",
+        "reqId": "ea045033"
+      },
+      "step2": null,
+      "totalWallMs": 40712
+    },
+    {
+      "iter": 5,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 #run5-1779081774644",
+      "step1": {
+        "wallMs": 38042,
+        "status": 200,
+        "type": "generate",
+        "reqId": "830f89a2"
+      },
+      "step2": null,
+      "totalWallMs": 38042
+    }
+  ]
+}

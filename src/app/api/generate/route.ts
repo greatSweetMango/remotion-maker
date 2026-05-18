@@ -6,17 +6,30 @@ import { AiRefusalError } from '@/lib/ai/refusal';
 import { getModels } from '@/lib/ai/client';
 import { TIER_LIMITS } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
+import { newRequestId, recordMark, isLatencyProfileEnabled } from '@/lib/ai/latency-profile';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  // TM-156 — wall-clock anchors for every phase boundary in the route. The
+  // marks are no-ops unless LATENCY_PROFILE=1, so prod stays clean. The id
+  // is echoed in the response header `x-tm156-req` so bench drivers can
+  // cross-reference HTTP timing with server-side stage breakdown.
+  const reqId = newRequestId();
+  const t0 = Date.now();
+  const profileEnabled = isLatencyProfileEnabled();
+
+  const authStart = Date.now();
   const session = await auth();
+  recordMark({ req: reqId, phase: 'route.auth', ms: Date.now() - authStart });
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Validate input shape BEFORE any DB / quota work. TM-58 length cap.
+  const bodyStart = Date.now();
   const body = await req.json();
+  recordMark({ req: reqId, phase: 'route.body-parse', ms: Date.now() - bodyStart });
   const { prompt, answers } = body as { prompt?: string; answers?: Record<string, string> };
   const promptError = validatePrompt(prompt);
   if (promptError || typeof prompt !== 'string') {
@@ -27,7 +40,9 @@ export async function POST(req: Request) {
     );
   }
 
+  const userLookupStart = Date.now();
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  recordMark({ req: reqId, phase: 'route.user-lookup', ms: Date.now() - userLookupStart });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const now = new Date();
@@ -51,10 +66,12 @@ export async function POST(req: Request) {
   // the burst will see `count: 1`; the rest see `count: 0` and are rejected.
   // Refunds happen on the no-charge paths (clarify, refusal) below.
   const limit = TIER_LIMITS[user.tier].monthlyGenerations;
+  const reserveStart = Date.now();
   const reserved = await prisma.user.updateMany({
     where: { id: user.id, monthlyUsage: { lt: limit } },
     data: { monthlyUsage: { increment: 1 } },
   });
+  recordMark({ req: reqId, phase: 'route.quota-reserve', ms: Date.now() - reserveStart });
   if (reserved.count === 0) {
     return NextResponse.json(
       {
@@ -81,8 +98,12 @@ export async function POST(req: Request) {
         // server-side TTFB with client-perceived latency (acceptance: p50 ≤ 5s).
         console.log(`[generate] firstTokenMs=${ms} model=${model} tier=${user.tier}`);
       },
+      // TM-156 — propagate the request id so generateAsset's internal marks
+      // tie back to this route's reqId.
+      __latencyReqId: reqId,
     });
     const totalMs = Date.now() - generateStart;
+    recordMark({ req: reqId, phase: 'route.generateAsset', ms: totalMs, meta: { firstTokenMs, type: result.type } });
     console.log(
       `[generate] done totalMs=${totalMs} firstTokenMs=${firstTokenMs} type=${result.type}`,
     );
@@ -134,6 +155,7 @@ export async function POST(req: Request) {
 
     const asset = result.asset;
 
+    const dbWriteStart = Date.now();
     const dbAsset = await prisma.asset.create({
       data: {
         userId: user.id,
@@ -156,10 +178,14 @@ export async function POST(req: Request) {
       },
     });
 
+    recordMark({ req: reqId, phase: 'route.db-write', ms: Date.now() - dbWriteStart, meta: { codeLen: asset.code?.length ?? 0 } });
+
     // Quota was already reserved before generation — no second increment here.
     // TM-100: pass through `warning` (set when fallback template was used) so
     // the UI can surface a non-fatal toast asking the user to refine the prompt.
-    return NextResponse.json({
+    const totalRouteMs = Date.now() - t0;
+    recordMark({ req: reqId, phase: 'route.total', ms: totalRouteMs, meta: { type: result.type } });
+    const resp = NextResponse.json({
       type: 'generate',
       asset: { ...asset, id: dbAsset.id },
       ...(result.warning ? { warning: result.warning } : {}),
@@ -171,6 +197,8 @@ export async function POST(req: Request) {
         ? { selfCritique: (result as typeof result & { selfCritique?: import('@/types').SelfCritiqueMetadata }).selfCritique }
         : {}),
     });
+    if (profileEnabled) resp.headers.set('x-tm156-req', reqId);
+    return resp;
   } catch (error: unknown) {
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a
     // category code so the UI can show a clearer toast. We do NOT consume
