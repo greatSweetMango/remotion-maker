@@ -288,6 +288,47 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
 
       if (data.type === 'clarify') {
         dispatch({ type: 'SET_CLARIFY', payload: { questions: data.questions, prompt } });
+        // TM-157 — speculative asset-gen prefetch.
+        //
+        // The user is about to spend 5-15s answering the clarify dialog.
+        // Fire-and-forget a prefetch with "default" answers (first choice
+        // of each question) so the expensive gpt-image-1 wire-time (~34s)
+        // overlaps with the user's read+click time instead of stacking
+        // serially behind it. When the user submits — and they picked the
+        // defaults — the main /api/generate call's asset-gen stage hits
+        // the disk-cache short-circuit (TM-90 hash) for 0ms / $0.
+        //
+        // We do NOT await: the prefetch must not block returning to the
+        // UI render path. The cost guard lives server-side
+        // (`detectLivingEntity` + auth + OPENAI key gate), so a misfire
+        // here is bounded — no quota touched on the user.
+        try {
+          const questions = Array.isArray(data.questions) ? data.questions : [];
+          if (questions.length > 0) {
+            const defaultAnswers: Record<string, string> = {};
+            for (const q of questions) {
+              const firstChoice = q?.choices?.[0]?.id;
+              if (typeof q?.id === 'string' && typeof firstChoice === 'string') {
+                defaultAnswers[q.id] = firstChoice;
+              }
+            }
+            if (Object.keys(defaultAnswers).length > 0) {
+              // Pass the same `augmentedPrompt` we sent to /api/generate so
+              // the hash on the server matches what the pipeline will
+              // compute when the user submits.
+              void fetch('/api/generate/prefetch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: augmentedPrompt, defaultAnswers }),
+              }).catch((err) => {
+                // Pure observability — never surface to the user.
+                console.warn('[TM-157] prefetch fire-and-forget failed:', err);
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('[TM-157] prefetch dispatch threw:', err);
+        }
         return;
       }
       // type === 'generate' (or legacy plain asset shape)
