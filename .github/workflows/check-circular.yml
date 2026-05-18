@@ -1,0 +1,38 @@
+name: Lint — circular dependencies
+
+# TM-154: enforce TM-152 circular-dependency guard in CI. Runs
+# dependency-cruiser against src/** with the no-circular rule. Fails
+# the PR if any import cycle is reintroduced (post TM-152 cleanup).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.dependency-cruiser.cjs'
+      - 'package.json'
+      - '.github/workflows/check-circular.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.dependency-cruiser.cjs'
+      - 'package.json'
+      - '.github/workflows/check-circular.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run dependency-cruiser circular check
+        run: npm run check:circular
