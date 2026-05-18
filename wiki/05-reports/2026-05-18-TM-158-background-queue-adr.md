@@ -8,7 +8,7 @@ report_type: session
 period: "2026-05-18"
 author: teamlead-agent
 related:
-  - "[[../01-pm/decisions/PENDING-TM-158-background-queue|ADR-PENDING-TM-158]]"
+  - "[[../01-pm/decisions/0029-background-queue-asset-gen|ADR-0029]]"
   - "[[2026-05-18-TM-156-latency-rca]]"
   - "[[2026-05-18-TM-157-speculative-prefetch]]"
 provenance: extracted
@@ -28,8 +28,8 @@ runtime code or migration shipped.
 
 ## 무엇이 바뀌었나
 
-- 신규 ADR: `wiki/01-pm/decisions/PENDING-TM-158-background-queue.md`
-  (token: `ADR-PENDING-TM-158`).
+- 신규 ADR: `wiki/01-pm/decisions/0029-background-queue-asset-gen.md`
+  (token: `ADR-0029`).
 - 코드 변경: 0. Worktree clean against `feat/tm-158-background-queue-adr`.
 - DB 변경: 0.
 
@@ -80,12 +80,12 @@ API, (c) worker (lease + retry), (d) studio UI, (e) Vercel cron.
 
 ## 산출물
 
-- `wiki/01-pm/decisions/PENDING-TM-158-background-queue.md` (신규)
+- `wiki/01-pm/decisions/0029-background-queue-asset-gen.md` (신규)
 - 본 보고서
 
 ## 출처 / 링크
 
-- ADR: [[../01-pm/decisions/PENDING-TM-158-background-queue|ADR-PENDING-TM-158]]
+- ADR: [[../01-pm/decisions/0029-background-queue-asset-gen|ADR-0029]]
 - RCA: [[2026-05-18-TM-156-latency-rca|TM-156]]
 - 선행 ROI: [[2026-05-18-TM-157-speculative-prefetch|TM-157]]
 - 예산 컨텍스트: [[2026-05-18-TM-151-latency-budget|TM-151]]

@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-158: Background queue + polling for asset-gen (R1a from TM-156 RCA)"
+title: "ADR-0029: Background queue + polling for asset-gen (R1a from TM-156 RCA)"
 created: 2026-05-18
 updated: 2026-05-18
 tags: [decision, area/ai, area/latency, area/architecture, area/queue]
@@ -15,7 +15,7 @@ related:
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-158 — Background queue + polling for asset-gen
+# ADR-0029 — Background queue + polling for asset-gen
 
 ## TL;DR
 
@@ -29,7 +29,7 @@ wiring, and migration are split into ≥4 follow-up tasks (see
 `/api/generate` path remains the default until the async path is
 QA-validated end-to-end.
 
-Token: **ADR-PENDING-TM-158**.
+Token: **ADR-0029**.
 
 ## Context
 
