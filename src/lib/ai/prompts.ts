@@ -360,11 +360,30 @@ CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
 - **Composition (rule of thirds)** — character should occupy roughly
   1/4–1/3 of the frame height (NOT the whole canvas). Place the horizon
   line near the top or bottom third, never dead-center.
-- **Asset-gen hand-off (ADR-0022 / TM-137)** — if PARAMS exposes
+- **Asset-gen hand-off (ADR-0022 / TM-137 / TM-168)** — if PARAMS exposes
   \`imageUrl\` (or \`characterImage\`, \`bearImage\`, \`spriteUrl\`, etc.)
-  populated by the asset-gen stage, render the character via
-  \`<Img src={imageUrl} ... />\` instead of vector-drawing it; still
-  apply the bobY + scene-depth + parallax pattern around the image.
+  populated by the asset-gen stage:
+  * Render the subject via \`<Img src={PARAMS.imageUrl} ... />\` (or via
+    a destructured prop default — NEVER a bare \`imageUrl\` identifier;
+    it is undefined at scene-fragment scope and will throw at render).
+  * **The PNG IS the FULL scene** — it already contains sky, ground,
+    midground, character, decorative props. Treat it as the
+    BACKGROUND layer at full bleed (\`width:'100%'\`, \`height:'100%'\`,
+    \`objectFit:'cover'\`). Do NOT add a second copy of sky / ground /
+    flowers / character via SVG or lucide on top of it.
+  * **NO opaque overlay above the Img.** Sibling layers above the Img
+    must be either transparent, partially-opaque (animated opacity
+    that reaches 0 mid-scene), or contain children (motion captions,
+    parallax props). A solid full-frame \`<AbsoluteFill style={{
+    backgroundColor: '#7C3AED' }}/>\` (or a 200px-tall
+    \`<div style={{ backgroundColor: '#7C3AED', width:'100%' }}/>\`)
+    over the Img is the canonical FAILURE mode (TM-166 purple-band bug)
+    and will be REJECTED by the validator.
+  * Animate position / scale / opacity / parallax transforms AROUND
+    the Img layer, not on top of it. Camera scroll = translateX on a
+    wrapper above the Img; subject bounce = translateY on the Img
+    itself. Apply the bobY + scene-depth + parallax pattern as
+    TRANSFORM, not as a new opaque AbsoluteFill.
 - **Anti-patterns (each is an automatic FAILURE)**:
   * single circle / square / pill as the character, no limbs.
   * flat one-layer scene, no foreground/midground/background.

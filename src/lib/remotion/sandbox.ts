@@ -226,6 +226,153 @@ export function isAudioAllowListed(code: string): boolean {
   return saw;
 }
 
+/**
+ * TM-168 — imageUrl composition rules.
+ *
+ * Background: TM-166 RCA found that the multi-step pipeline routinely
+ * (a) referenced a bare `imageUrl` identifier inside scene fragments
+ * instead of `PARAMS.imageUrl` (ReferenceError at render → __SceneBoundary
+ * blanks the scene), and (b) added solid-colored full-frame `<div>` /
+ * `<AbsoluteFill>` siblings on top of the asset-gen PNG (purple band /
+ * pink overlay), smothering the bear-in-meadow image the user was
+ * waiting on. The deny-list catches none of this — both forms are
+ * "valid" JSX from a sandbox standpoint.
+ *
+ * This validator runs ONLY when the code defines a `PARAMS.imageUrl`
+ * field (the canonical asset-gen surface). It enforces three rules:
+ *
+ *   R1. Every `<Img src={...}>` MUST resolve to one of:
+ *        - `PARAMS.imageUrl`           (the canonical reference)
+ *        - a destructured prop default (e.g. `imageUrl = PARAMS.imageUrl`)
+ *        - a literal string            (legacy / hard-coded path)
+ *       A bare `imageUrl` identifier with no PARAMS prefix and no
+ *       destructured default in scope → reject.
+ *
+ *   R2. The asset-gen PNG IS the full scene (sky + ground + character).
+ *       Adding an opaque solid overlay on top of it smothers the image.
+ *       So: at least one `<Img>` MUST exist somewhere in the code (if
+ *       PARAMS.imageUrl is declared but never spliced, reject — the LLM
+ *       ignored the addendum).
+ *
+ *   R3. NO opaque solid overlay siblings after an `<Img>` in the same
+ *       AbsoluteFill. We approximate "opaque solid overlay" as:
+ *        - `<AbsoluteFill style={{ backgroundColor: ... }} />`   (self-closed, no children)
+ *        - `<div style={{ ... backgroundColor ... width:'100%' ... height: ... }} />`
+ *       with NO `opacity:` style key and NO children. These shapes are
+ *       deterministically the failure mode in TM-166.
+ *
+ * Rule R3 is intentionally conservative — siblings with children, with
+ * an animated `opacity`, or that explicitly set a transparent/rgba
+ * backgroundColor are allowed (they're motion layers, not overlays).
+ *
+ * False-positive surface: tested against the 35-case TM-43 corpus in
+ * the sandbox-fuzz suite; the rules only fire when `PARAMS.imageUrl` is
+ * present, so non-image scenes are unaffected.
+ */
+
+// `imageUrl:` key in PARAMS — kept narrow so we don't fire on unrelated
+// scene specs that happen to mention "imageUrl" in a comment.
+const PARAMS_IMAGE_URL_DECL_RE = /\bimageUrl\s*:\s*['"]/;
+
+// Every `<Img ...` tag in the file. Used to enforce R1 + R2.
+const IMG_TAG_RE = /<\s*Img\b[^>]*>/g;
+
+// `src={...}` extractor inside one Img tag. Captures the expression
+// between the curly braces so we can inspect it.
+const IMG_SRC_EXPR_RE = /\bsrc\s*=\s*\{\s*([^}]+?)\s*\}/;
+
+// Destructured prop default `imageUrl = PARAMS.imageUrl` (or any default).
+const IMG_URL_DESTRUCTURE_RE = /\bimageUrl\s*=\s*[^,)}]+/;
+
+// AbsoluteFill or div with backgroundColor style AND no children
+// (self-closing OR open+close with whitespace). Heuristic — captures
+// the most common failure shape from TM-166 (full-frame purple band /
+// pink overlay).
+const OPAQUE_OVERLAY_FRAGMENT_RE =
+  /<\s*(?:AbsoluteFill|div)\b[^>]*\bbackgroundColor\b[^>]*\/\s*>/g;
+
+export function validateImageUrlComposition(code: string): string[] {
+  const errors: string[] = [];
+  if (!PARAMS_IMAGE_URL_DECL_RE.test(code)) return errors;
+
+  // R1 — collect every <Img ...> tag's src expression.
+  const imgTags: string[] = [];
+  let m: RegExpExecArray | null;
+  IMG_TAG_RE.lastIndex = 0;
+  while ((m = IMG_TAG_RE.exec(code)) !== null) {
+    imgTags.push(m[0]);
+  }
+  IMG_TAG_RE.lastIndex = 0;
+
+  // R2 — at least one <Img> must exist when PARAMS.imageUrl is declared.
+  if (imgTags.length === 0) {
+    errors.push(
+      'imageUrl rule: PARAMS.imageUrl declared but no <Img> tag found — splice the PNG via <Img src={PARAMS.imageUrl}/>',
+    );
+    // Continue to R3 — overlays are still meaningful to report.
+  }
+
+  // R1 — each Img.src must be PARAMS.imageUrl, a literal string, or a
+  // destructured prop default present somewhere in the file.
+  const hasDestructuredDefault = IMG_URL_DESTRUCTURE_RE.test(code);
+  for (const tag of imgTags) {
+    const srcMatch = tag.match(IMG_SRC_EXPR_RE);
+    if (!srcMatch) {
+      // src is a literal string attribute (e.g. src="https://..."), or
+      // entirely missing. A missing src would have crashed at the
+      // sucrase parse stage; a literal-string src is fine for legacy
+      // hard-coded assets. Allow either.
+      continue;
+    }
+    const expr = srcMatch[1].trim();
+    // PARAMS.imageUrl, props.imageUrl, this.props.imageUrl — all allowed.
+    if (/\bPARAMS\s*\.\s*imageUrl\b/.test(expr)) continue;
+    if (/\bprops\s*\.\s*imageUrl\b/.test(expr)) continue;
+    // Bare `imageUrl` identifier — allowed ONLY if a destructured default
+    // sets it (e.g. `({ imageUrl = PARAMS.imageUrl } = PARAMS)`).
+    if (/^imageUrl$/.test(expr) && hasDestructuredDefault) continue;
+    // String literal inside the expression (e.g. `"https://..."`).
+    if (/^['"][^'"]+['"]$/.test(expr)) continue;
+    errors.push(
+      `imageUrl rule: <Img src={${expr}}> must reference PARAMS.imageUrl (or a destructured \`imageUrl\` prop) — bare identifier is undefined at scene-fragment scope`,
+    );
+  }
+
+  // R3 — opaque solid overlay siblings.
+  //
+  // We only fire when an <Img> exists AND a self-closing div/AbsoluteFill
+  // with backgroundColor follows it in source order. The "follows" check
+  // is purely positional; AST-precise checks belong to a future TM-XXX
+  // composition-lint pass. For each overlay, we verify it has no
+  // `opacity:` (animated fade overlays are fine) and no children (overlay
+  // with children is a wrapper layer, not a solid block).
+  if (imgTags.length > 0) {
+    const firstImgIdx = code.search(IMG_TAG_RE);
+    IMG_TAG_RE.lastIndex = 0;
+    OPAQUE_OVERLAY_FRAGMENT_RE.lastIndex = 0;
+    let ov: RegExpExecArray | null;
+    while ((ov = OPAQUE_OVERLAY_FRAGMENT_RE.exec(code)) !== null) {
+      const fragment = ov[0];
+      if (ov.index < firstImgIdx) continue; // overlay is BEHIND the Img (z-below) — fine
+      // Allow when opacity is in the style — that's an animated fade,
+      // not a solid block (TM-166 explicitly permits animated overlays).
+      // Match both `opacity: <expr>` (explicit key) and ES shorthand
+      // `{ opacity }` / `{ ..., opacity }` / `{ ..., opacity, ... }`.
+      if (/\bopacity\s*:/.test(fragment)) continue;
+      if (/\{[^}]*\bopacity\b[\s,}]/.test(fragment)) continue;
+      // Allow rgba/transparent backgroundColor — that's translucent paint.
+      if (/backgroundColor\s*:\s*['"]?(?:transparent|rgba\s*\()/.test(fragment)) continue;
+      errors.push(
+        'imageUrl rule: opaque solid <AbsoluteFill>/<div> sibling found after <Img> — the PNG IS the full scene; do NOT cover it with a solid backgroundColor block (add opacity, children, or remove)',
+      );
+      break; // one report is enough — multiple overlays usually share the cause
+    }
+    OPAQUE_OVERLAY_FRAGMENT_RE.lastIndex = 0;
+  }
+
+  return errors;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
@@ -244,6 +391,12 @@ export function validateCode(code: string): ValidationResult {
 
   if (detectRecursivePromiseChain(code)) {
     errors.push('Forbidden: recursive Promise chain');
+  }
+
+  // TM-168 — imageUrl composition rules (only fire when PARAMS.imageUrl
+  // is declared; no-op for non-image assets).
+  for (const e of validateImageUrlComposition(code)) {
+    if (!errors.includes(e)) errors.push(e);
   }
 
   return { valid: errors.length === 0, errors };
