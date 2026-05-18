@@ -13,6 +13,7 @@ import {
   unlinkRequest,
   complete as completeProgress,
 } from '@/lib/ai/progress-bus';
+import { createJob } from '@/lib/db/jobs';
 
 export const runtime = 'nodejs';
 
@@ -36,14 +37,24 @@ export async function POST(req: Request) {
   const bodyStart = Date.now();
   const body = await req.json();
   recordMark({ req: reqId, phase: 'route.body-parse', ms: Date.now() - bodyStart });
-  const { prompt, answers, progressId } = body as {
+  const { prompt, answers, progressId, async: bodyAsync } = body as {
     prompt?: string;
     answers?: Record<string, string>;
     // TM-160 — optional client-generated id used to fan stage marks to a
     // companion SSE subscriber (`/api/generate/progress?id=<progressId>`).
     // When omitted, behaviour is unchanged (timer fallback applies).
     progressId?: string;
+    // TM-162 (ADR-0029 §2) — opt-in async mode. When truthy (or `?async=1`
+    // query), the handler creates a PENDING Job row and returns 202 with
+    // `{ jobId, statusUrl }` instead of running asset-gen synchronously.
+    async?: unknown;
   };
+  // TM-162 — async flag (query or body). Query wins (URL is the canonical
+  // place for "switch handler mode" in REST).
+  const url = new URL(req.url);
+  const asyncQuery = url.searchParams.get('async');
+  const asyncMode =
+    asyncQuery === '1' || asyncQuery === 'true' || bodyAsync === true || bodyAsync === 1 || bodyAsync === '1';
   if (typeof progressId === 'string' && /^[a-zA-Z0-9_-]{6,64}$/.test(progressId)) {
     ensureChannel(progressId);
     linkRequestToProgress(reqId, progressId);
@@ -98,6 +109,47 @@ export async function POST(req: Request) {
       },
       { status: 429 },
     );
+  }
+
+  // TM-162 (ADR-0029 §2) — async mode short-circuit.
+  //
+  // After auth + prompt validation + quota reservation succeed, persist
+  // the request as a PENDING Job and return 202 immediately. The actual
+  // generation runs in a worker (TM-163) which leases the row, executes
+  // the existing pipeline, and writes the asset back via completeJob().
+  //
+  // Quota: we keep the slot reserved (the synchronous path already
+  // reserves before LLM call); the worker is responsible for refunding
+  // on clarify / refusal / failure outcomes — same accounting as the
+  // sync branch below. The endpoint, in other words, only changes WHEN
+  // the work happens, never WHETHER quota is charged.
+  if (asyncMode) {
+    try {
+      const job = await createJob({
+        userId: user.id,
+        kind: 'generate',
+        prompt,
+        params: { answers: answers ?? null, tier: user.tier, progressId: progressId ?? null },
+      });
+      recordMark({ req: reqId, phase: 'route.async-enqueue', ms: Date.now() - t0, meta: { jobId: job.id } });
+      const resp = NextResponse.json(
+        { jobId: job.id, statusUrl: `/api/jobs/${job.id}`, status: job.status },
+        { status: 202 },
+      );
+      if (profileEnabled) resp.headers.set('x-tm156-req', reqId);
+      // No SSE/progress fan-out here — the worker owns that lifecycle.
+      if (progressId) unlinkRequest(reqId);
+      return resp;
+    } catch (e) {
+      // Enqueue failed — refund the reserved quota slot so the user isn't
+      // charged for a job that never existed.
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { monthlyUsage: { decrement: 1 } },
+      });
+      console.error('[generate] async enqueue failed:', e);
+      return NextResponse.json({ error: 'Failed to enqueue job' }, { status: 500 });
+    }
   }
 
   const models = getModels();
