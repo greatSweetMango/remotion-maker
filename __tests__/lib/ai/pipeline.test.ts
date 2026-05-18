@@ -339,6 +339,79 @@ const Scene1 = () => {
   });
 });
 
+describe('TM-178 — composer bare-imageUrl self-heal (PNG decode RCA)', () => {
+  // The bug shipped to prod (asset cmpaspov70001dmhlu5co33bc, "Super Mario
+  // Style Animation with Walking Bear"): the per-scene system prompt
+  // instructs the LLM to write `<Img src={imageUrl} />`, but `imageUrl` is
+  // an undeclared identifier at fragment scope. Result: Img gets
+  // `undefined`, browser tries to decode the document URL as PNG and the
+  // console shows the misleading "EncodingError: The source image cannot
+  // be decoded." The PNG on disk is fine — this is purely a scope bug.
+  //
+  // Compose-time fix: inject `const imageUrl = "..."` at module scope so
+  // the LLM's bare reference resolves to the same string PARAMS.imageUrl
+  // carries.
+  const SCENE_USES_BARE_IMAGEURL = `const Scene1Params = { scene0_x: 1 } as const;
+const Scene1 = ({ scene0_x = Scene1Params.scene0_x } = Scene1Params) => {
+  const frame = useCurrentFrame();
+  return (<AbsoluteFill><Img src={imageUrl} style={{ width: '100%', height: '100%' }} /></AbsoluteFill>);
+};`;
+
+  const SCENE_USES_PARAMS_IMAGEURL = `const Scene1Params = { scene0_x: 1 } as const;
+const Scene1 = () => {
+  return (<AbsoluteFill><Img src={PARAMS.imageUrl} /></AbsoluteFill>);
+};`;
+
+  const SCENE_DECLARES_IMAGEURL = `const Scene1Params = { scene0_x: 1 } as const;
+const imageUrl = "should-not-be-redeclared";
+const Scene1 = () => {
+  return (<AbsoluteFill><Img src={imageUrl} /></AbsoluteFill>);
+};`;
+
+  const IMG = '/uploads/asset-gen/abc123.png';
+
+  it('injects a module-scope `const imageUrl = "..."` when a fragment uses bare imageUrl', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_USES_BARE_IMAGEURL, SCENE_USES_BARE_IMAGEURL], IMG);
+    // Module-scope declaration must appear BEFORE any scene fragment uses it.
+    expect(composed).toMatch(new RegExp(`^const imageUrl = "${IMG}";`, 'm'));
+    const declIdx = composed.search(/^const imageUrl = "/m);
+    const useIdx = composed.indexOf('<Img src={imageUrl}');
+    expect(declIdx).toBeGreaterThanOrEqual(0);
+    expect(useIdx).toBeGreaterThan(declIdx);
+    // PARAMS.imageUrl is still emitted for customize-UI auto-extract (ADR-0002).
+    expect(composed).toMatch(/imageUrl: "\/uploads\/asset-gen\/abc123\.png", \/\/ type: text/);
+  });
+
+  it('skips the shim when no fragment references imageUrl', () => {
+    const SCENE_NO_REF = `const Scene1Params = { scene0_x: 1 } as const;
+const Scene1 = () => (<AbsoluteFill style={{ backgroundColor: '#000' }} />);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_NO_REF, SCENE_NO_REF], IMG);
+    // No module-scope declaration (only PARAMS.imageUrl).
+    expect(composed).not.toMatch(/^const imageUrl =/m);
+  });
+
+  it('skips the shim when imageUrl is null (no asset-gen ran)', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_USES_BARE_IMAGEURL, SCENE_USES_BARE_IMAGEURL]);
+    expect(composed).not.toMatch(/^const imageUrl =/m);
+  });
+
+  it('skips the shim when a fragment already declares imageUrl (avoid SyntaxError)', () => {
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_DECLARES_IMAGEURL, SCENE_USES_PARAMS_IMAGEURL], IMG);
+    // No module-scope shim — the fragment-scoped const wins.
+    expect(composed).not.toMatch(/^const imageUrl = "\/uploads/m);
+    // The fragment's own declaration is preserved.
+    expect(composed).toMatch(/const imageUrl = "should-not-be-redeclared"/);
+  });
+
+  it('still emits the shim when only one of N scenes uses bare imageUrl', () => {
+    // The exact prod failure mode (TM-178): Scene1 used PARAMS.imageUrl
+    // correctly but Scene2 drifted to bare `imageUrl` → only the second
+    // scene crashes, but that is enough to make the user see the error.
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_USES_PARAMS_IMAGEURL, SCENE_USES_BARE_IMAGEURL], IMG);
+    expect(composed).toMatch(new RegExp(`^const imageUrl = "${IMG}";`, 'm'));
+  });
+});
+
 describe('TM-102 pipeline — orchestrator', () => {
   beforeEach(() => mockedChat.mockReset());
 
