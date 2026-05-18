@@ -1,0 +1,55 @@
+{
+  "task": "TM-153-hybrid",
+  "ts": "2026-05-18T05:11:47.924Z",
+  "runningCostUsd": 0.0424,
+  "results": [
+    {
+      "variant": "hybrid",
+      "fixture": "bear",
+      "ok": true,
+      "imagePrompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 style: 동화풍 파스텔 일러스트, palette: 따뜻한 파스텔, mood: 행복하고 평화로움, text_overlay: 없음",
+      "promptChars": 111,
+      "latencyMs": 11874,
+      "sizeKb": 1262,
+      "costUsd": 0.01121,
+      "judge": {
+        "subject_match": 95,
+        "style_quality": 90,
+        "overall": 93,
+        "notes": "Cute bear walking in field, well-made."
+      }
+    },
+    {
+      "variant": "hybrid",
+      "fixture": "puppy",
+      "ok": true,
+      "imagePrompt": "강아지가 공원에서 뛰어가는 8초 애니메이션 style: 귀여운 카툰, palette: 밝은 초록, mood: 활기찬, camera: 횡스크롤",
+      "promptChars": 78,
+      "latencyMs": 12528,
+      "sizeKb": 1243,
+      "costUsd": 0.01113,
+      "judge": {
+        "subject_match": 90,
+        "style_quality": 85,
+        "overall": 87,
+        "notes": "Cute dog running in a park; good animation style."
+      }
+    },
+    {
+      "variant": "hybrid",
+      "fixture": "robot",
+      "ok": true,
+      "imagePrompt": "robot dancing in cyber city, 6 seconds style: neon synthwave, palette: magenta and cyan, mood: energetic, text_overlay: none",
+      "promptChars": 124,
+      "latencyMs": 13033,
+      "sizeKb": 1453,
+      "costUsd": 0.01106,
+      "judge": {
+        "subject_match": 100,
+        "style_quality": 95,
+        "overall": 98,
+        "notes": "Vivid cyberpunk theme, clear subject."
+      }
+    }
+  ]
+}

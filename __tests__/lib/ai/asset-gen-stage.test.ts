@@ -96,6 +96,22 @@ describe('TM-90 buildImagePrompt', () => {
   });
 });
 
+describe('TM-153 buildImagePrompt — hybrid diet (empty style suffix)', () => {
+  it('omits the "Style: …" suffix when style is empty string', () => {
+    const out = buildImagePrompt('곰돌이', { mood: '귀여움' }, '');
+    expect(out).toBe('곰돌이 mood: 귀여움');
+    expect(out).not.toContain('Style:');
+  });
+  it('omits the suffix when style is whitespace only', () => {
+    const out = buildImagePrompt('p', undefined, '   ');
+    expect(out).toBe('p');
+  });
+  it('preserves opt-in style when caller supplies one', () => {
+    const out = buildImagePrompt('p', undefined, 'watercolor');
+    expect(out).toBe('p. Style: watercolor.');
+  });
+});
+
 describe('TM-90 runAssetGenStage', () => {
   let tmp: string;
   let originalCwd: () => string;
