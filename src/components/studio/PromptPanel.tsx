@@ -62,6 +62,14 @@ interface PromptPanelProps {
     at: number;
     meta?: Record<string, unknown>;
   } | null;
+  /**
+   * TM-164 (ADR-0029 §4) — when an async generate is in flight, this
+   * carries the worker-side Job id + last-seen status so the panel can
+   * render a "Job submitted, waiting…" affordance under the submit
+   * button. Null in the sync path — the existing TM-91/TM-160 progress
+   * bar continues to drive the UX in that case.
+   */
+  currentJob?: { id: string; status: string } | null;
 }
 
 const SUGGESTION_CARD_COUNT = 4;
@@ -169,7 +177,7 @@ function ClarifyCard({ questions, pendingPrompt, isGenerating, onSubmit, onSkip 
 
 export function PromptPanel({
   onGenerate, onEdit, versions, currentVersionIndex,
-  onRestoreVersion, isGenerating, isEditing, hasAsset, tier,
+  onRestoreVersion, isGenerating, isEditing, hasAsset, tier, currentJob,
   clarify, onSubmitClarifyAnswers, onSkipClarify,
   errorMessage, canRetry, onRetry, onDismissError,
   attachedContext, onAttachUrl, onDetachContext, isAttaching,
@@ -688,6 +696,28 @@ export function PromptPanel({
             </div>
           );
         })() : null}
+        {currentJob ? (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="async-job-indicator"
+            data-job-id={currentJob.id}
+            data-job-status={currentJob.status}
+            className="flex items-center gap-2 text-[11px] text-slate-400 mt-1"
+          >
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+            <span>
+              {currentJob.status === 'PENDING'
+                ? 'Job submitted, waiting for worker…'
+                : currentJob.status === 'RUNNING'
+                  ? 'Worker rendering animation…'
+                  : currentJob.status === 'SUCCEEDED'
+                    ? 'Finalizing…'
+                    : `Job ${currentJob.status.toLowerCase()}`}
+            </span>
+            <span className="font-mono opacity-60">#{currentJob.id.slice(0, 8)}</span>
+          </div>
+        ) : null}
       </form>
     </div>
   );
