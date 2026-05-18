@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 // mismatches in Remotion-rendered SVG/CSS values. See ClientPlayer.tsx.
 import { Player, type PlayerRef } from './ClientPlayer';
 import { evaluateComponentDetailed } from '@/lib/remotion/evaluator';
+import { sharedAudioTagsForAsset } from '@/lib/remotion/audio-usage';
 import { EvaluatorErrorBoundary } from './EvaluatorErrorBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Play, Grid3x3, Gauge } from 'lucide-react';
@@ -287,6 +288,14 @@ export function PlayerPanel({ asset, paramValues, isGenerating }: PlayerPanelPro
                   clickToPlay={seekFrame === null}
                   playbackRate={playbackRate}
                   showPlaybackRateControl={PLAYBACK_RATES as unknown as number[]}
+                  // TM-179 — suppress AudioContext error cascade for visual-only
+                  // assets by skipping Remotion's pre-allocated silent <audio>
+                  // tags (5 by default). See src/lib/remotion/audio-usage.ts.
+                  numberOfSharedAudioTags={sharedAudioTagsForAsset(asset.jsCode)}
+                  // TM-179 — also acknowledge the Remotion license so the
+                  // Player skips the noisy console warn (one less console line
+                  // per Player remount).
+                  acknowledgeRemotionLicense
                 />
               </EvaluatorErrorBoundary>
             </div>
