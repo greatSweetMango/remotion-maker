@@ -69,6 +69,17 @@ export interface SelfCritiqueResult {
   retried: boolean;
   /** Sum of $ spent across all extra image-gen + judge calls. */
   extraCostUsd: number;
+  /**
+   * TM-150 — per-attempt wall-clock ms (length = scores.length). Attempt 0 =
+   * judge-initial call; attempt 1 (when present) = regen + judge wall time.
+   * Surfaced through `GenerateApiResponse.selfCritique.runs[].ms`.
+   */
+  latenciesMs: number[];
+  /**
+   * TM-150 — threshold used for this run (env override or default 70).
+   * Surfaced so QA can correlate score with the cutoff without re-reading env.
+   */
+  threshold: number;
 }
 
 const DEFAULT_THRESHOLD = 70;
@@ -127,6 +138,7 @@ export async function judgeAndMaybeRegenerate(
 
   const scores: number[] = [];
   const reasoning: string[] = [];
+  const latenciesMs: number[] = [];
   let extraCostUsd = 0;
 
   const client: ChatLikeClient = opts.judgeClient
@@ -134,6 +146,7 @@ export async function judgeAndMaybeRegenerate(
 
   // 1. Judge the initial PNG.
   let initialJudgement: { overall: number; reasoning: string } | null = null;
+  const t0 = Date.now();
   try {
     const dataUrl = await readPngAsDataUrl(opts.initialDiskPath);
     const j = await judgeVisual(client, {
@@ -144,6 +157,7 @@ export async function judgeAndMaybeRegenerate(
     extraCostUsd += JUDGE_CALL_COST_USD;
     scores.push(j.overall);
     reasoning.push(j.reasoning);
+    latenciesMs.push(Date.now() - t0);
   } catch (err) {
     // Judge failure → return initial unchanged. Self-critique must NEVER block.
     if (process.env.NODE_ENV !== 'production') {
@@ -155,6 +169,8 @@ export async function judgeAndMaybeRegenerate(
       reasoning,
       retried: false,
       extraCostUsd,
+      latenciesMs,
+      threshold,
     };
   }
 
@@ -166,6 +182,8 @@ export async function judgeAndMaybeRegenerate(
       reasoning,
       retried: false,
       extraCostUsd,
+      latenciesMs,
+      threshold,
     };
   }
 
@@ -177,6 +195,8 @@ export async function judgeAndMaybeRegenerate(
       reasoning,
       retried: false,
       extraCostUsd,
+      latenciesMs,
+      threshold,
     };
   }
 
@@ -184,6 +204,7 @@ export async function judgeAndMaybeRegenerate(
   let regenResult: AssetGenStageResult | null = null;
   let regenJudge: { overall: number; reasoning: string } | null = null;
 
+  const t1 = Date.now();
   try {
     const gen = opts.imageGenerator ?? generateAssetImage;
     const img = await gen({ prompt: critiquePrompt });
@@ -216,6 +237,7 @@ export async function judgeAndMaybeRegenerate(
     regenJudge = { overall: j2.overall, reasoning: j2.reasoning };
     scores.push(j2.overall);
     reasoning.push(j2.reasoning);
+    latenciesMs.push(Date.now() - t1);
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[TM-138] regen failed, keeping initial:', err instanceof Error ? err.message : String(err));
@@ -226,6 +248,8 @@ export async function judgeAndMaybeRegenerate(
       reasoning,
       retried: false,
       extraCostUsd,
+      latenciesMs,
+      threshold,
     };
   }
 
@@ -238,5 +262,7 @@ export async function judgeAndMaybeRegenerate(
     reasoning,
     retried: true,
     extraCostUsd,
+    latenciesMs,
+    threshold,
   };
 }
