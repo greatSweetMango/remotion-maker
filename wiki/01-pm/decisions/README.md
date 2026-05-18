@@ -28,6 +28,7 @@ status: active
 - [[0026-audio-policy|ADR-0026: Audio integration policy — curated staticFile catalogue]]
 - [[0027-lottie-catalogue|ADR-0027: Lottie integration policy — curated staticFile catalogue for living-entity motion]]
 - [[0028-text-to-video|ADR-0028: Text-to-video hybrid (Runway / Kling / Sora / Pika / Luma) — defer with single PILOT]]
+- [[0029-background-queue-asset-gen|ADR-0029: Background queue + polling for asset-gen (R1a from TM-156 RCA)]]
 
 ## 새 ADR 만들기
 
