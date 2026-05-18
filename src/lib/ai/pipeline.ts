@@ -947,6 +947,36 @@ export function composeSceneCodes(
 
   const fragments = renamedFragments.join('\n\n');
 
+  // TM-178 — bare-`imageUrl` self-heal. The scene-code system prompt
+  // explicitly tells gpt-4o to use `PARAMS.imageUrl` (the only in-scope
+  // reference inside a scene fragment), but the LLM drifts and emits
+  // `<Img src={imageUrl} />` — `imageUrl` is then undefined at the
+  // fragment scope, the Img receives `undefined`, the browser tries to
+  // decode the page URL / empty payload as PNG, and the user sees the
+  // misleading "EncodingError: The source image cannot be decoded." in
+  // console while the scene boundary blanks the scene. (The PNG file on
+  // disk is fully valid; the bug is purely an identifier-scope issue.)
+  //
+  // Fix: when `imageUrl` is available AND at least one fragment
+  // references `imageUrl` as a bare identifier without declaring it,
+  // inject a module-scope `const imageUrl = "..."` shim alongside the
+  // fragments so the bare references resolve to the same string that
+  // PARAMS.imageUrl carries. We guard against re-declaration by
+  // scanning fragments for any top-level `const/let/var imageUrl` —
+  // skipping the shim in that case to avoid SyntaxError.
+  let imageUrlShim = '';
+  if (imageUrl) {
+    const declaresImageUrl = renamedFragments.some(f =>
+      /(?:^|\n)\s*(?:const|let|var)\s+imageUrl\b/.test(f),
+    );
+    const referencesImageUrl = renamedFragments.some(f =>
+      /\bimageUrl\b/.test(f),
+    );
+    if (referencesImageUrl && !declaresImageUrl) {
+      imageUrlShim = `const imageUrl = ${JSON.stringify(imageUrl)};\n\n`;
+    }
+  }
+
   const sequences = outline.scenes
     .map((s, i) => {
       const from = offsets[i];
@@ -983,7 +1013,7 @@ export function composeSceneCodes(
   // throw degrades to a silent transparent fill (other scenes still play)
   // instead of bubbling to the studio EvaluatorErrorBoundary. Defined
   // inside the factory body via the wrapper so it has access to React.
-  return `${fragments}
+  return `${imageUrlShim}${fragments}
 
 class __SceneBoundary extends React.Component {
   constructor(props) {
