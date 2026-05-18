@@ -14,6 +14,7 @@ import {
   pickDiversifiedSuggestions,
   type PromptSuggestion,
 } from '@/lib/prompt-suggestions';
+import { generationProgressMessage, generationProgressPercent } from '@/lib/generation-progress';
 
 interface PromptPanelProps {
   onGenerate: (prompt: string) => void;
@@ -201,6 +202,31 @@ export function PromptPanel({
   }
 
   const isLoading = isGenerating || isEditing;
+
+  // TM-151 — progressive UX ticker for the full generate/edit pipeline.
+  // TM-91 added one for the image-regen dialog only; the main button stayed
+  // static "Generating…" through ~57s on character prompts (TM-149 measure).
+  // Tick every 500ms while in-flight; reset on transition into loading so
+  // back-to-back submits don't start mid-curve.
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    if (!isLoading) {
+      // Reset once when leaving the in-flight window. The set-state-in-effect
+      // here is intentional and harmless: it translates an external signal
+      // (an async fetch flipping isLoading false) into the ticker state, and
+      // only runs once per loading→idle transition. Not a cascading render —
+      // same pattern as the `setSuggestionSeed` effect above.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setElapsedMs(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setElapsedMs(Date.now() - startedAt);
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [isLoading]);
+
   const editCount = versions.length > 0 ? versions.length - 1 : 0;
   const editLimit = tier === 'FREE' ? TIER_LIMITS.FREE.editsPerAsset : '∞';
 
@@ -590,11 +616,15 @@ export function PromptPanel({
               ? 'bg-violet-600 hover:bg-violet-700'
               : 'bg-emerald-600 hover:bg-emerald-700'
           }`}
+          data-testid="prompt-submit-button"
         >
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               {isGenerating ? 'Generating...' : 'Editing...'}
+              <span className="ml-2 text-xs opacity-75 tabular-nums">
+                {Math.floor(elapsedMs / 1000)}s
+              </span>
             </>
           ) : (
             <>
@@ -609,6 +639,26 @@ export function PromptPanel({
             </>
           )}
         </Button>
+        {isLoading ? (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="generation-progress"
+            className="flex flex-col gap-1.5"
+          >
+            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className={`h-full transition-[width] duration-500 ease-out ${
+                  mode === 'edit' ? 'bg-violet-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${generationProgressPercent(elapsedMs)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {generationProgressMessage(elapsedMs)}
+            </p>
+          </div>
+        ) : null}
       </form>
     </div>
   );
