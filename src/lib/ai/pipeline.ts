@@ -23,7 +23,7 @@ import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { runAssetGenStage, detectLivingEntity, type AssetGenStageResult } from './asset-gen-stage';
-import { recordMark, isLatencyProfileEnabled, newRequestId } from './latency-profile';
+import { recordMark, newRequestId, shouldEmitMarks } from './latency-profile';
 import type {
   GeneratedAsset,
   GenerateApiResponse,
@@ -1047,7 +1047,10 @@ export async function generateAssetMultiStep(
   // TM-156 — request id for structured marks. Shared with route + asset-gen
   // so a single /api/generate call lights up the whole stack under one key.
   const __reqId = opts.__latencyReqId ?? newRequestId();
-  const __profileOn = isLatencyProfileEnabled();
+  // TM-160 — emit marks when LATENCY_PROFILE=1 OR when an SSE subscriber
+  // is linked. `shouldEmitMarks` resolves both. We snapshot once per
+  // stage boundary since `recordMark` itself is cheap (one Map lookup).
+  const __profileOn = shouldEmitMarks(__reqId);
   const stages: PipelineTimingStage[] = [];
   const recordStage = (name: string, ms: number, meta?: Record<string, string | number | boolean>): void => {
     stages.push(meta ? { name, ms, meta } : { name, ms });

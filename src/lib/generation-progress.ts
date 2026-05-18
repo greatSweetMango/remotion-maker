@@ -61,3 +61,46 @@ export function generationProgress(elapsedMs: number): GenerationProgress {
     percent: generationProgressPercent(elapsedMs),
   };
 }
+
+/**
+ * TM-160 — map server-side stage names (`recordMark` phases in
+ * `latency-profile.ts` / `pipeline.ts`) to user-facing Korean copy and a
+ * coarse 0–95 fill that matches the stage's typical pipeline position.
+ *
+ * Percent anchors picked from TM-149 / TM-156 production breakdown:
+ *   pipeline.outline           ~10s   →  15
+ *   pipeline.scene-specs       ~ 5s   →  25
+ *   asset-gen-stage.prompt     ~ 0    →  28
+ *   asset-gen.client-init      ~ 0    →  30
+ *   asset-gen.wire (long)      ~30s   →  60
+ *   asset-gen-stage.*          ~       →  70
+ *   pipeline.scene-code        ~ 5s   →  80
+ *   pipeline.compose+validate  ~ 3s   →  90
+ *   route.total / done                →  95
+ *
+ * Unknown stage falls back to the timer curve (TM-91) plus a small
+ * "we got SOMETHING from the server" nudge so the bar can never appear
+ * stuck below the timer baseline.
+ */
+export function stageProgress(stage: string, elapsedMs: number): GenerationProgress {
+  const table: Array<{ match: RegExp; message: string; percent: number }> = [
+    { match: /^pipeline\.outline$/, message: '구성을 짜는 중…', percent: 15 },
+    { match: /^pipeline\.scene-specs?$/, message: '장면 명세를 설계 중…', percent: 25 },
+    { match: /^asset-gen-stage\.prompt-build$/, message: '캐릭터 일러스트 프롬프트 준비 중…', percent: 28 },
+    { match: /^asset-gen\.client-init$/, message: '이미지 모델 연결 중…', percent: 30 },
+    { match: /^asset-gen(\.|-).*(wire|generate-total|disk-write)$/, message: '캐릭터 일러스트 생성 중…', percent: 60 },
+    { match: /^asset-gen(\.|-)/, message: '캐릭터 일러스트 처리 중…', percent: 55 },
+    { match: /^pipeline\.scene-code$/, message: '장면 코드 생성 중…', percent: 80 },
+    { match: /^pipeline\.compose\+validate$/, message: '합치고 검증하는 중…', percent: 90 },
+    { match: /^route\.total$/, message: '마무리 중…', percent: 95 },
+    { match: /^done$/, message: '완료!', percent: 95 },
+  ];
+  for (const row of table) {
+    if (row.match.test(stage)) return { message: row.message, percent: row.percent };
+  }
+  const fallback = generationProgress(elapsedMs);
+  return {
+    message: fallback.message,
+    percent: Math.min(95, fallback.percent + 5),
+  };
+}
