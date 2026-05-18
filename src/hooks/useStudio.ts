@@ -245,6 +245,17 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
   // Ephemeral state; cleared on new generate; not undoable.
   const [pipelineTiming, setPipelineTiming] = useState<PipelineTiming | null>(null);
 
+  // TM-160 — live SSE-reported stage for the in-flight generate request.
+  // `null` when no real stage event has arrived yet — UI falls back to
+  // the TM-91 timer copy in that case (and on browsers without
+  // EventSource). `done`/`error` clears it.
+  const [progressStage, setProgressStage] = useState<{
+    stage: string;
+    ms: number;
+    at: number;
+    meta?: Record<string, unknown>;
+  } | null>(null);
+
   const attachUrl = useCallback(async (url: string) => {
     setIsAttaching(true);
     try {
@@ -270,6 +281,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
   const generate = useCallback(async (prompt: string, answers?: ClarifyAnswers) => {
     dispatch({ type: 'SET_GENERATING', payload: true });
     dispatch({ type: 'CLEAR_CLARIFY' });
+    setProgressStage(null);
     // TM-103 — augment prompt with attached URL context (if any). The
     // server treats this as a single user message; the LLM is steered by
     // the leading prose, with the [ATTACHED CONTEXT] block as supplementary
@@ -277,11 +289,57 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     const augmentedPrompt = attachedContext
       ? `${prompt}\n\n${formatIngestForPrompt(attachedContext)}`
       : prompt;
+
+    // TM-160 — open a companion SSE stream BEFORE the POST so any early
+    // marks (route.auth, route.body-parse) are captured. The id is a
+    // random 16-hex string; the server validates the shape and uses it
+    // as the pub/sub channel key. EventSource is optional — if the env
+    // lacks it (very old browsers, server-rendered tests), we fall back
+    // to TM-91 timer copy with zero behaviour change.
+    let progressId: string | null = null;
+    let eventSource: EventSource | null = null;
+    if (typeof window !== 'undefined' && typeof window.EventSource === 'function') {
+      progressId = `pg_${Math.random().toString(16).slice(2, 10)}${Math.random().toString(16).slice(2, 10)}`;
+      try {
+        eventSource = new EventSource(`/api/generate/progress?id=${encodeURIComponent(progressId)}`);
+        eventSource.addEventListener('stage', (ev: MessageEvent) => {
+          try {
+            const data = JSON.parse(ev.data);
+            setProgressStage({
+              stage: String(data.stage ?? ''),
+              ms: Number(data.ms ?? 0),
+              at: Number(data.at ?? Date.now()),
+              meta: data.meta,
+            });
+          } catch {
+            // ignore malformed frame
+          }
+        });
+        eventSource.addEventListener('done', () => {
+          eventSource?.close();
+          eventSource = null;
+        });
+        eventSource.onerror = () => {
+          // network blip or server closed the stream after `done`. Either
+          // way, fall back silently to the timer-based copy.
+          eventSource?.close();
+          eventSource = null;
+        };
+      } catch {
+        eventSource = null;
+        progressId = null;
+      }
+    }
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: augmentedPrompt, ...(answers ? { answers } : {}) }),
+        body: JSON.stringify({
+          prompt: augmentedPrompt,
+          ...(answers ? { answers } : {}),
+          ...(progressId ? { progressId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -359,6 +417,11 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
         payload: { message, lastFailed: { kind: 'generate', prompt, answers } },
       });
       toast.error(message);
+    } finally {
+      // TM-160 — guarantee the SSE socket closes even on early throw so
+      // we don't leak browser connections (Chrome caps at 6/origin).
+      eventSource?.close();
+      setProgressStage(null);
     }
   }, [attachedContext]);
 
@@ -541,5 +604,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     detachContext,
     // TM-124
     pipelineTiming,
+    // TM-160
+    progressStage,
   };
 }

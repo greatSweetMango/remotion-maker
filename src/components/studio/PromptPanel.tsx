@@ -14,7 +14,7 @@ import {
   pickDiversifiedSuggestions,
   type PromptSuggestion,
 } from '@/lib/prompt-suggestions';
-import { generationProgressMessage, generationProgressPercent } from '@/lib/generation-progress';
+import { generationProgressMessage, generationProgressPercent, stageProgress } from '@/lib/generation-progress';
 
 interface PromptPanelProps {
   onGenerate: (prompt: string) => void;
@@ -48,6 +48,20 @@ interface PromptPanelProps {
   onAttachUrl?: (url: string) => Promise<void> | void;
   onDetachContext?: () => void;
   isAttaching?: boolean;
+  /**
+   * TM-160 — latest stage event surfaced by the SSE companion stream
+   * during an in-flight generate. When present, the progress copy
+   * shows the real server-side stage (e.g. "캐릭터 일러스트 생성 중…
+   * (pipeline.asset-gen 18.4s)") instead of the TM-91 timer guess.
+   * Null when no event has arrived yet OR SSE unsupported — the
+   * timer-based copy stays as the fallback.
+   */
+  progressStage?: {
+    stage: string;
+    ms: number;
+    at: number;
+    meta?: Record<string, unknown>;
+  } | null;
 }
 
 const SUGGESTION_CARD_COUNT = 4;
@@ -159,6 +173,7 @@ export function PromptPanel({
   clarify, onSubmitClarifyAnswers, onSkipClarify,
   errorMessage, canRetry, onRetry, onDismissError,
   attachedContext, onAttachUrl, onDetachContext, isAttaching,
+  progressStage,
 }: PromptPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [urlDraft, setUrlDraft] = useState('');
@@ -639,26 +654,40 @@ export function PromptPanel({
             </>
           )}
         </Button>
-        {isLoading ? (
-          <div
-            role="status"
-            aria-live="polite"
-            data-testid="generation-progress"
-            className="flex flex-col gap-1.5"
-          >
-            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className={`h-full transition-[width] duration-500 ease-out ${
-                  mode === 'edit' ? 'bg-violet-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${generationProgressPercent(elapsedMs)}%` }}
-              />
+        {isLoading ? (() => {
+          // TM-160 — when an SSE stage event has landed, prefer the
+          // server-derived copy + percent; otherwise fall back to the
+          // TM-91 timer curve. The bar never moves backwards: if a late
+          // server event reports a smaller percent than what the timer
+          // would have shown, we max-clamp.
+          const timerPct = generationProgressPercent(elapsedMs);
+          const timerMsg = generationProgressMessage(elapsedMs);
+          const stage = progressStage
+            ? stageProgress(progressStage.stage, elapsedMs)
+            : null;
+          const percent = stage ? Math.max(stage.percent, timerPct) : timerPct;
+          const message = stage ? stage.message : timerMsg;
+          return (
+            <div
+              role="status"
+              aria-live="polite"
+              data-testid="generation-progress"
+              data-progress-source={progressStage ? 'sse' : 'timer'}
+              data-progress-stage={progressStage?.stage ?? ''}
+              className="flex flex-col gap-1.5"
+            >
+              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className={`h-full transition-[width] duration-500 ease-out ${
+                    mode === 'edit' ? 'bg-violet-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">{message}</p>
             </div>
-            <p className="text-[11px] text-slate-400">
-              {generationProgressMessage(elapsedMs)}
-            </p>
-          </div>
-        ) : null}
+          );
+        })() : null}
       </form>
     </div>
   );

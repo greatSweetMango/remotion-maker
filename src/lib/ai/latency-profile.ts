@@ -44,8 +44,45 @@ export function isLatencyProfileEnabled(): boolean {
   return process.env.LATENCY_PROFILE === '1';
 }
 
+/**
+ * TM-160 — true when EITHER profiling is on (stderr logs)
+ * OR an SSE progress subscriber is linked to this `reqId`.
+ * Use this at every `if (profileOn) recordMark(...)` callsite so
+ * SSE clients see real stage transitions in prod without flipping
+ * LATENCY_PROFILE=1 globally.
+ */
+export function shouldEmitMarks(reqId: string): boolean {
+  if (isLatencyProfileEnabled()) return true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const bus = require('./progress-bus') as typeof import('./progress-bus');
+    return !!bus.progressIdForRequest(reqId);
+  } catch {
+    return false;
+  }
+}
+
 export function recordMark(mark: LatencyMark): void {
-  if (!isLatencyProfileEnabled()) return;
+  // TM-160 — forward to the SSE progress bus when this request was linked.
+  // Two paths are gated independently: log goes to stderr only with
+  // LATENCY_PROFILE=1, SSE goes to subscribers whenever a progressId was
+  // registered. Keep the bus require dynamic so the module remains usable
+  // from non-Node runtimes (test envs without node:events).
+  let progressLinked = false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const bus = require('./progress-bus') as typeof import('./progress-bus');
+    const pid = bus.progressIdForRequest(mark.req);
+    if (pid) {
+      progressLinked = true;
+      bus.publish(pid, { stage: mark.phase, ms: mark.ms, meta: mark.meta });
+    }
+  } catch {
+    // bus optional — never let progress wiring break a generate
+  }
+
+  if (!isLatencyProfileEnabled() && !progressLinked) return;
+  if (!isLatencyProfileEnabled()) return; // SSE done, don't log to stderr
   try {
     const line = JSON.stringify({
       t: 'TM-156',
@@ -55,7 +92,6 @@ export function recordMark(mark: LatencyMark): void {
       ...(mark.meta ? { meta: mark.meta } : {}),
       at: new Date().toISOString(),
     });
-    // eslint-disable-next-line no-console
     console.warn(`[TM-156] ${line}`);
   } catch {
     // never let the profiler break the request

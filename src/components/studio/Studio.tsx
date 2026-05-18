@@ -47,6 +47,7 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
     attachUrl,
     detachContext,
     pipelineTiming,
+    progressStage,
   } = useStudio(initialAsset);
   const [mobileTab, setMobileTab] = useState<'prompt' | 'customize' | 'export'>('prompt');
 
@@ -182,6 +183,7 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                 isAttaching={isAttaching}
                 onAttachUrl={attachUrl}
                 onDetachContext={detachContext}
+                progressStage={progressStage}
               />
             </div>
           </Panel>
@@ -283,6 +285,7 @@ export function Studio({ tier, userImage, userName, initialAsset, templates = []
                   canRetry={!!state.lastFailed}
                   onRetry={retry}
                   onDismissError={dismissError}
+                  progressStage={progressStage}
                 />
               )}
               {mobileTab === 'customize' && (

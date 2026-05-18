@@ -7,6 +7,12 @@ import { getModels } from '@/lib/ai/client';
 import { TIER_LIMITS } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
 import { newRequestId, recordMark, isLatencyProfileEnabled } from '@/lib/ai/latency-profile';
+import {
+  ensureChannel,
+  linkRequestToProgress,
+  unlinkRequest,
+  complete as completeProgress,
+} from '@/lib/ai/progress-bus';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +36,18 @@ export async function POST(req: Request) {
   const bodyStart = Date.now();
   const body = await req.json();
   recordMark({ req: reqId, phase: 'route.body-parse', ms: Date.now() - bodyStart });
-  const { prompt, answers } = body as { prompt?: string; answers?: Record<string, string> };
+  const { prompt, answers, progressId } = body as {
+    prompt?: string;
+    answers?: Record<string, string>;
+    // TM-160 — optional client-generated id used to fan stage marks to a
+    // companion SSE subscriber (`/api/generate/progress?id=<progressId>`).
+    // When omitted, behaviour is unchanged (timer fallback applies).
+    progressId?: string;
+  };
+  if (typeof progressId === 'string' && /^[a-zA-Z0-9_-]{6,64}$/.test(progressId)) {
+    ensureChannel(progressId);
+    linkRequestToProgress(reqId, progressId);
+  }
   const promptError = validatePrompt(prompt);
   if (promptError || typeof prompt !== 'string') {
     const err = promptError ?? { message: 'Prompt required', code: 'PROMPT_REQUIRED' as const, status: 400 as const };
@@ -150,6 +167,10 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data: { monthlyUsage: { decrement: 1 } },
       });
+      if (progressId) {
+        completeProgress(progressId, { type: 'clarify' });
+        unlinkRequest(reqId);
+      }
       return NextResponse.json({ type: 'clarify', questions: result.questions });
     }
 
@@ -198,8 +219,25 @@ export async function POST(req: Request) {
         : {}),
     });
     if (profileEnabled) resp.headers.set('x-tm156-req', reqId);
+    // TM-160 — fire SSE done event so the subscriber closes promptly.
+    if (progressId) {
+      completeProgress(progressId, { type: 'generate', totalMs: totalRouteMs });
+      unlinkRequest(reqId);
+    }
     return resp;
   } catch (error: unknown) {
+    // TM-160 — always close the progress channel on failure so the
+    // subscriber doesn't hang. Meta carries the error category for the UI.
+    if (progressId) {
+      const cat =
+        error instanceof AiRefusalError ? error.category : 'error';
+      completeProgress(progressId, {
+        type: 'error',
+        category: cat,
+        message: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+      });
+      unlinkRequest(reqId);
+    }
     // TM-59 — adversarial / safety / policy refusals surface as 400 with a
     // category code so the UI can show a clearer toast. We do NOT consume
     // monthly quota for these (no asset was created above this point), so
