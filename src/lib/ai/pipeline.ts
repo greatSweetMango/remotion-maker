@@ -713,10 +713,31 @@ export async function generateSceneCode(
   // single class of TM-46 visual-judge failures.
   const systemPrompt = imageUrl
     ? SCENE_CODE_SYSTEM_PROMPT +
-      `\n\nIMAGE ASSET (TM-90): A pre-generated PNG of the prompt's character/animal/person is available at \`imageUrl\` in this payload. ` +
-      `If the scene's narrativeBeat features that subject, render it via \`<Img src={imageUrl} style={{ width, height, objectFit: 'contain' }} />\` ` +
-      `(absolute-positioned inside the AbsoluteFill) and animate position/scale/opacity around it instead of drawing a vector approximation. ` +
-      `The Img component is a Remotion global — no import needed.`
+      `\n\nIMAGE ASSET (TM-90 / TM-168): A pre-generated PNG of the prompt's ` +
+      `character/animal/person subject is available. It will be exposed at ` +
+      `\`PARAMS.imageUrl\` on the assembled wrapper component. You MUST:\n` +
+      `  1. Render the subject via ` +
+      `\`<Img src={PARAMS.imageUrl} style={{ width:'100%', height:'100%', objectFit:'cover' }} />\` ` +
+      `as the FULL-BLEED background of your AbsoluteFill. ALWAYS reference ` +
+      `\`PARAMS.imageUrl\` — NEVER a bare \`imageUrl\` identifier (it is ` +
+      `undefined at scene-fragment scope and the render will crash; ` +
+      `__SceneBoundary will blank your scene → user sees nothing).\n` +
+      `  2. The PNG IS the FULL scene (sky + ground + character + ` +
+      `decoration baked in). Do NOT add a second sky / ground / flower / ` +
+      `character on top via <div>, SVG, or lucide icons — the spec stage ` +
+      `may have listed "flowers" or "ground" as elements, but those are ` +
+      `ALREADY DRAWN in the PNG. Ignore those spec entries when imageUrl ` +
+      `is present.\n` +
+      `  3. NO opaque overlay above the <Img>. Sibling layers above the ` +
+      `Img must be transparent, partially-opaque (animated opacity), or ` +
+      `contain children. A solid full-frame ` +
+      `\`<AbsoluteFill style={{ backgroundColor: '#XXX' }}/>\` or a ` +
+      `full-width solid-colored \`<div>\` over the Img is REJECTED by the ` +
+      `validator (TM-166 purple-band failure mode).\n` +
+      `  4. Animate position / scale / opacity / parallax AROUND the Img ` +
+      `(translateX wrapper for camera scroll, spring on scale, fade-out ` +
+      `overlay with opacity reaching 0). The Img component is a Remotion ` +
+      `global — no import needed.`
     : SCENE_CODE_SYSTEM_PROMPT;
   const text = await chatComplete({
     model,
