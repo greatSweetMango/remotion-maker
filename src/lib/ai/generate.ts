@@ -448,13 +448,25 @@ available at \`PARAMS.imageUrl\`. You MUST:
   1. Add \`imageUrl: "<provided>"\` to the PARAMS const annotated with
      \`// type: text\` so the customize UI can swap it.
   2. Render the subject via \`<Img src={PARAMS.imageUrl}
-     style={{ position: 'absolute', width, height, objectFit: 'contain' }} />\`
-     positioned inside the AbsoluteFill. Do NOT attempt to draw the
-     subject from <div>/SVG primitives — the PNG is the visual.
-  3. Animate position / scale / opacity AROUND the <Img> (e.g. translateX
-     for a horizontal scroll, spring on scale, opacity fade) using the
-     standard interpolate/spring helpers. The Img component is a Remotion
-     global — no import needed.
+     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />\`
+     as the FULL-BLEED background of the AbsoluteFill. ALWAYS reference
+     \`PARAMS.imageUrl\` (or a destructured prop default) — NEVER a bare
+     \`imageUrl\` identifier; it is undefined and will throw at render.
+     Do NOT attempt to draw the subject from <div>/SVG primitives — the
+     PNG is the visual.
+  3. **The PNG IS the FULL scene** (sky + ground + character + decoration
+     are all baked in). Do NOT add a second sky / ground / flower /
+     character on top via <div>, SVG, or lucide icons.
+  4. **NO opaque overlay above the <Img>.** Sibling layers above the Img
+     must be transparent, partially-opaque (animated opacity), or
+     contain children. A solid full-frame
+     \`<AbsoluteFill style={{ backgroundColor: '#XXX' }}/>\` or a
+     full-width solid-colored \`<div>\` over the Img is the canonical
+     FAILURE mode (TM-166 purple-band bug) — REJECTED by the validator.
+  5. Animate position / scale / opacity / parallax AROUND the <Img>
+     (translateX wrapper for horizontal scroll, spring on scale, opacity
+     fade) using the standard interpolate/spring helpers. The Img
+     component is a Remotion global — no import needed.
 
 The exact imageUrl string will be substituted server-side after you
 respond, so emit \`imageUrl: "TM136_IMAGE_URL_PLACEHOLDER", // type: text\`

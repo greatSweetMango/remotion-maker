@@ -414,3 +414,138 @@ describe('sanitizeCode', () => {
     expect(result).not.toContain('CatalogueAudio');
   });
 });
+
+// ---------------------------------------------------------------------------
+// TM-168 — imageUrl composition rule. Covers the TM-166 failure modes:
+//   - bear-png reference via bare `imageUrl` identifier (Scene2 crash)
+//   - solid purple `<AbsoluteFill>` overlay covering the PNG
+//   - 200px-tall solid `<div>` band over the bear
+//   - PARAMS.imageUrl declared but never spliced (LLM ignored addendum)
+// All positive tests intentionally exercise the realistic composition
+// shape the system prompt asks for.
+// ---------------------------------------------------------------------------
+describe('TM-168 imageUrl composition rule', () => {
+  // ---------- POSITIVE ----------
+  it('allows full-bleed Img with PARAMS.imageUrl + no overlay', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png', bgColor: '#86c2ee' };
+      const Component = ({ imageUrl = PARAMS.imageUrl } = PARAMS) => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it('allows destructured imageUrl prop default', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = ({ imageUrl = PARAMS.imageUrl } = PARAMS) => (
+        <AbsoluteFill>
+          <Img src={imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('allows animated opacity overlay (motion layer)', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => {
+        const opacity = interpolate(useCurrentFrame(), [0, 30], [0, 1]);
+        return (
+          <AbsoluteFill>
+            <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <AbsoluteFill style={{ backgroundColor: '#000', opacity }} />
+          </AbsoluteFill>
+        );
+      };
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('allows rgba/transparent backgroundColor overlay', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <AbsoluteFill style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('is a no-op on non-image compositions (no PARAMS.imageUrl)', () => {
+    const code = `
+      const PARAMS = { bgColor: '#0f0f17' };
+      const Component = () => (
+        <AbsoluteFill style={{ backgroundColor: PARAMS.bgColor }}>
+          <AbsoluteFill style={{ backgroundColor: '#7C3AED' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  // ---------- NEGATIVE ----------
+  it('rejects bare `imageUrl` identifier with no destructured default (TM-166 Scene2 bug)', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={imageUrl} style={{ width: '100%', height: '100%' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /imageUrl rule:.*must reference PARAMS\.imageUrl/.test(e))).toBe(true);
+  });
+
+  it('rejects PARAMS.imageUrl declared but no <Img> rendered', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png', bgColor: '#86c2ee' };
+      const Component = () => (
+        <AbsoluteFill style={{ backgroundColor: PARAMS.bgColor }} />
+      );
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /no <Img> tag found/.test(e))).toBe(true);
+  });
+
+  it('rejects solid <AbsoluteFill> overlay above <Img> (TM-166 purple-band bug)', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <AbsoluteFill style={{ backgroundColor: '#7C3AED' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /opaque solid.*sibling found after <Img>/.test(e))).toBe(true);
+  });
+
+  it('rejects solid full-width <div> band above <Img>', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', top: 800, width: '100%', height: 200, backgroundColor: '#7C3AED' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /opaque solid/.test(e))).toBe(true);
+  });
+});
