@@ -28,6 +28,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { generateAssetImage } from './asset-gen';
 import type { ClarifyAnswers } from '@/types';
+import { recordMark, isLatencyProfileEnabled } from './latency-profile';
 
 /* ------------------------------------------------------------------ */
 /* Living-entity detection                                            */
@@ -139,6 +140,8 @@ export interface AssetGenStageInput {
   style?: string;
   /** Test seam — inject a stub generator so unit tests stay offline. */
   imageGenerator?: typeof generateAssetImage;
+  /** TM-156 — request id propagation for structured stage marks. */
+  __latencyReqId?: string;
 }
 
 export interface AssetGenStageResult {
@@ -204,12 +207,21 @@ export async function runAssetGenStage(
   }
 
   // 3. Generate + persist.
+  const reqId = input.__latencyReqId ?? 'no-req';
+  const profileOn = isLatencyProfileEnabled();
+  const promptBuildStart = Date.now();
   const imagePrompt = buildImagePrompt(input.prompt, input.answers, style);
-  const gen = (input.imageGenerator ?? generateAssetImage);
-  const result = await gen({ prompt: imagePrompt });
+  if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.prompt-build', ms: Date.now() - promptBuildStart, meta: { promptChars: imagePrompt.length } });
 
+  const gen = (input.imageGenerator ?? generateAssetImage);
+  const genStart = Date.now();
+  const result = await gen({ prompt: imagePrompt, __latencyReqId: reqId });
+  if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.generate-total', ms: Date.now() - genStart, meta: { reportedLatencyMs: result.latencyMs, costUsd: result.costUsd } });
+
+  const diskStart = Date.now();
   await fs.mkdir(path.dirname(diskPath), { recursive: true });
   await fs.writeFile(diskPath, result.pngBytes);
+  if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.disk-write', ms: Date.now() - diskStart, meta: { bytes: result.pngBytes.length } });
   inMemoryHashCache.add(hash);
 
   return {

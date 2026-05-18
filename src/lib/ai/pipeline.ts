@@ -23,6 +23,7 @@ import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
 import { runAssetGenStage, detectLivingEntity, type AssetGenStageResult } from './asset-gen-stage';
+import { recordMark, isLatencyProfileEnabled, newRequestId } from './latency-profile';
 import type {
   GeneratedAsset,
   GenerateApiResponse,
@@ -1030,6 +1031,8 @@ export interface MultiStepOptions {
   /** TM-90 — disable the asset-gen stage even when a living-entity hits.
    *  Useful for tests / cost-sensitive bench runs. */
   disableAssetGen?: boolean;
+  /** TM-156 — propagate request id for structured stage marks. */
+  __latencyReqId?: string;
 }
 
 export async function generateAssetMultiStep(
@@ -1041,6 +1044,10 @@ export async function generateAssetMultiStep(
   // parallel stages (scene-spec || asset-gen, scene-code). `console.warn`
   // is dev-only (NODE_ENV !== production) so prod logs aren't polluted.
   const pipelineStart = Date.now();
+  // TM-156 — request id for structured marks. Shared with route + asset-gen
+  // so a single /api/generate call lights up the whole stack under one key.
+  const __reqId = opts.__latencyReqId ?? newRequestId();
+  const __profileOn = isLatencyProfileEnabled();
   const stages: PipelineTimingStage[] = [];
   const recordStage = (name: string, ms: number, meta?: Record<string, string | number | boolean>): void => {
     stages.push(meta ? { name, ms, meta } : { name, ms });
@@ -1060,11 +1067,13 @@ export async function generateAssetMultiStep(
   const minScenes = livingEntityHit.matched ? 2 : 1;
   const outlineStart = Date.now();
   const outline = await generateOutline(prompt, model, { minScenes });
-  recordStage('outline', Date.now() - outlineStart, {
+  const outlineMs = Date.now() - outlineStart;
+  recordStage('outline', outlineMs, {
     scenes: outline.scenes.length,
     living_entity: livingEntityHit.matched,
     min_scenes: minScenes,
   });
+  if (__profileOn) recordMark({ req: __reqId, phase: 'pipeline.outline', ms: outlineMs, meta: { scenes: outline.scenes.length, livingEntity: livingEntityHit.matched } });
 
   // TM-90 — kick off PNG generation in parallel with sceneSpecs. Even at the
   // worst case (gpt-image-1 ~10s @ low quality) this overlaps the spec stage
@@ -1073,7 +1082,7 @@ export async function generateAssetMultiStep(
   // resolves to null with zero API cost.
   const assetGenPromise: Promise<AssetGenStageResult | null> = opts.disableAssetGen
     ? Promise.resolve(null)
-    : runAssetGenStage({ prompt, answers: opts.answers }).catch((err) => {
+    : runAssetGenStage({ prompt, answers: opts.answers, __latencyReqId: __reqId }).catch((err) => {
         if (process.env.NODE_ENV !== 'production') {
           console.warn(
             '[TM-90] asset-gen stage failed, continuing without PNG:',
@@ -1095,13 +1104,21 @@ export async function generateAssetMultiStep(
     assetGenUsed: assetGen != null,
     assetGenCached: assetGen?.cached ?? false,
   });
+  if (__profileOn) recordMark({
+    req: __reqId,
+    phase: 'pipeline.scene-specs+asset-gen',
+    ms: parallelMs,
+    meta: { scenes: outline.scenes.length, assetGenUsed: assetGen != null, assetGenCached: assetGen?.cached ?? null, assetGenLatencyMs: assetGen?.latencyMs ?? null },
+  });
   const imageUrl = assetGen?.imageUrl ?? null;
   // Code calls also parallel — each depends only on its own spec + the outline.
   const sceneCodeStart = Date.now();
   const sceneCodes = await Promise.all(
     sceneSpecs.map((spec, i) => generateSceneCode(outline, spec, i, model, imageUrl)),
   );
-  recordStage('scene-code', Date.now() - sceneCodeStart, { count: sceneCodes.length });
+  const sceneCodeMs = Date.now() - sceneCodeStart;
+  recordStage('scene-code', sceneCodeMs, { count: sceneCodes.length });
+  if (__profileOn) recordMark({ req: __reqId, phase: 'pipeline.scene-code', ms: sceneCodeMs, meta: { count: sceneCodes.length } });
 
   // TM-117 — per-scene transpile precheck. Even after TM-111 / TM-114 /
   // TM-116 sanitisation, gpt-4o occasionally emits a fragment that survives
@@ -1173,11 +1190,14 @@ export async function generateAssetMultiStep(
       ? `Multi-step generation projected to consume ~${costRatio.toFixed(1)}× the tokens of a single-shot run for this prompt (${outline.scenes.length} scenes). Set AI_MULTI_STEP=0 to fall back to single-shot.`
       : null;
 
-  recordStage('compose+validate', Date.now() - composeStart, {
+  const composeMs = Date.now() - composeStart;
+  recordStage('compose+validate', composeMs, {
     composedChars: composedScrubbed.length,
   });
+  if (__profileOn) recordMark({ req: __reqId, phase: 'pipeline.compose+validate', ms: composeMs, meta: { composedChars: composedScrubbed.length } });
 
   const totalMs = Date.now() - pipelineStart;
+  if (__profileOn) recordMark({ req: __reqId, phase: 'pipeline.total', ms: totalMs, meta: { scenes: outline.scenes.length, assetGenUsed: assetGen != null } });
   const timing: PipelineTiming = {
     mode: 'multi-step',
     stages,
@@ -1215,6 +1235,7 @@ export async function generateAssetMultiStepAsApiResponse(
   prompt: string,
   model?: string,
   opts: MultiStepOptions = {},
+  // TM-156 — req id kept inside opts; method signature unchanged.
 ): Promise<GenerateApiResponse & {
   multiStep?: {
     costRatio: number;
