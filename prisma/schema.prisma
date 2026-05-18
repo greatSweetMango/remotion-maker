@@ -42,22 +42,23 @@ model VerificationToken {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  email          String           @unique
+  id             String          @id @default(cuid())
+  email          String          @unique
   emailVerified  DateTime?
   name           String?
   image          String?
   password       String?
-  tier           Tier             @default(FREE)
-  monthlyUsage   Int              @default(0)
-  editUsage      String           @default("{}")
-  usageResetAt   DateTime         @default(now())
+  tier           Tier            @default(FREE)
+  monthlyUsage   Int             @default(0)
+  editUsage      String          @default("{}")
+  usageResetAt   DateTime        @default(now())
   assets         Asset[]
   uploadedAssets UploadedAsset[]
   subscription   Subscription?
   accounts       Account[]
   sessions       Session[]
-  createdAt      DateTime         @default(now())
+  jobs           Job[]
+  createdAt      DateTime        @default(now())
 }
 
 /// User-uploaded media (images / fonts) that can be referenced from generated
@@ -65,19 +66,19 @@ model User {
 /// abstracted (see `src/lib/storage/`) — `url` is the public-readable URL
 /// served by the chosen provider (Vercel Blob, S3, or local placeholder).
 model UploadedAsset {
-  id           String   @id @default(cuid())
-  userId       String
-  kind         String   // 'image' | 'font'
-  filename     String   // original filename (sanitized)
-  mimeType     String
-  sizeBytes    Int
-  url          String   // public URL served by storage provider
-  storageKey   String   // provider-specific object key (for delete)
+  id              String   @id @default(cuid())
+  userId          String
+  kind            String // 'image' | 'font'
+  filename        String // original filename (sanitized)
+  mimeType        String
+  sizeBytes       Int
+  url             String // public URL served by storage provider
+  storageKey      String // provider-specific object key (for delete)
   storageProvider String // 'local' | 'vercel-blob' | 's3'
   // For fonts only — derived family name used in @font-face
-  fontFamily   String?
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fontFamily      String?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, kind])
@@ -168,4 +169,45 @@ model Subscription {
 enum Tier {
   FREE
   PRO
+}
+
+/// TM-161 — background asset-generation job queue (ADR-0029 §1).
+/// Edit path stays LLM-only (ADR-0001); Job rows track *generation* work
+/// (clarify → asset-gen → first render) so the API can return immediately
+/// and a worker (or in-process poller) advances state. The same table is
+/// reused for `kind` = "edit" if we later move edits off the request path.
+///
+/// Lease-based concurrency: a worker claims a PENDING row by atomically
+/// setting `status=RUNNING`, `leasedAt=now()`, `leaseExpiresAt=now()+TTL`,
+/// and bumping `attempts`. A reaper requeues rows whose lease expired
+/// while RUNNING (worker crash / OOM). `params` is provider-shaped JSON
+/// (answers, options, model knobs) — schema-less on purpose so we can
+/// evolve without migrations.
+model Job {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         JobStatus @default(PENDING)
+  kind           String // "generate" | "edit" | ... extensible
+  prompt         String
+  params         String? // JSON blob (SQLite has no native Json); helpers in src/lib/db/jobs.ts
+  resultAssetId  String?
+  error          String?
+  leasedAt       DateTime? // when a worker claimed the row
+  leaseExpiresAt DateTime? // reaper requeues past this if still RUNNING
+  attempts       Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt]) // worker poll: oldest PENDING first
+  @@index([status, leaseExpiresAt]) // reaper: expired RUNNING leases
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
 }
