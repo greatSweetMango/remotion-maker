@@ -28,6 +28,7 @@ import {
   leaseJob,
   completeJob,
   failJob,
+  failJobWithRetry,
   cancelJob,
   requeueExpiredLeases,
   decodeParams,
@@ -153,6 +154,37 @@ describe('terminal transitions', () => {
     jobMock.update.mockResolvedValue({ id: 'j1' });
     await cancelJob('j1');
     expect(jobMock.update.mock.calls[0][0].data.status).toBe(JobStatus.CANCELLED);
+  });
+});
+
+describe('failJobWithRetry (TM-163)', () => {
+  it('requeues to PENDING when attempts below max', async () => {
+    jobMock.update.mockResolvedValue({ id: 'j1', status: JobStatus.PENDING });
+    const res = await failJobWithRetry('j1', 'boom', { currentAttempts: 1, maxAttempts: 3 });
+    expect(res.requeued).toBe(true);
+    const args = jobMock.update.mock.calls[0][0];
+    expect(args.data).toMatchObject({
+      status: JobStatus.PENDING,
+      error: 'boom',
+      leasedAt: null,
+      leaseExpiresAt: null,
+    });
+  });
+
+  it('marks FAILED when attempts at or above max', async () => {
+    jobMock.update.mockResolvedValue({ id: 'j1', status: JobStatus.FAILED });
+    const res = await failJobWithRetry('j1', 'final', { currentAttempts: 3, maxAttempts: 3 });
+    expect(res.requeued).toBe(false);
+    const args = jobMock.update.mock.calls[0][0];
+    expect(args.data.status).toBe(JobStatus.FAILED);
+    expect(args.data.error).toBe('final');
+  });
+
+  it('truncates long errors on retry too', async () => {
+    jobMock.update.mockResolvedValue({ id: 'j1' });
+    await failJobWithRetry('j1', 'x'.repeat(10_000), { currentAttempts: 1, maxAttempts: 3 });
+    const args = jobMock.update.mock.calls[0][0];
+    expect((args.data.error as string).length).toBe(4_000);
   });
 });
 

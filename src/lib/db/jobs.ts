@@ -155,6 +155,53 @@ export async function failJob(id: string, error: string): Promise<Job> {
   });
 }
 
+/**
+ * TM-163 — worker-side failure handler with attempt-aware retry.
+ *
+ * Behaviour:
+ *   - If `currentAttempts < maxAttempts`: requeue back to PENDING (the worker
+ *     or cron will lease it again later). `error` is stamped so polling clients
+ *     can see *why* the last attempt failed without losing the retry.
+ *   - Otherwise: terminal FAILED with the error message.
+ *
+ * Why a separate function (vs. extending `failJob`):
+ *   - `failJob` is the unambiguous "give up" path; some callers (refusals,
+ *     validation errors, cancellations) MUST NOT retry. Keeping the API
+ *     bifurcated prevents an accidental retry of a non-retryable failure.
+ *   - The worker is the only caller that knows the request was transient
+ *     (e.g. LLM timeout) vs. permanent (e.g. refusal).
+ */
+export async function failJobWithRetry(
+  id: string,
+  error: string,
+  opts: { currentAttempts: number; maxAttempts?: number } = { currentAttempts: 1 },
+): Promise<{ job: Job; requeued: boolean }> {
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const message = error.length > 4_000 ? error.slice(0, 4_000) : error;
+  if (opts.currentAttempts < maxAttempts) {
+    const job = await prisma.job.update({
+      where: { id },
+      data: {
+        status: JobStatus.PENDING,
+        error: message, // surface last error to client even while retrying
+        leasedAt: null,
+        leaseExpiresAt: null,
+      },
+    });
+    return { job, requeued: true };
+  }
+  const job = await prisma.job.update({
+    where: { id },
+    data: {
+      status: JobStatus.FAILED,
+      error: message,
+      leasedAt: null,
+      leaseExpiresAt: null,
+    },
+  });
+  return { job, requeued: false };
+}
+
 export async function cancelJob(id: string): Promise<Job> {
   return prisma.job.update({
     where: { id },

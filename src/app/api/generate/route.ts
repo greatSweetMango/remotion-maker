@@ -132,6 +132,36 @@ export async function POST(req: Request) {
         params: { answers: answers ?? null, tier: user.tier, progressId: progressId ?? null },
       });
       recordMark({ req: reqId, phase: 'route.async-enqueue', ms: Date.now() - t0, meta: { jobId: job.id } });
+
+      // TM-163 (ADR-0029 §3) — hybrid self-trigger: fire-and-forget kick the
+      // worker so dev / single-instance environments process the job *now*
+      // instead of waiting for the next cron tick (60s). Production cron is
+      // the safety net (multi-instance, missed kick, requeued lease).
+      //
+      // We intentionally do NOT await: the response must stay snappy. The
+      // detached promise dies on serverless cold-shutdown, but that's fine —
+      // cron will pick the row up on its next sweep.
+      //
+      // Skipped in `NODE_ENV=test` so route unit tests don't leak unhandled
+      // rejections when no HTTP server is listening; worker is tested directly
+      // (see __tests__/api/jobs/tm-163-process.test.ts).
+      if (process.env.NODE_ENV !== 'test') try {
+        const origin = new URL(req.url).origin;
+        const internalHeaders: Record<string, string> = { 'x-internal': '1' };
+        if (process.env.CRON_SECRET) {
+          internalHeaders['authorization'] = `Bearer ${process.env.CRON_SECRET}`;
+        }
+        // Note: `void fetch(...)` to signal we don't await. Errors are logged
+        // (not surfaced) — the user already has their jobId and can poll.
+        void fetch(`${origin}/api/jobs/process`, {
+          method: 'POST',
+          headers: internalHeaders,
+        }).catch((e) => console.warn('[generate] self-trigger failed (cron will retry):', e?.message ?? e));
+      } catch (e) {
+        // URL parse or similar — non-fatal.
+        console.warn('[generate] self-trigger setup failed:', (e as Error)?.message ?? e);
+      }
+
       const resp = NextResponse.json(
         { jobId: job.id, statusUrl: `/api/jobs/${job.id}`, status: job.status },
         { status: 202 },
