@@ -713,7 +713,7 @@ export async function generateSceneCode(
   // single class of TM-46 visual-judge failures.
   const systemPrompt = imageUrl
     ? SCENE_CODE_SYSTEM_PROMPT +
-      `\n\nIMAGE ASSET (TM-90 / TM-168): A pre-generated PNG of the prompt's ` +
+      `\n\nIMAGE ASSET (TM-90 / TM-167 / TM-168): A pre-generated PNG of the prompt's ` +
       `character/animal/person subject is available. It will be exposed at ` +
       `\`PARAMS.imageUrl\` on the assembled wrapper component. You MUST:\n` +
       `  1. Render the subject via ` +
@@ -737,7 +737,10 @@ export async function generateSceneCode(
       `  4. Animate position / scale / opacity / parallax AROUND the Img ` +
       `(translateX wrapper for camera scroll, spring on scale, fade-out ` +
       `overlay with opacity reaching 0). The Img component is a Remotion ` +
-      `global — no import needed.`
+      `global — no import needed.\n` +
+      `  5. Also expose \`imageUrl\` in this scene's PARAMS block (with ` +
+      `\`// type: text\`) defaulting to the payload's imageUrl, so the ` +
+      `destructured prop default reaches the JSX.`
     : SCENE_CODE_SYSTEM_PROMPT;
   const text = await chatComplete({
     model,
