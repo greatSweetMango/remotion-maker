@@ -182,3 +182,68 @@ const Scene = () => null;`;
   assert.equal(r.ok, true);
   assert.equal(r.warnings.length, 0, 'Scene satisfies the PascalCase check; no warnings expected');
 });
+
+// TM-170 / TM-166 composition lint — mirror of the in-app sandbox tests.
+test('TM-170: rejects opaque purple band <div> above <Img> (TM-166 user case)', () => {
+  const code = `
+    const PARAMS = { imageUrl: '' };
+    const Scene = () => (
+      <AbsoluteFill style={{ backgroundColor: "#0f0f17" }}>
+        <Img src={"/uploads/asset.png"} style={{ position: "absolute", top: 340 }} />
+        <div style={{
+          position: "absolute",
+          left: 0,
+          top: 800,
+          width: "100%",
+          height: "200px",
+          backgroundColor: "#7C3AED"
+        }} />
+      </AbsoluteFill>
+    );
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('TM-170')));
+});
+
+test('TM-170: rejects solid AbsoluteFill above <Img>', () => {
+  const code = `
+    const PARAMS = { imageUrl: '' };
+    const Scene = () => (
+      <AbsoluteFill>
+        <Img src={PARAMS.imageUrl} />
+        <AbsoluteFill style={{ backgroundColor: '#ff00ff' }} />
+      </AbsoluteFill>
+    );
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, false);
+});
+
+test('TM-170: accepts overlay with opacity (animated fade is legal)', () => {
+  const code = `
+    const PARAMS = { imageUrl: '' };
+    const Scene = () => (
+      <AbsoluteFill>
+        <Img src={PARAMS.imageUrl} />
+        <AbsoluteFill style={{ backgroundColor: '#000', opacity: 0.3 }} />
+      </AbsoluteFill>
+    );
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, true, `unexpected errors: ${JSON.stringify(r.errors)}`);
+});
+
+test('TM-170: accepts overlay placed BEFORE <Img> (background, not z-above)', () => {
+  const code = `
+    const PARAMS = { imageUrl: '' };
+    const Scene = () => (
+      <AbsoluteFill>
+        <AbsoluteFill style={{ backgroundColor: '#0f0f17' }} />
+        <Img src={PARAMS.imageUrl} />
+      </AbsoluteFill>
+    );
+  `;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, true, `unexpected errors: ${JSON.stringify(r.errors)}`);
+});

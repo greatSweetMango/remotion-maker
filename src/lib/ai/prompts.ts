@@ -766,7 +766,20 @@ RULES:
    \`return null\`, no empty fragments.
 5. Respond strictly in JSON. The "code" string follows the same JSON
    escaping rules as the single-shot path: \\n for newlines, \\" for
-   quotes, no backticks at JSON-string boundary.`;
+   quotes, no backticks at JSON-string boundary.
+6. **COMPOSITION (TM-170)** — NEVER emit a solid-colored full-frame fill
+   AFTER (z-above) a subject \`<Img>\`. Specifically, the validator REJECTS:
+     - \`<AbsoluteFill style={{ backgroundColor: ... }} />\` placed after
+       an \`<Img>\` with no \`opacity\` style and no children.
+     - \`<div style={{ position:'absolute', width:'100%',
+       backgroundColor:... }}/>\` placed after an \`<Img>\` with no
+       \`opacity\` style and no children (the "solid color band"
+       anti-pattern from the TM-166 incident).
+   If you need an overlay above an image, bind \`opacity\` to an animated
+   value so the underlying image stays visible. Decorative or background
+   fills MUST come BEFORE the \`<Img>\` in source order. A PNG asset (when
+   \`PARAMS.imageUrl\` is present) IS the scene — do NOT layer opaque
+   solids on top of it.`;
 
 export const EDIT_SYSTEM_PROMPT = `You are an expert Remotion animation developer modifying existing code.
 

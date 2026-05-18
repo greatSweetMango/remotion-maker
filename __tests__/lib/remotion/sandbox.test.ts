@@ -192,6 +192,111 @@ describe('validateCode', () => {
     });
   });
 
+  // TM-170 / TM-166 — opaque full-frame fill emitted ABOVE a subject <Img>.
+  // The exact failure mode from the "곰돌이 산책" RCA: a solid purple band
+  // (or full-bleed AbsoluteFill) covers the asset-gen PNG that IS the scene.
+  describe('TM-170 composition lint — opaque overlay above <Img>', () => {
+    it('rejects the TM-166 user case: <Img> then opaque purple band <div>', () => {
+      // Verbatim shape from wiki/05-reports/screenshots/TM-166/asset-code.tsx
+      const code = `
+        const C = () => (
+          <AbsoluteFill style={{ backgroundColor: "#0f0f17" }}>
+            <Img src={"/uploads/asset.png"} style={{ position: "absolute", left: 0, top: 340 }} />
+            <div style={{
+              position: "absolute",
+              left: 0,
+              top: 800,
+              width: "100%",
+              height: "200px",
+              backgroundColor: "#7C3AED"
+            }} />
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('TM-170'))).toBe(true);
+    });
+
+    it('rejects <Img> followed by solid AbsoluteFill with no opacity', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <Img src={PARAMS.imageUrl} />
+            <AbsoluteFill style={{ backgroundColor: '#ff00ff' }} />
+          </AbsoluteFill>
+        );
+      `;
+      expect(validateCode(code).valid).toBe(false);
+    });
+
+    it('ACCEPTS overlay with opacity (animated fade-in is legal)', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <Img src={PARAMS.imageUrl} />
+            <AbsoluteFill style={{ backgroundColor: '#000', opacity: fadeIn }} />
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('TM-170'))).toBeUndefined();
+    });
+
+    it('ACCEPTS overlay that comes BEFORE <Img> (background, not above)', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <AbsoluteFill style={{ backgroundColor: '#0f0f17' }} />
+            <Img src={PARAMS.imageUrl} />
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('TM-170'))).toBeUndefined();
+    });
+
+    it('ACCEPTS overlay with children (text/captions in colored chip is legal)', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <Img src={PARAMS.imageUrl} />
+            <div style={{ position: 'absolute', width: '100%', backgroundColor: '#000' }}>
+              <span>Caption</span>
+            </div>
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('TM-170'))).toBeUndefined();
+    });
+
+    it('ACCEPTS small accent <div> (not full-width)', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <Img src={PARAMS.imageUrl} />
+            <div style={{ position: 'absolute', left: 100, top: 100, width: '50px', height: '50px', backgroundColor: '#fff' }} />
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('TM-170'))).toBeUndefined();
+    });
+
+    it('ACCEPTS code with no <Img> (lint is conditional)', () => {
+      const code = `
+        const C = () => (
+          <AbsoluteFill>
+            <div style={{ position: 'absolute', width: '100%', height: 200, backgroundColor: '#000' }} />
+          </AbsoluteFill>
+        );
+      `;
+      const result = validateCode(code);
+      expect(result.errors.find(e => e?.includes('TM-170'))).toBeUndefined();
+    });
+  });
+
   // TM-128 / ADR-0026 §2 — structural Audio allow-list.
   // <Audio src={staticFile("audio/<slug>.mp3")} /> is the ONLY shape that
   // bypasses the TM-123 deny rule. Every other shape continues to reject.

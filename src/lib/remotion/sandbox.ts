@@ -226,6 +226,78 @@ export function isAudioAllowListed(code: string): boolean {
   return saw;
 }
 
+/**
+ * TM-170 / TM-166 composition lint — opaque fill above subject <Img>.
+ *
+ * The TM-166 user-blocking incident showed the LLM bolting a solid-colored
+ * full-width band ON TOP of a subject `<Img>` (the asset-gen PNG that IS the
+ * whole scene). The validator never caught it because it's a *structural*
+ * mistake, not a forbidden token. This lint rejects the exact failure mode:
+ *
+ *   <Img ... />                                          ← subject image
+ *   <div style={{ position:'absolute', width:'100%',     ← opaque overlay
+ *                 height: 200, backgroundColor: ... }}/> ← covers the image
+ *
+ *   <Img ... />
+ *   <AbsoluteFill style={{ backgroundColor: '#XXX' }}/>  ← solid full-frame
+ *
+ * Heuristic (regex, conservative — no AST):
+ *   1. Find the first `<Img` in the source.
+ *   2. After it, find any sibling-level opaque fill:
+ *      - `<AbsoluteFill ...>` whose style contains `backgroundColor` AND
+ *        which is self-closing OR has empty/whitespace-only children, AND
+ *        whose style does NOT contain `opacity:` (default = 1.0).
+ *      - `<div ...>` whose style contains BOTH `position:` `'absolute'` and
+ *        `backgroundColor:`, AND `width:` `'100%'` (full-bleed band), AND
+ *        is self-closing / empty, AND style has no `opacity:`.
+ *
+ * Conservative on purpose:
+ *   - We REQUIRE the overlay to follow `<Img` (sibling-order z-above).
+ *   - We REQUIRE no `opacity:` style (animated/partial overlays are legal).
+ *   - We REQUIRE the overlay be empty (overlays with children, e.g. text
+ *     captions in a colored chip, are legal).
+ *   - We REQUIRE `width:'100%'` for the `<div>` case (small accent rects
+ *     that don't cover the subject are legal).
+ *
+ * False-positive surface: a legitimate full-bleed colored layer that the
+ * user actually wants (e.g. an end-card fade-in) but emitted without an
+ * `opacity` style. Acceptable cost — those overlays should declare an
+ * opacity transition anyway.
+ */
+const COMPOSITION_LINT_LABEL =
+  'Composition: opaque full-frame fill above <Img> (TM-170 — fade with opacity or remove)';
+
+export function detectOpaqueOverlayAboveImg(code: string): boolean {
+  const imgIdx = code.search(/<\s*Img\b/);
+  if (imgIdx < 0) return false;
+  const tail = code.slice(imgIdx);
+
+  // Pattern A — <AbsoluteFill style={{...backgroundColor:...}} /> with no
+  // opacity, empty children (self-closing OR immediate </AbsoluteFill>).
+  const absFillRe =
+    /<\s*AbsoluteFill\b([^<>]*?style\s*=\s*\{\{[^}]*backgroundColor\s*:[^}]*\}\}[^<>]*?)(\/>|>\s*<\/\s*AbsoluteFill\s*>)/g;
+  let m: RegExpExecArray | null;
+  while ((m = absFillRe.exec(tail)) !== null) {
+    const attrs = m[1];
+    if (!/\bopacity\s*:/.test(attrs)) return true;
+  }
+
+  // Pattern B — <div style={{ position:'absolute', width:'100%',
+  // backgroundColor:... }}/> empty + no opacity.
+  const divRe =
+    /<\s*div\b([^<>]*?style\s*=\s*\{\{[^}]*\}\}[^<>]*?)(\/>|>\s*<\/\s*div\s*>)/g;
+  while ((m = divRe.exec(tail)) !== null) {
+    const attrs = m[1];
+    if (!/\bbackgroundColor\s*:/.test(attrs)) continue;
+    if (!/\bposition\s*:\s*['"]absolute['"]/.test(attrs)) continue;
+    if (!/\bwidth\s*:\s*['"]100%['"]/.test(attrs)) continue;
+    if (/\bopacity\s*:/.test(attrs)) continue;
+    return true;
+  }
+
+  return false;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
@@ -244,6 +316,11 @@ export function validateCode(code: string): ValidationResult {
 
   if (detectRecursivePromiseChain(code)) {
     errors.push('Forbidden: recursive Promise chain');
+  }
+
+  // TM-170: structural composition lint (see detectOpaqueOverlayAboveImg).
+  if (detectOpaqueOverlayAboveImg(code)) {
+    errors.push(COMPOSITION_LINT_LABEL);
   }
 
   return { valid: errors.length === 0, errors };
