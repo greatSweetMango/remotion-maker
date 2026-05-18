@@ -1064,7 +1064,27 @@ export async function generateAssetMultiStep(
   // multi-step branch actually exercises scene-level reasoning instead of
   // collapsing to single-shot equivalent (TM-124 RCA finding).
   const livingEntityHit = detectLivingEntity(prompt, opts.answers);
-  const minScenes = livingEntityHit.matched ? 2 : 1;
+  // TM-159 — A/B: for short character prompts (no explicit duration hint, or
+  // hint ≤10s) we may relax the TM-139 minScenes=2 floor down to 1, saving
+  // ~3-4s (scene-spec 2.2s + scene-code overhead per extra scene per
+  // TM-156 latency profile). Opt-in via env flag `AI_MIN_SCENES_SHORT_CHAR=1`
+  // until the bench validates ship criteria (latency faster, judge score
+  // drop <5pts). Long character prompts (>10s) keep ≥2 scenes — multi-scene
+  // narrative pacing is load-bearing there.
+  const shortCharMinScenes1Enabled =
+    process.env.AI_MIN_SCENES_SHORT_CHAR === '1' || process.env.AI_MIN_SCENES_SHORT_CHAR === 'true';
+  let minScenes: number;
+  if (livingEntityHit.matched) {
+    if (shortCharMinScenes1Enabled) {
+      const durHint = extractDurationHint(prompt);
+      const isShort = durHint.seconds === null || durHint.seconds <= 10;
+      minScenes = isShort ? 1 : 2;
+    } else {
+      minScenes = 2;
+    }
+  } else {
+    minScenes = 1;
+  }
   const outlineStart = Date.now();
   const outline = await generateOutline(prompt, model, { minScenes });
   const outlineMs = Date.now() - outlineStart;
