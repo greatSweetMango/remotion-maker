@@ -164,7 +164,16 @@ export async function runAssetGenStage(
   const hit = detectLivingEntity(input.prompt, input.answers);
   if (!hit.matched) return null;
 
-  const style = input.style ?? 'friendly cartoon illustration, transparent background, soft colors, centered composition';
+  // TM-153 — prompt diet. The previous default style suffix was 88 chars
+  // of generic adjectives ("friendly cartoon illustration, transparent
+  // background, soft colors, centered composition") that competed with the
+  // richer per-prompt clarify answers and added ~2s latency without quality
+  // gain. Live A/B (3 character fixtures × {long, hybrid}, gpt-image-1
+  // low) showed hybrid -2.2s p50 latency AND +4pt judge score (long mean 89
+  // → hybrid 93). See wiki/05-reports/2026-05-18-TM-153-prompt-diet-bench.md.
+  // The `style` argument is kept (so callers can opt back in) but defaults
+  // to empty — `buildImagePrompt` skips the suffix when style is blank.
+  const style = input.style ?? '';
   const hash = hashAssetGenInputs(input.prompt, input.answers, style);
 
   const diskPath = diskPathFor(hash);
@@ -226,5 +235,9 @@ export function buildImagePrompt(
   const answerText = answers && Object.keys(answers).length > 0
     ? ' ' + Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join(', ')
     : '';
-  return `${prompt}${answerText}. Style: ${style}.`;
+  // TM-153 hybrid diet — only append the style suffix when a caller
+  // explicitly provides one. Default callers (pipeline.ts → runAssetGenStage)
+  // now pass style='' so the prompt is just `${prompt}${answerText}`.
+  const styleSuffix = style && style.trim().length > 0 ? `. Style: ${style}.` : '';
+  return `${prompt}${answerText}${styleSuffix}`;
 }

@@ -1,0 +1,340 @@
+{
+  "task": "TM-153",
+  "ts": "2026-05-18T05:10:42.730Z",
+  "budgetUsd": 0.2,
+  "runningCostUsd": 0.0845,
+  "fixtures": [
+    {
+      "id": "bear",
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘",
+      "answers": {
+        "style": "동화풍 파스텔 일러스트",
+        "palette": "따뜻한 파스텔",
+        "mood": "행복하고 평화로움",
+        "text_overlay": "없음"
+      }
+    },
+    {
+      "id": "puppy",
+      "prompt": "강아지가 공원에서 뛰어가는 8초 애니메이션",
+      "answers": {
+        "style": "귀여운 카툰",
+        "palette": "밝은 초록",
+        "mood": "활기찬",
+        "camera": "횡스크롤"
+      }
+    },
+    {
+      "id": "robot",
+      "prompt": "robot dancing in cyber city, 6 seconds",
+      "answers": {
+        "style": "neon synthwave",
+        "palette": "magenta and cyan",
+        "mood": "energetic",
+        "text_overlay": "none"
+      }
+    }
+  ],
+  "variants": [
+    "long",
+    "diet"
+  ],
+  "callsAttempted": 6,
+  "callsSucceeded": 6,
+  "perVariant": {
+    "long": {
+      "latencyMs": {
+        "n": 3,
+        "min": 13823,
+        "max": 20386,
+        "mean": 16297,
+        "p50": 14682
+      },
+      "promptChars": {
+        "n": 3,
+        "min": 176,
+        "max": 222,
+        "mean": 202,
+        "p50": 209
+      },
+      "sizeKb": {
+        "n": 3,
+        "min": 1579,
+        "max": 1789,
+        "mean": 1711,
+        "p50": 1765
+      },
+      "judgeOverall": {
+        "n": 3,
+        "mean": 89,
+        "min": 88,
+        "max": 92
+      }
+    },
+    "diet": {
+      "latencyMs": {
+        "n": 3,
+        "min": 11279,
+        "max": 16223,
+        "mean": 14025,
+        "p50": 14572
+      },
+      "promptChars": {
+        "n": 3,
+        "min": 11,
+        "max": 21,
+        "mean": 16,
+        "p50": 17
+      },
+      "sizeKb": {
+        "n": 3,
+        "min": 1297,
+        "max": 1687,
+        "mean": 1461,
+        "p50": 1398
+      },
+      "judgeOverall": {
+        "n": 3,
+        "mean": 64,
+        "min": 45,
+        "max": 75
+      }
+    }
+  },
+  "results": [
+    {
+      "variant": "long",
+      "fixture": "bear",
+      "ok": true,
+      "imagePrompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘 style: 동화풍 파스텔 일러스트, palette: 따뜻한 파스텔, mood: 행복하고 평화로움, text_overlay: 없음. Style: friendly cartoon illustration, transparent background, soft colors, centered composition.",
+      "promptChars": 209,
+      "latencyMs": 20386,
+      "sizeBytes": 1617066,
+      "sizeKb": 1579,
+      "costUsd": 0.01129,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 82,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 82
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 354
+      },
+      "usageBreakdown": {
+        "cost": 0.01129,
+        "textIn": 82,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 95,
+        "style_quality": 90,
+        "overall": 92,
+        "notes": "Charming bear in meadow, well-crafted."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/long/bear.png"
+    },
+    {
+      "variant": "long",
+      "fixture": "puppy",
+      "ok": true,
+      "imagePrompt": "강아지가 공원에서 뛰어가는 8초 애니메이션 style: 귀여운 카툰, palette: 밝은 초록, mood: 활기찬, camera: 횡스크롤. Style: friendly cartoon illustration, transparent background, soft colors, centered composition.",
+      "promptChars": 176,
+      "latencyMs": 14682,
+      "sizeBytes": 1831557,
+      "sizeKb": 1789,
+      "costUsd": 0.01121,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 66,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 66
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 338
+      },
+      "usageBreakdown": {
+        "cost": 0.01121,
+        "textIn": 66,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 90,
+        "style_quality": 85,
+        "overall": 88,
+        "notes": "Cute style, matches dog in park well."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/long/puppy.png"
+    },
+    {
+      "variant": "long",
+      "fixture": "robot",
+      "ok": true,
+      "imagePrompt": "robot dancing in cyber city, 6 seconds style: neon synthwave, palette: magenta and cyan, mood: energetic, text_overlay: none. Style: friendly cartoon illustration, transparent background, soft colors, centered composition.",
+      "promptChars": 222,
+      "latencyMs": 13823,
+      "sizeBytes": 1807645,
+      "sizeKb": 1765,
+      "costUsd": 0.01114,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 52,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 52
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 324
+      },
+      "usageBreakdown": {
+        "cost": 0.01114,
+        "textIn": 52,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 90,
+        "style_quality": 85,
+        "overall": 88,
+        "notes": "Vivid depiction of a dancing robot in a cyber city."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/long/robot.png"
+    },
+    {
+      "variant": "diet",
+      "fixture": "bear",
+      "ok": true,
+      "imagePrompt": "곰돌이, 동화풍 파스텔 일러스트",
+      "promptChars": 17,
+      "latencyMs": 14572,
+      "sizeBytes": 1328621,
+      "sizeKb": 1297,
+      "costUsd": 0.01098,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 20,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 20
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 292
+      },
+      "usageBreakdown": {
+        "cost": 0.01098,
+        "textIn": 20,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 65,
+        "style_quality": 85,
+        "overall": 75,
+        "notes": "Cute bear, lacks walking animation."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/diet/bear.png"
+    },
+    {
+      "variant": "diet",
+      "fixture": "puppy",
+      "ok": true,
+      "imagePrompt": "강아지, 귀여운 카툰",
+      "promptChars": 11,
+      "latencyMs": 16223,
+      "sizeBytes": 1727812,
+      "sizeKb": 1687,
+      "costUsd": 0.01096,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 16,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 16
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 288
+      },
+      "usageBreakdown": {
+        "cost": 0.01096,
+        "textIn": 16,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 30,
+        "style_quality": 60,
+        "overall": 45,
+        "notes": "Static image, not an animation."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/diet/puppy.png"
+    },
+    {
+      "variant": "diet",
+      "fixture": "robot",
+      "ok": true,
+      "imagePrompt": "robot, neon synthwave",
+      "promptChars": 21,
+      "latencyMs": 11279,
+      "sizeBytes": 1431452,
+      "sizeKb": 1398,
+      "costUsd": 0.010935,
+      "costSource": "usage",
+      "usage": {
+        "input_tokens": 11,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 11
+        },
+        "output_tokens": 272,
+        "output_tokens_details": {
+          "image_tokens": 272,
+          "text_tokens": 0
+        },
+        "total_tokens": 283
+      },
+      "usageBreakdown": {
+        "cost": 0.010935,
+        "textIn": 11,
+        "imgIn": 0,
+        "imgOut": 272
+      },
+      "judge": {
+        "subject_match": 60,
+        "style_quality": 85,
+        "overall": 73,
+        "notes": "Static image, no dancing visible."
+      },
+      "approxJudgeCost": 0.003,
+      "pngPath": ".spike-assets/TM-153/diet/robot.png"
+    }
+  ]
+}
