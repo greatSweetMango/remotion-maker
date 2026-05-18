@@ -226,6 +226,172 @@ export function isAudioAllowListed(code: string): boolean {
   return saw;
 }
 
+/**
+ * TM-169 — `<Img src={...}>` expression allow-list.
+ *
+ * RCA (TM-166 r2 #4): the scene-code system prompt (see pipeline.ts L717)
+ * literally tells the LLM to emit `<Img src={imageUrl} ... />`. But the
+ * generated component never receives `imageUrl` as a binding — the only
+ * surface that carries it is `PARAMS.imageUrl` (ADR-0002). The bare
+ * identifier therefore throws `ReferenceError: imageUrl is not defined` at
+ * runtime, which TM-116 SceneBoundary swallows → blank frame in the
+ * composition. The user sees a missing scene instead of a friendly error.
+ *
+ * Statically rejecting the bad shape gives a clear evaluator error at the
+ * edit gate, so the LLM can self-correct on the next iteration instead of
+ * shipping silently-broken code.
+ *
+ * Allowed shapes for the `src` JSX-attribute value:
+ *   1. String literal attribute   : `src="..."` / `src='...'`
+ *   2. PARAMS member access       : `src={PARAMS.<key>}` (any `<key>`)
+ *   3. staticFile literal call    : `src={staticFile("<literal>")}`
+ *      (audio/lottie patterns per TM-128 / TM-140 — same shape allowed
+ *      for any static asset path; the audio/lottie deny-lists police those
+ *      separately.)
+ *   4. String-literal in braces   : `src={"literal"}` / `src={'literal'}`
+ *
+ * Everything else fails:
+ *   - bare identifier (`{imageUrl}` — TM-166 #4 case)
+ *   - other member access (`{user.avatar}`, `{props.src}`)
+ *   - template literal (`{\`...\`}`)
+ *   - function call other than `staticFile("literal")` (`{fetchUrl()}`)
+ *   - empty / missing src
+ *
+ * Implementation is intentionally regex-based to match the existing
+ * FORBIDDEN_PATTERNS strategy. A future AST validator can replace this with
+ * source-position-aware checks.
+ */
+const IMG_TAG_RE = /<\s*Img\b/g;
+
+// Match the full opening tag (single-tag, may be self-closing or have child)
+// starting at an Img. We need to find the src= attribute within the tag's
+// attribute list, which we approximate as "until the matching `>` or `/>`"
+// while not crossing `<` or `>` to avoid sucking in adjacent JSX.
+function extractImgOpeningTags(code: string): string[] {
+  IMG_TAG_RE.lastIndex = 0;
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = IMG_TAG_RE.exec(code)) !== null) {
+    // Walk forward from match.index to find the closing `>` of this opening
+    // tag, balancing braces so `{ ... > ... }` inside expressions doesn't
+    // terminate the tag prematurely.
+    let i = m.index;
+    let depth = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let inTpl = false;
+    let end = -1;
+    for (; i < code.length; i++) {
+      const ch = code[i];
+      if (inSingle) {
+        if (ch === "\\") { i++; continue; }
+        if (ch === "'") inSingle = false;
+        continue;
+      }
+      if (inDouble) {
+        if (ch === "\\") { i++; continue; }
+        if (ch === '"') inDouble = false;
+        continue;
+      }
+      if (inTpl) {
+        if (ch === "\\") { i++; continue; }
+        if (ch === '`') inTpl = false;
+        continue;
+      }
+      if (ch === "'") { inSingle = true; continue; }
+      if (ch === '"') { inDouble = true; continue; }
+      if (ch === '`') { inTpl = true; continue; }
+      if (ch === '{') { depth++; continue; }
+      if (ch === '}') { depth--; continue; }
+      if (depth === 0 && ch === '>') { end = i; break; }
+    }
+    if (end === -1) {
+      // Malformed — fall back to whole tail; the shape check below will reject.
+      out.push(code.slice(m.index));
+    } else {
+      out.push(code.slice(m.index, end + 1));
+    }
+    IMG_TAG_RE.lastIndex = end === -1 ? code.length : end + 1;
+  }
+  IMG_TAG_RE.lastIndex = 0;
+  return out;
+}
+
+const IMG_SRC_STRING_ATTR_RE = /\bsrc\s*=\s*(['"])((?:(?!\1).)*)\1/;
+const IMG_SRC_BRACE_START_RE = /\bsrc\s*=\s*\{/;
+// Permitted brace-expression shapes (after trimming):
+const IMG_BRACE_PARAMS_RE = /^PARAMS\.[A-Za-z_$][\w$]*$/;
+const IMG_BRACE_STATICFILE_RE = /^staticFile\s*\(\s*(['"])[^'"`]+\1\s*\)$/;
+const IMG_BRACE_STRING_LITERAL_RE = /^(['"])(?:(?!\1).)*\1$/;
+
+/**
+ * Extract the contents of `src={ ... }` from a tag string, respecting
+ * brace/string nesting so `src={obj} foo={{ bar: 1 }}` returns just `obj`.
+ */
+function extractImgSrcBraceExpr(tag: string): string | null {
+  const m = tag.match(IMG_SRC_BRACE_START_RE);
+  if (!m || m.index === undefined) return null;
+  // Start right after the opening `{`
+  let i = m.index + m[0].length;
+  let depth = 1;
+  let inSingle = false;
+  let inDouble = false;
+  let inTpl = false;
+  const start = i;
+  for (; i < tag.length; i++) {
+    const ch = tag[i];
+    if (inSingle) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === '"') inDouble = false;
+      continue;
+    }
+    if (inTpl) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === '`') inTpl = false;
+      continue;
+    }
+    if (ch === "'") { inSingle = true; continue; }
+    if (ch === '"') { inDouble = true; continue; }
+    if (ch === '`') { inTpl = true; continue; }
+    if (ch === '{') { depth++; continue; }
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) return tag.slice(start, i);
+    }
+  }
+  return null;
+}
+
+export function validateImgSrc(code: string): { ok: boolean; error: string | null } {
+  const tags = extractImgOpeningTags(code);
+  for (const tag of tags) {
+    // 1. String-literal attribute: src="..." or src='...'
+    if (IMG_SRC_STRING_ATTR_RE.test(tag)) continue;
+    // 2. Brace expression: src={ ... } (balanced)
+    const expr = extractImgSrcBraceExpr(tag);
+    if (expr === null) {
+      return {
+        ok: false,
+        error: `Forbidden: <Img> missing or malformed \`src\` (use \`src={PARAMS.<key>}\` or \`src="literal"\`) — TM-169`,
+      };
+    }
+    const trimmed = expr.trim();
+    if (IMG_BRACE_PARAMS_RE.test(trimmed)) continue;
+    if (IMG_BRACE_STRING_LITERAL_RE.test(trimmed)) continue;
+    if (IMG_BRACE_STATICFILE_RE.test(trimmed)) continue;
+    return {
+      ok: false,
+      error: `Forbidden: <Img src={${trimmed.length > 40 ? trimmed.slice(0, 40) + '…' : trimmed}}> — only \`PARAMS.<key>\`, literal strings, or \`staticFile("literal")\` allowed (TM-169)`,
+    };
+  }
+  return { ok: true, error: null };
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
@@ -244,6 +410,12 @@ export function validateCode(code: string): ValidationResult {
 
   if (detectRecursivePromiseChain(code)) {
     errors.push('Forbidden: recursive Promise chain');
+  }
+
+  // TM-169 — `<Img src={...}>` expression allow-list.
+  const imgCheck = validateImgSrc(code);
+  if (!imgCheck.ok && imgCheck.error && !errors.includes(imgCheck.error)) {
+    errors.push(imgCheck.error);
   }
 
   return { valid: errors.length === 0, errors };

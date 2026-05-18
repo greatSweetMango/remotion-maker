@@ -414,3 +414,128 @@ describe('sanitizeCode', () => {
     expect(result).not.toContain('CatalogueAudio');
   });
 });
+
+// TM-169 — `<Img src={...}>` expression allow-list.
+//
+// RCA (TM-166 r2 #4): the scene-code system prompt directs the LLM to emit
+// `<Img src={imageUrl} ... />` (bare identifier). The runtime component
+// never binds `imageUrl` — only `PARAMS.imageUrl` is in scope per ADR-0002.
+// The bare reference throws `ReferenceError`, TM-116 SceneBoundary catches
+// it, and the scene renders blank. Reject statically so the LLM gets a
+// clear evaluator error at the edit gate.
+describe('TM-169 <Img src> expression allow-list', () => {
+  const imgErr = (errors: string[]) => errors.find((e) => e.includes('<Img'));
+
+  describe('positive (allow)', () => {
+    it('passes <Img src={PARAMS.imageUrl} />', () => {
+      const code = `
+        const PARAMS = { imageUrl: '/uploads/x.png' };
+        const C = () => <Img src={PARAMS.imageUrl} />;
+      `;
+      expect(validateCode(code)).toEqual({ valid: true, errors: [] });
+    });
+
+    it('passes <Img src="/uploads/x.png" /> (string-literal attribute)', () => {
+      const code = `const C = () => <Img src="/uploads/x.png" />;`;
+      expect(validateCode(code).valid).toBe(true);
+    });
+
+    it("passes single-quoted literal attribute", () => {
+      const code = `const C = () => <Img src='/uploads/x.png' />;`;
+      expect(validateCode(code).valid).toBe(true);
+    });
+
+    it('passes <Img src={"/uploads/x.png"} /> (literal in braces)', () => {
+      const code = `const C = () => <Img src={"/uploads/x.png"} />;`;
+      expect(validateCode(code).valid).toBe(true);
+    });
+
+    it('passes <Img src={staticFile("hero.png")} /> (literal staticFile call)', () => {
+      const code = `const C = () => <Img src={staticFile("hero.png")} />;`;
+      expect(validateCode(code).valid).toBe(true);
+    });
+
+    it('passes when Img coexists with other allowed props', () => {
+      const code = `
+        const PARAMS = { imageUrl: '/uploads/x.png' };
+        const C = () => (
+          <Img src={PARAMS.imageUrl} style={{ width: 200, height: 200 }} />
+        );
+      `;
+      expect(validateCode(code).valid).toBe(true);
+    });
+
+    it('passes multiple Img tags all using PARAMS', () => {
+      const code = `
+        const PARAMS = { a: '/a.png', b: '/b.png' };
+        const C = () => <><Img src={PARAMS.a} /><Img src={PARAMS.b} /></>;
+      `;
+      expect(validateCode(code).valid).toBe(true);
+    });
+  });
+
+  describe('negative (reject)', () => {
+    it('rejects <Img src={imageUrl} /> — bare identifier (TM-166 #4 case)', () => {
+      const code = `
+        const PARAMS = { imageUrl: '/uploads/x.png' };
+        const C = () => <Img src={imageUrl} />;
+      `;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img src={fetchUrl()} /> — arbitrary function call', () => {
+      const code = `const C = () => <Img src={fetchUrl()} />;`;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img src={`/uploads/${slug}.png`} /> — template literal', () => {
+      const code = 'const C = () => <Img src={`/uploads/${slug}.png`} />;';
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img src={user.avatar} /> — non-PARAMS member access', () => {
+      const code = `const C = () => <Img src={user.avatar} />;`;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img src={PARAMS.imageUrl || fallback} /> — compound expression', () => {
+      const code = `const C = () => <Img src={PARAMS.imageUrl || fallback} />;`;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img src={staticFile(slug)} /> — non-literal staticFile arg', () => {
+      const code = `const slug = 'x.png'; const C = () => <Img src={staticFile(slug)} />;`;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects <Img /> with no src attribute', () => {
+      const code = `const C = () => <Img />;`;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+
+    it('rejects mixed: one allowed + one bare identifier in the same file', () => {
+      const code = `
+        const PARAMS = { a: '/a.png' };
+        const A = () => <Img src={PARAMS.a} />;
+        const B = () => <Img src={imageUrl} />;
+      `;
+      const r = validateCode(code);
+      expect(r.valid).toBe(false);
+      expect(imgErr(r.errors)).toBeDefined();
+    });
+  });
+});

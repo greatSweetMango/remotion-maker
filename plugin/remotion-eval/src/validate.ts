@@ -92,6 +92,11 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
   { pattern: /<\s*IFrame\b/, label: 'Forbidden: <IFrame> (visual-only assets — TM-123)' },
 
+  // TM-140 / ADR-0027 sync — bare `<Lottie>` is denied; `<CatalogueLottie>`
+  // wrapper is the PARAMS-driven escape hatch and does NOT match because the
+  // regex requires `<` immediately followed by `Lottie` (modulo whitespace).
+  { pattern: /<\s*Lottie\b/, label: 'Forbidden: <Lottie> (use <CatalogueLottie asset=...> — ADR-0027)' },
+
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
 
@@ -136,6 +141,133 @@ export function isAudioAllowListed(code: string): boolean {
   }
   AUDIO_TAG_RE.lastIndex = 0;
   return saw;
+}
+
+/**
+ * TM-169 mirror — `<Img src={...}>` expression allow-list.
+ *
+ * Keep in sync with `validateImgSrc` in `src/lib/remotion/sandbox.ts`.
+ * Rationale + allowed shapes documented there. Allowed:
+ *   - `src="literal"`, `src='literal'`
+ *   - `src={PARAMS.<key>}`
+ *   - `src={staticFile("literal")}`
+ *   - `src={"literal"}` / `src={'literal'}`
+ * Everything else (bare identifier, other member access, template literal,
+ * function call other than `staticFile("literal")`) is rejected.
+ */
+const IMG_TAG_RE = /<\s*Img\b/g;
+
+function extractImgOpeningTags(code: string): string[] {
+  IMG_TAG_RE.lastIndex = 0;
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = IMG_TAG_RE.exec(code)) !== null) {
+    let i = m.index;
+    let depth = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let inTpl = false;
+    let end = -1;
+    for (; i < code.length; i++) {
+      const ch = code[i];
+      if (inSingle) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === "'") inSingle = false;
+        continue;
+      }
+      if (inDouble) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === '"') inDouble = false;
+        continue;
+      }
+      if (inTpl) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === '`') inTpl = false;
+        continue;
+      }
+      if (ch === "'") { inSingle = true; continue; }
+      if (ch === '"') { inDouble = true; continue; }
+      if (ch === '`') { inTpl = true; continue; }
+      if (ch === '{') { depth++; continue; }
+      if (ch === '}') { depth--; continue; }
+      if (depth === 0 && ch === '>') { end = i; break; }
+    }
+    if (end === -1) {
+      out.push(code.slice(m.index));
+    } else {
+      out.push(code.slice(m.index, end + 1));
+    }
+    IMG_TAG_RE.lastIndex = end === -1 ? code.length : end + 1;
+  }
+  IMG_TAG_RE.lastIndex = 0;
+  return out;
+}
+
+const IMG_SRC_STRING_ATTR_RE = /\bsrc\s*=\s*(['"])((?:(?!\1).)*)\1/;
+const IMG_SRC_BRACE_START_RE = /\bsrc\s*=\s*\{/;
+const IMG_BRACE_PARAMS_RE = /^PARAMS\.[A-Za-z_$][\w$]*$/;
+const IMG_BRACE_STATICFILE_RE = /^staticFile\s*\(\s*(['"])[^'"`]+\1\s*\)$/;
+const IMG_BRACE_STRING_LITERAL_RE = /^(['"])(?:(?!\1).)*\1$/;
+
+function extractImgSrcBraceExpr(tag: string): string | null {
+  const m = tag.match(IMG_SRC_BRACE_START_RE);
+  if (!m || m.index === undefined) return null;
+  let i = m.index + m[0].length;
+  let depth = 1;
+  let inSingle = false;
+  let inDouble = false;
+  let inTpl = false;
+  const start = i;
+  for (; i < tag.length; i++) {
+    const ch = tag[i];
+    if (inSingle) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === '"') inDouble = false;
+      continue;
+    }
+    if (inTpl) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === '`') inTpl = false;
+      continue;
+    }
+    if (ch === "'") { inSingle = true; continue; }
+    if (ch === '"') { inDouble = true; continue; }
+    if (ch === '`') { inTpl = true; continue; }
+    if (ch === '{') { depth++; continue; }
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) return tag.slice(start, i);
+    }
+  }
+  return null;
+}
+
+export function validateImgSrc(code: string): { ok: boolean; error: string | null } {
+  const tags = extractImgOpeningTags(code);
+  for (const tag of tags) {
+    if (IMG_SRC_STRING_ATTR_RE.test(tag)) continue;
+    const expr = extractImgSrcBraceExpr(tag);
+    if (expr === null) {
+      return {
+        ok: false,
+        error: `Forbidden: <Img> missing or malformed \`src\` (use \`src={PARAMS.<key>}\` or \`src="literal"\`) — TM-169`,
+      };
+    }
+    const trimmed = expr.trim();
+    if (IMG_BRACE_PARAMS_RE.test(trimmed)) continue;
+    if (IMG_BRACE_STRING_LITERAL_RE.test(trimmed)) continue;
+    if (IMG_BRACE_STATICFILE_RE.test(trimmed)) continue;
+    return {
+      ok: false,
+      error: `Forbidden: <Img src={${trimmed.length > 40 ? trimmed.slice(0, 40) + '…' : trimmed}}> — only \`PARAMS.<key>\`, literal strings, or \`staticFile("literal")\` allowed (TM-169)`,
+    };
+  }
+  return { ok: true, error: null };
 }
 
 function detectRecursivePromiseChain(code: string): boolean {
@@ -203,6 +335,12 @@ export function validateRemotionCode(code: unknown): ValidateResult {
   }
   if (detectRecursivePromiseChain(code)) {
     errors.push('Forbidden: recursive Promise chain');
+  }
+
+  // TM-169 — `<Img src={...}>` expression allow-list mirror.
+  const imgCheck = validateImgSrc(code);
+  if (!imgCheck.ok && imgCheck.error && !errors.includes(imgCheck.error)) {
+    errors.push(imgCheck.error);
   }
 
   // 2. Structural checks (warnings — ADR-0002 advises PARAMS, but absence
