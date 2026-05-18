@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "lint:server-only-leaks": "node scripts/ci/check-server-only-leaks.mjs",
+    "check:prisma-sync": "node scripts/ci/check-prisma-sync.mjs",
+    "prisma:sync": "prisma db push --schema prisma/schema.prisma --skip-generate && prisma generate --schema prisma/schema.prisma",
     "check:circular": "depcruise -c .dependency-cruiser.cjs 'src/**/*.{ts,tsx}'",
     "test": "jest",
     "test:watch": "jest --watch",
