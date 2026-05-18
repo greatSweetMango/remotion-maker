@@ -23,6 +23,15 @@ import type { PipelineTiming } from '@/types';
  */
 export const HISTORY_DEPTH = 100;
 
+/**
+ * TM-164 — interval between GET /api/jobs/[id] polls while waiting on an
+ * async asset-gen job. 3s is a compromise: short enough that perceived
+ * latency stays close to the worker's actual completion time, long enough
+ * that we don't hammer the DB for jobs that run >30s. Exported so tests
+ * can override via jest fake timers without re-importing internals.
+ */
+export const JOB_POLL_INTERVAL_MS = 3000;
+
 const emptyHistory = (): StudioState['history'] => ({ past: [], future: [] });
 
 export function studioReducer(state: StudioState, action: StudioAction): StudioState {
@@ -256,6 +265,19 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     meta?: Record<string, unknown>;
   } | null>(null);
 
+  // TM-164 (ADR-0029 §4) — async generate mode. When the user submits with
+  // `async: true`, the POST returns 202 + `{ jobId }` and we poll
+  // `/api/jobs/[id]` every JOB_POLL_INTERVAL_MS until terminal. The job
+  // metadata (id + last-seen status) is surfaced to the UI so PromptPanel
+  // can render a "Job submitted, waiting…" affordance while the worker
+  // (TM-163, separate PR) chews on it. We deliberately reuse the existing
+  // `state.isGenerating` flag so the rest of the UI (progress bar, button
+  // spinner) keeps behaving exactly as in the sync path.
+  const [currentJob, setCurrentJob] = useState<{
+    id: string;
+    status: string;
+  } | null>(null);
+
   const attachUrl = useCallback(async (url: string) => {
     setIsAttaching(true);
     try {
@@ -278,10 +300,59 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
 
   const detachContext = useCallback(() => setAttachedContext(null), []);
 
-  const generate = useCallback(async (prompt: string, answers?: ClarifyAnswers) => {
+  const generate = useCallback(async (
+    prompt: string,
+    answers?: ClarifyAnswers,
+    options?: { async?: boolean },
+  ) => {
     dispatch({ type: 'SET_GENERATING', payload: true });
     dispatch({ type: 'CLEAR_CLARIFY' });
     setProgressStage(null);
+    setCurrentJob(null);
+
+    // TM-164 — async mode short-circuit. POST hits /api/generate?async=1
+    // which returns 202 + { jobId, statusUrl }. We register the job id so
+    // the polling effect below takes over; the rest of this function (SSE
+    // setup, sync JSON parsing, clarify branch) is sync-only and is
+    // skipped. We keep `isGenerating: true` so the UI spinner stays up
+    // until the polling effect resolves the job to a terminal state.
+    if (options?.async) {
+      const augmentedPromptAsync = attachedContext
+        ? `${prompt}\n\n${formatIngestForPrompt(attachedContext)}`
+        : prompt;
+      try {
+        const res = await fetch('/api/generate?async=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: augmentedPromptAsync,
+            ...(answers ? { answers } : {}),
+          }),
+        });
+        const data = await res.json();
+        // The server may still answer synchronously when it short-circuits
+        // (e.g. clarify gate before enqueue) — fall through to the sync
+        // handler in that case by re-dispatching to `generate(... sync)`.
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        if (typeof data.jobId !== 'string') {
+          // Defensive: an unexpected non-202 success payload. Surface as
+          // error rather than silently stalling the spinner.
+          throw new Error('Async submit returned no jobId');
+        }
+        setCurrentJob({ id: data.jobId, status: data.status ?? 'PENDING' });
+        toast.message('Job submitted — waiting for worker…');
+        return;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Generation failed';
+        dispatch({
+          type: 'SET_ERROR',
+          payload: { message, lastFailed: { kind: 'generate', prompt, answers } },
+        });
+        toast.error(message);
+        return;
+      }
+    }
+
     // TM-103 — augment prompt with attached URL context (if any). The
     // server treats this as a single user message; the LLM is steered by
     // the leading prose, with the [ATTACHED CONTEXT] block as supplementary
@@ -538,6 +609,100 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // TM-164 — polling loop for async jobs. Runs only while a job id is
+  // active and the job has not reached a terminal state. We use
+  // setInterval (not setTimeout-chain) so the cadence is stable even if
+  // a single fetch takes >3s; the effect's cleanup clears the interval
+  // and the in-flight fetch's response is ignored via the `cancelled`
+  // flag. SSE upgrade is intentionally out of scope here — TM-160's
+  // progress-bus only carries stage marks, not lifecycle transitions.
+  useEffect(() => {
+    if (!currentJob) return;
+    if (
+      currentJob.status === 'SUCCEEDED' ||
+      currentJob.status === 'FAILED' ||
+      currentJob.status === 'CANCELLED'
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${currentJob.id}`);
+        if (cancelled) return;
+        if (!res.ok) {
+          if (res.status === 404) {
+            // Job vanished (deleted, or wrong owner). Surface as error so
+            // the user can retry instead of spinning forever.
+            clearInterval(handle);
+            dispatch({
+              type: 'SET_ERROR',
+              payload: { message: 'Job not found', lastFailed: null },
+            });
+            setCurrentJob(null);
+            return;
+          }
+          // Transient failure: keep polling — the next tick may recover.
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        const status: string = data.status ?? 'PENDING';
+        setCurrentJob({ id: currentJob.id, status });
+        if (status === 'SUCCEEDED') {
+          clearInterval(handle);
+          if (data.resultAsset) {
+            // Server returns { id, title, code, jsCode, parameters (json
+            // string), durationInFrames, fps, width, height } — same shape
+            // as /api/asset/[id]. Parse parameters back to the array.
+            const asset = data.resultAsset;
+            let parsedParams: unknown = [];
+            try {
+              parsedParams = typeof asset.parameters === 'string'
+                ? JSON.parse(asset.parameters)
+                : asset.parameters;
+            } catch {
+              parsedParams = [];
+            }
+            dispatch({
+              type: 'SET_ASSET',
+              payload: {
+                id: asset.id,
+                title: asset.title,
+                code: asset.code,
+                jsCode: asset.jsCode,
+                parameters: Array.isArray(parsedParams) ? parsedParams : [],
+                durationInFrames: asset.durationInFrames,
+                fps: asset.fps,
+                width: asset.width,
+                height: asset.height,
+              } as GeneratedAsset,
+            });
+            toast.success('Animation created!');
+          }
+        } else if (status === 'FAILED' || status === 'CANCELLED') {
+          clearInterval(handle);
+          const message = data.error || (status === 'CANCELLED' ? 'Job cancelled' : 'Generation failed');
+          dispatch({
+            type: 'SET_ERROR',
+            payload: { message, lastFailed: state.lastFailed },
+          });
+          toast.error(message);
+        }
+      } catch {
+        // network error — keep the interval going; next tick retries.
+      }
+    };
+    // Immediate first poll keeps the perceived latency low when the worker
+    // finishes between submit and the first 3s tick.
+    void poll();
+    const handle = setInterval(poll, JOB_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [currentJob, state.lastFailed]);
+
   const restoreVersion = useCallback((index: number) => {
     dispatch({ type: 'RESTORE_VERSION', payload: index });
     toast.success('Restored to previous version');
@@ -606,5 +771,7 @@ export function useStudio(initialAsset?: GeneratedAsset | null) {
     pipelineTiming,
     // TM-160
     progressStage,
+    // TM-164
+    currentJob,
   };
 }
