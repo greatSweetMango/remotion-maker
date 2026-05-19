@@ -23,7 +23,7 @@
     "@prisma/client": "^6.19.3",
     "@remotion/bundler": "^4.0.448",
     "@remotion/cli": "^4.0.448",
-    "@remotion/lottie": "^4.0.461",
+    "@remotion/lottie": "^4.0.448",
     "@remotion/player": "^4.0.448",
     "@remotion/renderer": "^4.0.448",
     "bcryptjs": "^3.0.3",
