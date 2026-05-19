@@ -816,6 +816,21 @@ A. **imageUrl-bearing scenes (PARAMS.imageUrl present — TM-90 / ADR-0022)**:
      \`ReferenceError\` at render time (TM-166 Scene2 failure mode).
      NEVER hard-code the URL string — it must stay PARAMS-bound so
      the customize UI can swap the asset.
+   - **TM-181 — \`imageUrl\` IS NOT PREFIXED PER-SCENE.** The
+     per-scene \`scene{N}_\` prefix rule (rule #1) applies to scene
+     params ONLY. The \`imageUrl\` field lives on the top-level
+     composed \`PARAMS\` (one image per asset, shared across all
+     scenes). NEVER write \`PARAMS.scene0_imageUrl\`,
+     \`PARAMS.scene1_imageUrl\`, \`scene0_imageUrl\`,
+     \`scene{N}_imageUrl\`, or any scene-prefixed variant — those
+     identifiers DO NOT EXIST and the composed module fails the
+     TM-168 sandbox validator (which rejects any \`<Img>\` whose
+     \`src\` is not \`PARAMS.imageUrl\`, a destructured
+     \`imageUrl\` prop, or a literal string). The ONLY correct
+     forms are: \`<Img src={PARAMS.imageUrl} ... />\` or a
+     destructured default \`({ imageUrl = PARAMS.imageUrl }) =>\`.
+   - Do not splice \`imageUrl\` into the per-scene \`Scene{N}Params\`
+     const either — leave the top-level \`PARAMS.imageUrl\` alone.
    - DO NOT add a second background. NO \`<AbsoluteFill style={{
      backgroundColor: ... }}>\` ABOVE the Img. NO full-width solid
      \`<div>\` bands. NO opaque colored rectangles. NO \`<lucide.X>\`
@@ -839,6 +854,9 @@ A. **imageUrl-bearing scenes (PARAMS.imageUrl present — TM-90 / ADR-0022)**:
      * Vector circle / ellipse / svg character drawn over the
        imageUrl PNG as "the bear" — the bear is IN the PNG.
      * \`<Img src={imageUrl}>\` (bare identifier) — ReferenceError.
+     * \`<Img src={scene0_imageUrl}>\` / \`{scene1_imageUrl}\` /
+       \`{PARAMS.scene0_imageUrl}\` — scene-prefixed variants are
+       NEVER valid for imageUrl (TM-181). imageUrl is GLOBAL.
      * \`<Img src="https://...">\` (hard-coded literal URL) — breaks
        customize-tab swap (ADR-0002).
      * \`<Img>\` without \`objectFit: 'cover'\` (or with
