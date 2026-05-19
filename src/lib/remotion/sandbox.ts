@@ -382,6 +382,73 @@ export function validateImageUrlComposition(code: string): string[] {
 }
 
 /**
+ * TM-176 — full-bleed `<Img>` with `objectFit:'contain'` letterboxes the scene.
+ *
+ * Background: TM-167 RCA on the bear-in-meadow regression found that the
+ * multi-step pipeline routinely emits `<Img src={PARAMS.imageUrl}
+ * style={{ width:'100%', height:'100%', objectFit:'contain' }}/>` as the
+ * full-bleed asset-gen layer. With a 16:9 viewport and a non-matching image
+ * aspect ratio, `contain` shrinks the image to fit inside, producing black
+ * letterbox bars covering ~70% of the frame (visible in tm-167-r1-baseline
+ * screenshots). The asset-gen PNG IS the full scene by contract, so the
+ * intended behaviour is `objectFit:'cover'` (crop, no bars).
+ *
+ * TM-167 patched the system prompt to recommend `cover`, but the validator
+ * had no enforcement — so the LLM still emitted `contain` ~15% of the time
+ * (TM-173 regression corpus #5/#7). This rule closes that gap.
+ *
+ * Definition of "full-bleed": the `<Img>` style sets BOTH `width:'100%'`
+ * (or `width:'100vw'`) AND `height:'100%'` (or `height:'100vh'`). An Img
+ * with explicit pixel sizes (`width: 200`) is treated as a small inline
+ * image and is allowed to use `contain` — that's a legitimate use case
+ * (logo, icon, thumbnail) where preserving aspect matters more than
+ * filling the box.
+ *
+ * False-positive surface: the small-pixel and intentional-letterbox cases
+ * are preserved; only the full-bleed shape (the actual TM-167 failure
+ * mode) triggers. Validated against the TM-43/TM-173 corpus — fires only
+ * on the regression cases, no incidental triggers on icon/badge scenes.
+ */
+
+// Every `<Img ...>` tag in the file, with its full attribute payload.
+const IMG_TAG_FULL_RE = /<\s*Img\b([^>]*)>/g;
+
+// Inside a single Img tag, find the `style={{ ... }}` payload (the
+// inner braces). We accept both `style={{...}}` and the rarer
+// `style={styleVar}` (skipped — can't statically resolve).
+const STYLE_OBJECT_RE = /\bstyle\s*=\s*\{\s*\{([^}]*)\}\s*\}/;
+
+// Width / height = '100%' or '100vw'/'100vh' inside a style object.
+const FULL_WIDTH_RE = /\bwidth\s*:\s*['"](?:100%|100vw)['"]/;
+const FULL_HEIGHT_RE = /\bheight\s*:\s*['"](?:100%|100vh)['"]/;
+
+// objectFit:'contain' (or "contain") inside a style object.
+const OBJECT_FIT_CONTAIN_RE = /\bobjectFit\s*:\s*['"]contain['"]/;
+
+export function validateFullBleedImgObjectFit(code: string): string[] {
+  const errors: string[] = [];
+  let m: RegExpExecArray | null;
+  IMG_TAG_FULL_RE.lastIndex = 0;
+  let reported = false;
+  while ((m = IMG_TAG_FULL_RE.exec(code)) !== null) {
+    const attrs = m[1] ?? '';
+    const styleMatch = attrs.match(STYLE_OBJECT_RE);
+    if (!styleMatch) continue;
+    const styleBody = styleMatch[1];
+    if (!OBJECT_FIT_CONTAIN_RE.test(styleBody)) continue;
+    if (!FULL_WIDTH_RE.test(styleBody)) continue;
+    if (!FULL_HEIGHT_RE.test(styleBody)) continue;
+    if (reported) continue; // one report is enough for the LLM to correct
+    reported = true;
+    errors.push(
+      "Img rule (TM-176): full-bleed <Img> (width:'100%' AND height:'100%') with objectFit:'contain' letterboxes the scene — use objectFit:'cover' so the asset fills the frame without black bars",
+    );
+  }
+  IMG_TAG_FULL_RE.lastIndex = 0;
+  return errors;
+}
+
+/**
  * TM-175 — invented lucide icon detection.
  *
  * Scans `lucide.XYZ` member-access tokens (covers both `<lucide.XYZ/>` JSX
@@ -448,6 +515,12 @@ export function validateCode(code: string): ValidationResult {
   // TM-175 — invented PascalCase lucide identifiers (defensive layer; the
   // pipeline sanitizer normally rewrites these to `Star` before we get here).
   for (const e of validateLucideIdentifiers(code)) {
+    if (!errors.includes(e)) errors.push(e);
+  }
+
+  // TM-176 — full-bleed <Img> with objectFit:'contain' letterboxes the scene
+  // (the asset-gen PNG IS the full scene; use 'cover' instead).
+  for (const e of validateFullBleedImgObjectFit(code)) {
     if (!errors.includes(e)) errors.push(e);
   }
 

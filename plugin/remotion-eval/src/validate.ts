@@ -76,6 +76,40 @@ export function __lucideWhitelistSize(): number {
   return LUCIDE_VALID_NAMES.size;
 }
 
+/**
+ * TM-176 mirror — full-bleed `<Img>` with `objectFit:'contain'` letterboxes
+ * the scene. See `validateFullBleedImgObjectFit` in
+ * `src/lib/remotion/sandbox.ts` for the rationale (TM-167 RCA).
+ */
+const IMG_TAG_FULL_RE = /<\s*Img\b([^>]*)>/g;
+const STYLE_OBJECT_RE = /\bstyle\s*=\s*\{\s*\{([^}]*)\}\s*\}/;
+const FULL_WIDTH_RE = /\bwidth\s*:\s*['"](?:100%|100vw)['"]/;
+const FULL_HEIGHT_RE = /\bheight\s*:\s*['"](?:100%|100vh)['"]/;
+const OBJECT_FIT_CONTAIN_RE = /\bobjectFit\s*:\s*['"]contain['"]/;
+
+export function validateFullBleedImgObjectFit(code: string): string[] {
+  const errors: string[] = [];
+  let m: RegExpExecArray | null;
+  IMG_TAG_FULL_RE.lastIndex = 0;
+  let reported = false;
+  while ((m = IMG_TAG_FULL_RE.exec(code)) !== null) {
+    const attrs = m[1] ?? '';
+    const styleMatch = attrs.match(STYLE_OBJECT_RE);
+    if (!styleMatch) continue;
+    const styleBody = styleMatch[1];
+    if (!OBJECT_FIT_CONTAIN_RE.test(styleBody)) continue;
+    if (!FULL_WIDTH_RE.test(styleBody)) continue;
+    if (!FULL_HEIGHT_RE.test(styleBody)) continue;
+    if (reported) continue;
+    reported = true;
+    errors.push(
+      "Img rule (TM-176): full-bleed <Img> (width:'100%' AND height:'100%') with objectFit:'contain' letterboxes the scene — use objectFit:'cover' so the asset fills the frame without black bars",
+    );
+  }
+  IMG_TAG_FULL_RE.lastIndex = 0;
+  return errors;
+}
+
 export interface ValidateResult {
   ok: boolean;
   errors: string[];
@@ -272,6 +306,14 @@ export function validateRemotionCode(code: unknown): ValidateResult {
   //     mirrors the in-app `src/lib/remotion/sandbox.ts` validator so
   //     external agents pre-flight against the same rule.
   for (const e of validateLucideIdentifiers(code)) {
+    if (!errors.includes(e)) errors.push(e);
+  }
+
+  // 1c. TM-176 mirror — full-bleed <Img> with objectFit:'contain' letterboxes
+  //     the scene. Use objectFit:'cover' instead. Mirrors the in-app
+  //     `validateFullBleedImgObjectFit` so external agents pre-flight the
+  //     same rule as the in-app evaluator.
+  for (const e of validateFullBleedImgObjectFit(code)) {
     if (!errors.includes(e)) errors.push(e);
   }
 
