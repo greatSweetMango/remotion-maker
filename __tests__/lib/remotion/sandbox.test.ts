@@ -2,7 +2,14 @@ import {
   isAudioAllowListed,
   sanitizeCode,
   validateCode,
+  validateLucideIdentifiers,
 } from '@/lib/remotion/sandbox';
+import {
+  LUCIDE_VALID_NAMES,
+  LUCIDE_FUZZY_FIXES,
+  pickLucideFallback,
+  __lucideWhitelistSize,
+} from '@/lib/lucide-whitelist';
 
 describe('validateCode', () => {
   it('allows clean Remotion component code', () => {
@@ -547,5 +554,84 @@ describe('TM-168 imageUrl composition rule', () => {
     const result = validateCode(code);
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => /opaque solid/.test(e))).toBe(true);
+  });
+});
+
+// TM-175 — lucide-react export whitelist.
+describe('TM-175 — lucide whitelist', () => {
+  it('whitelist contains thousands of real lucide exports', () => {
+    // lucide-react ships ~5800+ icons across PascalCase variants;
+    // assert a generous lower bound so a future shrinkage trips the test.
+    expect(__lucideWhitelistSize()).toBeGreaterThan(1000);
+  });
+
+  it.each(['Star', 'Heart', 'Sparkles', 'Flower', 'Sun', 'Moon', 'Hash', 'ChartBar'])(
+    'whitelists real export `%s`',
+    name => {
+      expect(LUCIDE_VALID_NAMES.has(name)).toBe(true);
+    },
+  );
+
+  it.each(['Flowers', 'CharacterIcon', 'SunRise', 'TotallyMadeUpThing'])(
+    'rejects invented identifier `%s`',
+    name => {
+      expect(LUCIDE_VALID_NAMES.has(name)).toBe(false);
+    },
+  );
+
+  it('every fuzzy-fix target is itself a real lucide export', () => {
+    // Guards against a typo in LUCIDE_FUZZY_FIXES silently mapping one
+    // invented name to another invented name.
+    for (const [bad, good] of Object.entries(LUCIDE_FUZZY_FIXES)) {
+      expect(LUCIDE_VALID_NAMES.has(bad)).toBe(false); // sanity: maps source IS invented
+      expect(LUCIDE_VALID_NAMES.has(good)).toBe(true); // and target IS real
+    }
+  });
+
+  it('pickLucideFallback returns the fuzzy fix when available', () => {
+    expect(pickLucideFallback('Flowers')).toBe('Flower');
+    expect(pickLucideFallback('CharacterIcon')).toBe('User');
+  });
+
+  it('pickLucideFallback defaults to Star otherwise', () => {
+    expect(pickLucideFallback('SomethingNobodyDefined')).toBe('Star');
+  });
+});
+
+describe('TM-175 — validateLucideIdentifiers', () => {
+  it('returns no errors for valid icons (Star/Heart/Sparkles/Flower)', () => {
+    const code = `<lucide.Star/><lucide.Heart/><lucide.Sparkles/><lucide.Flower/>`;
+    expect(validateLucideIdentifiers(code)).toEqual([]);
+  });
+
+  it('returns one error per distinct invented icon, naming it', () => {
+    const code = `<lucide.Flowers/> ... <lucide.CharacterIcon/>`;
+    const errors = validateLucideIdentifiers(code);
+    expect(errors).toHaveLength(2);
+    expect(errors.some(e => /lucide\.Flowers/.test(e) && /not a real lucide-react export/.test(e))).toBe(true);
+    expect(errors.some(e => /lucide\.CharacterIcon/.test(e))).toBe(true);
+  });
+
+  it('dedupes repeated invented names', () => {
+    const code = `<lucide.Flowers/><lucide.Flowers/><lucide.Flowers/>`;
+    expect(validateLucideIdentifiers(code)).toHaveLength(1);
+  });
+
+  it('matches bare member-access too (const I = lucide.Flowers)', () => {
+    const code = `const I = lucide.Flowers;`;
+    expect(validateLucideIdentifiers(code)).toHaveLength(1);
+  });
+
+  it('integrates with validateCode — rejects invented icon as invalid', () => {
+    const code = `const C = () => <lucide.Flowers size={48}/>;`;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /lucide\.Flowers/.test(e))).toBe(true);
+  });
+
+  it('integrates with validateCode — passes valid icon usage', () => {
+    const code = `const C = () => <lucide.Star size={48}/>;`;
+    const result = validateCode(code);
+    expect(result.valid).toBe(true);
   });
 });
