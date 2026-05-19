@@ -557,6 +557,104 @@ describe('TM-168 imageUrl composition rule', () => {
   });
 });
 
+describe('TM-176 full-bleed Img objectFit rule', () => {
+  // ---------- NEGATIVE (reject) ----------
+  it("rejects AbsoluteFill > Img with objectFit:'contain' + width/height 100% (TM-167 letterbox bug)", () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(e => /Img rule \(TM-176\):.*objectFit:'contain' letterboxes/.test(e)),
+    ).toBe(true);
+  });
+
+  it("rejects full-bleed Img with 100vw/100vh + contain", () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100vw', height: '100vh', objectFit: 'contain' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(false);
+  });
+
+  it('reports the TM-176 message only once even when multiple full-bleed contain Imgs exist', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        </AbsoluteFill>
+      );
+    `;
+    const result = validateCode(code);
+    const matches = result.errors.filter(e => /Img rule \(TM-176\)/.test(e));
+    expect(matches).toHaveLength(1);
+  });
+
+  // ---------- POSITIVE (pass) ----------
+  it("allows full-bleed Img with objectFit:'cover'", () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it("allows small inline Img with objectFit:'contain' (intentional, e.g. logo/badge)", () => {
+    const code = `
+      const PARAMS = { logoUrl: 'https://cdn/logo.png' };
+      const Component = () => (
+        <AbsoluteFill style={{ backgroundColor: '#0f0f17' }}>
+          <Img src={PARAMS.logoUrl} style={{ width: 200, height: 200, objectFit: 'contain' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it("allows Img with only width:'100%' (height auto) + contain — not full-bleed", () => {
+    const code = `
+      const PARAMS = { bannerUrl: 'https://cdn/banner.png' };
+      const Component = () => (
+        <AbsoluteFill style={{ backgroundColor: '#fff' }}>
+          <Img src={PARAMS.bannerUrl} style={{ width: '100%', height: 400, objectFit: 'contain' }} />
+        </AbsoluteFill>
+      );
+    `;
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('allows full-bleed Img with no objectFit specified', () => {
+    const code = `
+      const PARAMS = { imageUrl: 'https://cdn/bear.png' };
+      const Component = () => (
+        <AbsoluteFill>
+          <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%' }} />
+        </AbsoluteFill>
+      );
+    `;
+    // TM-176 is silent here — only fires when objectFit:'contain' is explicit.
+    // (TM-168 / other rules may still apply, but not this one.)
+    const result = validateCode(code);
+    expect(result.errors.some(e => /TM-176/.test(e))).toBe(false);
+  });
+});
+
 // TM-175 — lucide-react export whitelist.
 describe('TM-175 — lucide whitelist', () => {
   it('whitelist contains thousands of real lucide exports', () => {

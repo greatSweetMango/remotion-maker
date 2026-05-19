@@ -10,6 +10,7 @@ import {
   validateRemotionCode,
   countParamsKeys,
   validateLucideIdentifiers,
+  validateFullBleedImgObjectFit,
   __lucideWhitelistSize,
 } from '../src/validate.ts';
 
@@ -214,4 +215,30 @@ test('TM-175: validateRemotionCode accepts real lucide icon end-to-end', () => {
   const r = validateRemotionCode(code);
   // ok depends on other checks (sucrase, PARAMS warning) — but no lucide error:
   assert.ok(!r.errors.some((e) => /lucide\./.test(e) && /invented|not a real/i.test(e)));
+});
+
+// TM-176 mirror — full-bleed Img objectFit:'contain' lint.
+test("TM-176: validateFullBleedImgObjectFit flags full-bleed contain", () => {
+  const code = `const C = () => <Img src={x} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;`;
+  const errors = validateFullBleedImgObjectFit(code);
+  assert.equal(errors.length, 1);
+  assert.ok(/TM-176/.test(errors[0]));
+  assert.ok(/cover/.test(errors[0]));
+});
+
+test("TM-176: validateFullBleedImgObjectFit allows full-bleed cover", () => {
+  const code = `const C = () => <Img src={x} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;`;
+  assert.deepEqual(validateFullBleedImgObjectFit(code), []);
+});
+
+test("TM-176: validateFullBleedImgObjectFit allows small inline Img with contain", () => {
+  const code = `const C = () => <Img src={x} style={{ width: 200, height: 200, objectFit: 'contain' }} />;`;
+  assert.deepEqual(validateFullBleedImgObjectFit(code), []);
+});
+
+test("TM-176: validateRemotionCode rejects full-bleed contain end-to-end", () => {
+  const code = `const PARAMS = { imageUrl: 'x' }; const C = () => <Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;`;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /TM-176/.test(e)));
 });
