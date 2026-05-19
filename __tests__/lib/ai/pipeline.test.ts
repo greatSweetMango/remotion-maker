@@ -175,6 +175,54 @@ describe('TM-102 pipeline — Stage 2 scene spec', () => {
   it('rejects an out-of-range scene index', async () => {
     await expect(generateSceneSpec(VALID_OUTLINE, 99, 'sonnet')).rejects.toThrow(/out of range/);
   });
+
+  // ---------------------------------------------------------------
+  // TM-172 — spec ↔ asset-gen handshake
+  // ---------------------------------------------------------------
+  describe('TM-172 imageDescription handshake', () => {
+    it('does NOT inject imageAlreadyContains when no description is passed', async () => {
+      mockedChat.mockResolvedValueOnce(
+        JSON.stringify({ name: 'intro', description: 'x', animationType: 'spring', elements: [] }),
+      );
+      await generateSceneSpec(VALID_OUTLINE, 0, 'sonnet');
+      const call = mockedChat.mock.calls[0][0];
+      // System prompt unchanged (no TM-172 addendum).
+      expect(call.system).not.toContain('IMAGE HANDSHAKE');
+      expect(call.system).not.toContain('TM-172');
+      // User payload does NOT carry imageAlreadyContains.
+      const payload = call.messages[0].content as string;
+      expect(payload).not.toContain('imageAlreadyContains');
+    });
+
+    it('injects imageAlreadyContains into the user payload and TM-172 addendum into system when given', async () => {
+      mockedChat.mockResolvedValueOnce(
+        JSON.stringify({ name: 'intro', description: 'x', animationType: 'spring', elements: [] }),
+      );
+      const desc = '곰돌이가 초원을 걸어가는 횡스크롤 애니메이션';
+      await generateSceneSpec(VALID_OUTLINE, 0, 'sonnet', desc);
+      const call = mockedChat.mock.calls[0][0];
+      expect(call.system).toContain('IMAGE HANDSHAKE');
+      expect(call.system).toContain('TM-172');
+      // The addendum must include the prohibition list so the LLM knows
+      // exactly which element kinds to suppress.
+      expect(call.system).toMatch(/flowers/i);
+      expect(call.system).toMatch(/ground|sky/i);
+      const payload = call.messages[0].content as string;
+      const parsed = JSON.parse(payload);
+      expect(parsed.imageAlreadyContains).toBe(desc);
+    });
+
+    it('treats null/undefined/empty-string imageDescription as "no handshake"', async () => {
+      mockedChat.mockResolvedValueOnce(
+        JSON.stringify({ name: 'intro', description: 'x', animationType: 'spring', elements: [] }),
+      );
+      await generateSceneSpec(VALID_OUTLINE, 0, 'sonnet', '');
+      const call = mockedChat.mock.calls[0][0];
+      expect(call.system).not.toContain('IMAGE HANDSHAKE');
+      const payload = call.messages[0].content as string;
+      expect(payload).not.toContain('imageAlreadyContains');
+    });
+  });
 });
 
 describe('TM-102 pipeline — Stage 3 scene code', () => {
@@ -429,6 +477,59 @@ describe('TM-102 pipeline — orchestrator', () => {
     expect(result.composedCode).toContain('GeneratedAsset');
     expect(result.asset.durationInFrames).toBe(150);
     expect(mockedChat).toHaveBeenCalledTimes(5);
+  });
+
+  // TM-172 — orchestrator wires imageDescription into spec calls iff
+  // living-entity fires AND asset-gen isn't disabled.
+  it('TM-172: injects imageAlreadyContains into spec calls for living-entity prompts', async () => {
+    mockedChat
+      .mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'intro', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'main', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    // disableAssetGen=true to avoid the real image API call, but the
+    // handshake is then SUPPRESSED by design (PNG won't exist).
+    // So flip: keep asset-gen enabled (it will fail with no OPENAI_API_KEY
+    // and the orchestrator swallows it), and confirm the spec-stage calls
+    // were nonetheless instructed about the planned PNG.
+    const prompt = '곰돌이가 초원을 걸어가는 횡스크롤 애니메이션';
+    await generateAssetMultiStep(prompt, 'sonnet');
+    // Locate the scene-spec calls (calls 2 and 3 — 0=outline, 1=spec[0], 2=spec[1], 3=code[0], 4=code[1]).
+    const specCall0 = mockedChat.mock.calls[1][0];
+    const specCall1 = mockedChat.mock.calls[2][0];
+    expect(specCall0.system).toContain('IMAGE HANDSHAKE');
+    expect(specCall1.system).toContain('IMAGE HANDSHAKE');
+    const payload0 = JSON.parse(specCall0.messages[0].content as string);
+    expect(payload0.imageAlreadyContains).toContain('곰돌이');
+  });
+
+  it('TM-172: does NOT inject handshake when no living-entity in prompt', async () => {
+    mockedChat
+      .mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'intro', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'main', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    await generateAssetMultiStep('purple bar chart 0 to 100', 'sonnet');
+    const specCall0 = mockedChat.mock.calls[1][0];
+    expect(specCall0.system).not.toContain('IMAGE HANDSHAKE');
+    const payload0 = JSON.parse(specCall0.messages[0].content as string);
+    expect(payload0.imageAlreadyContains).toBeUndefined();
+  });
+
+  it('TM-172: does NOT inject handshake when disableAssetGen=true even with living-entity', async () => {
+    mockedChat
+      .mockResolvedValueOnce(JSON.stringify(VALID_OUTLINE))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'intro', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ name: 'main', description: 'x' }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }))
+      .mockResolvedValueOnce(JSON.stringify({ code: SCENE_CODE_BODY }));
+    await generateAssetMultiStep('a friendly bear walks in a meadow', 'sonnet', {
+      disableAssetGen: true,
+    });
+    const specCall0 = mockedChat.mock.calls[1][0];
+    expect(specCall0.system).not.toContain('IMAGE HANDSHAKE');
   });
 
   it('attaches a cost warning above the threshold', async () => {

@@ -22,7 +22,7 @@ import {
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
-import { runAssetGenStage, detectLivingEntity, type AssetGenStageResult } from './asset-gen-stage';
+import { runAssetGenStage, detectLivingEntity, buildImagePrompt, type AssetGenStageResult } from './asset-gen-stage';
 import { recordMark, newRequestId, shouldEmitMarks } from './latency-profile';
 import type {
   GeneratedAsset,
@@ -655,18 +655,61 @@ export async function generateSceneSpec(
   outline: Outline,
   sceneIdx: number,
   model: string,
+  /**
+   * TM-172 — spec↔asset-gen handshake. When the multi-step pipeline knows
+   * an asset-gen PNG will accompany the scene, pass the description of what
+   * the PNG already contains so the spec stage doesn't re-enumerate baked-in
+   * elements (flowers, sky, ground, the character itself) as new motion
+   * elements. Addresses the TM-166 RCA Axis-5 finding: spec + PNG are
+   * produced independently and stitched without negotiation, leading the
+   * code stage to bolt decorative duplicates on top of the PNG.
+   */
+  imageDescription?: string | null,
 ): Promise<SceneSpec> {
   if (sceneIdx < 0 || sceneIdx >= outline.scenes.length) {
     throw new Error(`TM-102 scene-spec: index ${sceneIdx} out of range`);
   }
   const userPayload = JSON.stringify(
-    { outline, sceneIndex: sceneIdx, scene: outline.scenes[sceneIdx] },
+    {
+      outline,
+      sceneIndex: sceneIdx,
+      scene: outline.scenes[sceneIdx],
+      ...(imageDescription ? { imageAlreadyContains: imageDescription } : {}),
+    },
     null,
     2,
   );
+  // TM-172 — when an imageDescription is present, append an addendum that
+  // forces the spec stage to TREAT THE PNG AS THE COMPLETE BACKGROUND and
+  // emit only motion / overlay / text elements. The PNG itself supplies the
+  // subject + scenery + decoration; new "flowers" / "ground" / "sky"
+  // elements would be drawn ON TOP of those already-baked equivalents by
+  // the scene-code stage (TM-166 purple-band + pink-lucide failure mode).
+  const system = imageDescription
+    ? SCENE_SPEC_SYSTEM_PROMPT +
+      `\n\nIMAGE HANDSHAKE (TM-172): The user payload's ` +
+      `\`imageAlreadyContains\` field describes a PNG that the scene-code ` +
+      `stage will render FULL-BLEED as the background of this scene. The ` +
+      `PNG already contains the subject (character/animal/person), the ` +
+      `sky, the ground, and any natural decoration (flowers, trees, ` +
+      `clouds, etc.) baked in.\n` +
+      `You MUST:\n` +
+      `  1. NOT list any element that the PNG already contains in the ` +
+      `\`elements\` array — no "flowers", "ground band", "sky", "sun", ` +
+      `"hills", "character body", "clouds", etc.\n` +
+      `  2. NOT add a "rect" / "circle" / "icon" element that would visually ` +
+      `duplicate something the PNG already shows.\n` +
+      `  3. Focus elements + motion on what is GENUINELY ADDITIVE: camera ` +
+      `parallax (translateX of a transparent wrapper), text overlays, ` +
+      `subtle vignette / fade transitions, sparkles, captions, UI chrome.\n` +
+      `  4. Keep \`text[]\` for captions/titles only — the PNG provides the ` +
+      `visual subject; text adds narrative context.\n` +
+      `  5. \`description\` may reference the PNG's contents for context but ` +
+      `should describe what additionally happens on top (motion, overlays).`
+    : SCENE_SPEC_SYSTEM_PROMPT;
   const text = await chatComplete({
     model,
-    system: SCENE_SPEC_SYSTEM_PROMPT,
+    system,
     messages: [{ role: 'user', content: userPayload }],
   });
   const parsed = extractJsonObject(text);
@@ -1169,10 +1212,22 @@ export async function generateAssetMultiStep(
         return null;
       });
 
+  // TM-172 — derive the image description SYNCHRONOUSLY so we can inject
+  // it into the spec stage WITHOUT serializing scene-spec behind asset-gen.
+  // `buildImagePrompt` is pure (prompt + answers + style) and matches the
+  // text the asset-gen LLM was asked to draw, so it's the most faithful
+  // single-line description of what the PNG will contain. When asset-gen
+  // is disabled OR no living-entity fires, we pass null and the spec stage
+  // behaves exactly as before TM-172.
+  const imageWillExist = !opts.disableAssetGen && livingEntityHit.matched;
+  const imageDescription = imageWillExist
+    ? buildImagePrompt(prompt, opts.answers, '')
+    : null;
+
   // Run scene-spec calls in parallel — they only depend on the outline.
   const parallelStart = Date.now();
   const [sceneSpecs, assetGen] = await Promise.all([
-    Promise.all(outline.scenes.map((_, i) => generateSceneSpec(outline, i, model))),
+    Promise.all(outline.scenes.map((_, i) => generateSceneSpec(outline, i, model, imageDescription))),
     assetGenPromise,
   ]);
   const parallelMs = Date.now() - parallelStart;
