@@ -36,8 +36,13 @@ import {
   isSelfCritiqueEnabled,
   type SelfCritiqueResult,
 } from './self-critique';
+import {
+  critiqueComposition,
+  isCompositionCritiqueEnabled,
+  type CompositionCritiqueResult,
+} from './composition-critique';
 import path from 'node:path';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata } from '@/types';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata } from '@/types';
 
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
@@ -80,6 +85,12 @@ export interface GenerateOptions {
   enableSpriteSheet?: boolean;
   /** TM-142 — test seam mirroring `__assetGenStage`. */
   __spriteSheetStage?: typeof runSpriteSheetStage;
+  /**
+   * TM-171 — test seam for the composition-critique loop. When present,
+   * replaces `critiqueComposition` so unit tests can stub the
+   * renderStill + judge path without bundling Remotion or touching Chrome.
+   */
+  __compositionCritique?: typeof critiqueComposition;
   /**
    * TM-156 — request id forwarded from the route handler so every
    * structured latency mark emitted deeper in the stack (asset-gen,
@@ -983,6 +994,73 @@ async function generateAssetSingleShot(
       extraCostUsd: selfCritique.extraCostUsd,
     };
   }
+
+  // ----- TM-171 — composition-critique on the rendered Remotion frame ----
+  //
+  // Closes TM-166 RCA Axis 4: TM-138 only judges the asset-gen PNG; we never
+  // visually evaluate the composition that USES the PNG. Gated by env knob
+  // (opt-in) and only fires when (a) we have an asset-gen image to compose
+  // with (the failure class is specifically character/scene assets that put
+  // a subject PNG inside a code-generated frame) and (b) generation produced
+  // a usable asset. NEVER blocks the pipeline — any failure (renderer crash,
+  // judge error) surfaces no metadata and the caller proceeds unchanged.
+  //
+  // Cost: ~$0.005 judge + ~1-2s renderStill (bundle cached). Only on
+  // generate path — ADR-0001 forbids per-edit server renders.
+  if (
+    isCompositionCritiqueEnabled()
+    && finalized.type === 'generate'
+    && assetGen
+    && !assetGen.cached
+  ) {
+    try {
+      const { getSharedBundlePath } = await import('@/lib/remotion/bundle');
+      const bundlePath = await getSharedBundlePath();
+      const paramsRecord = Object.fromEntries(
+        finalized.asset.parameters.map((p) => [p.key, p.value]),
+      );
+      const critiqueFn = opts.__compositionCritique ?? critiqueComposition;
+      const result: CompositionCritiqueResult | null = await critiqueFn({
+        prompt,
+        jsCode: finalized.asset.jsCode,
+        params: paramsRecord,
+        durationInFrames: finalized.asset.durationInFrames,
+        bundlePath,
+      });
+      if (result) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[generateAsset] TM-171 composition-critique:',
+            {
+              score: result.score,
+              threshold: result.threshold,
+              belowThreshold: result.belowThreshold,
+              frame: result.frame,
+              latencyMs: result.latencyMs,
+            },
+          );
+        }
+        (finalized as typeof finalized & { compositionCritique?: CompositionCritiqueMetadata }).compositionCritique = {
+          score: result.score,
+          threshold: result.threshold,
+          belowThreshold: result.belowThreshold,
+          frame: result.frame,
+          latencyMs: result.latencyMs,
+          extraCostUsd: result.extraCostUsd,
+        };
+      }
+    } catch (err) {
+      // Never block on composition-critique failures. The metadata simply
+      // won't appear; the user still gets their generated asset.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] TM-171 composition-critique threw, continuing:',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
+
   return finalized;
 }
 
