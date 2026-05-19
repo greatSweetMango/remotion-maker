@@ -1,0 +1,188 @@
+{
+  "startedAt": "2026-05-19T06:25:02.726Z",
+  "finishedAt": "2026-05-19T06:37:00.094Z",
+  "base": "http://127.0.0.1:3173",
+  "totalPrompts": 13,
+  "byCategory": {
+    "character": {
+      "n": 8,
+      "mode_match": 8,
+      "mode_match_pct": 100,
+      "asset_or_lottie_used": 0,
+      "image_asset": 0,
+      "lottie_asset": 0,
+      "validator_pass": 1,
+      "judge_scored_n": 0,
+      "judge_avg": null,
+      "composition_scored_n": 0,
+      "composition_avg": null,
+      "composition_below_floor_n": 0
+    },
+    "motion-graphics": {
+      "n": 3,
+      "mode_match": 3,
+      "mode_match_pct": 100,
+      "asset_or_lottie_used": 0,
+      "image_asset": 0,
+      "lottie_asset": 0,
+      "validator_pass": 3,
+      "judge_scored_n": 0,
+      "judge_avg": null,
+      "composition_scored_n": 0,
+      "composition_avg": null,
+      "composition_below_floor_n": 0
+    },
+    "data-viz": {
+      "n": 2,
+      "mode_match": 2,
+      "mode_match_pct": 100,
+      "asset_or_lottie_used": 0,
+      "image_asset": 0,
+      "lottie_asset": 0,
+      "validator_pass": 2,
+      "judge_scored_n": 0,
+      "judge_avg": null,
+      "composition_scored_n": 0,
+      "composition_avg": null,
+      "composition_below_floor_n": 0
+    }
+  },
+  "skeletonHitsTotal": 0,
+  "acceptance": {
+    "character_mode_match_gte_7": true,
+    "character_asset_gen_gte_7": false,
+    "motion_graphics_full_match": true,
+    "data_viz_full_match": true,
+    "skeleton_hits_zero": true,
+    "validator_pass_all": false
+  },
+  "characterMatch": 8,
+  "characterTotal": 8,
+  "characterAssetGen": 0,
+  "motionMatch": 3,
+  "motionTotal": 3,
+  "dataMatch": 2,
+  "dataTotal": 2,
+  "errors": [
+    {
+      "id": "C00",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"애니메이션의 전체적인 스타일은?\",\"choices\":[{\"id\":\"cartoon\",\"label\":\"만화\"},{\"id\":\"realistic\",\"label\":\"사실적\"},{\"id\":\"minimal\",\"label\":\"미니멀\"}]},{\"id\":\"col"
+    },
+    {
+      "id": "C01",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"bear_style\",\"question\":\"곰돌이의 스타일은?\",\"choices\":[{\"id\":\"realistic\",\"label\":\"사실적\"},{\"id\":\"cartoon\",\"label\":\"만화적\"},{\"id\":\"cute\",\"label\":\"귀여운\"}]},{\"id\":\"background_det"
+    },
+    {
+      "id": "C02",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dog_breed\",\"question\":\"강아지의 품종은?\",\"choices\":[{\"id\":\"labrador\",\"label\":\"래브라도\"},{\"id\":\"poodle\",\"label\":\"푸들\"},{\"id\":\"bulldog\",\"label\":\"불독\"},{\"id\":\"shiba\",\"label\":\"시바"
+    },
+    {
+      "id": "C03",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"전체적인 스타일은?\",\"choices\":[{\"id\":\"realistic\",\"label\":\"사실적\"},{\"id\":\"cartoon\",\"label\":\"만화\"},{\"id\":\"minimal\",\"label\":\"미니멀\"},{\"id\":\"dreamy\",\"lab"
+    },
+    {
+      "id": "C04",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"robot_style\",\"question\":\"What style should the robot have?\",\"choices\":[{\"id\":\"futuristic\",\"label\":\"Futuristic\"},{\"id\":\"retro\",\"label\":\"Retro\"},{\"id\":\"humanoid\",\"l"
+    },
+    {
+      "id": "C05",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"What visual style should the animation have?\",\"choices\":[{\"id\":\"realistic\",\"label\":\"Realistic\"},{\"id\":\"cartoon\",\"label\":\"Cartoon\"},{\"id\""
+    },
+    {
+      "id": "C07",
+      "cat": "character",
+      "error": "clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dragon_style\",\"question\":\"What style should the dragon be?\",\"choices\":[{\"id\":\"realistic\",\"label\":\"Realistic\"},{\"id\":\"cartoon\",\"label\":\"Cartoon\"},{\"id\":\"fantasy\",\""
+    }
+  ],
+  "fail_followups": [
+    {
+      "source_case_id": "C00",
+      "category": "character",
+      "prompt": "곰돌이의 초원 산책 — 10초 정도의 횡스크롤 애니메이션",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"애니메이션의 전체적인 스타일은"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C00 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"애니메이션의 전체적인 스타일은",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C01",
+      "category": "character",
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"bear_style\",\"question\":\"곰돌이의 스타일은?\",\"choic"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C01 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"bear_style\",\"question\":\"곰돌이의 스타일은?\",\"choic",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C02",
+      "category": "character",
+      "prompt": "강아지가 공원에서 뛰어가는 8초 애니메이션",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dog_breed\",\"question\":\"강아지의 품종은?\",\"choices"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C02 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dog_breed\",\"question\":\"강아지의 품종은?\",\"choices",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C03",
+      "category": "character",
+      "prompt": "고양이가 창가에서 자는 5초",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"전체적인 스타일은?\",\"cho"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C03 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"전체적인 스타일은?\",\"cho",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C04",
+      "category": "character",
+      "prompt": "robot dancing in cyber city, 6 seconds",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"robot_style\",\"question\":\"What style should"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C04 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"robot_style\",\"question\":\"What style should",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C05",
+      "category": "character",
+      "prompt": "person walking through forest, 10 seconds",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"What visual styl"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C05 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"visual_style\",\"question\":\"What visual styl",
+      "asset_id": null
+    },
+    {
+      "source_case_id": "C07",
+      "category": "character",
+      "prompt": "a dragon flying over snowy mountains, 8 seconds",
+      "reasons": [
+        "validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dragon_style\",\"question\":\"What style shoul"
+      ],
+      "recommended_action": "Validator rejected — confirm rejection is correct, or fix prompt to comply.",
+      "suggested_task_title": "Fix regression: C07 (character) — validator/error: clarify-followup failed: status=200 err={\"type\":\"clarify\",\"questions\":[{\"id\":\"dragon_style\",\"question\":\"What style shoul",
+      "asset_id": null
+    }
+  ],
+  "fail_followup_count": 7,
+  "env": {
+    "AI_COMPOSITION_CRITIQUE": "1",
+    "AI_COMPOSITION_CRITIQUE_THRESHOLD": null
+  },
+  "verdict": "REQUEST_CHANGES"
+}
