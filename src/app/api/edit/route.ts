@@ -5,6 +5,10 @@ import { editAsset } from '@/lib/ai/edit';
 import { getModels } from '@/lib/ai/client';
 import { TIER_LIMITS, reserveEditSlot, refundEditSlot, isValidAssetIdForUsageKey } from '@/lib/usage';
 import { validatePrompt } from '@/lib/validation/prompt';
+import {
+  detectStructuralFixRequest,
+  buildStructuralRegenRejection,
+} from '@/lib/ai/structural-fix-detect';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +30,21 @@ export async function POST(req: Request) {
       { error: promptError.message, code: promptError.code, ...(promptError.meta ?? {}) },
       { status: promptError.status },
     );
+  }
+
+  // TM-174 — structural-fix escape hatch. ADR-0023 PARAMS isolation forbids
+  // the edit path from rewriting layout / composition / structure, so a user
+  // who asks for a "재생성" / "regenerate" / "fix the composition" gets a
+  // useless PARAMS nudge instead of what they actually wanted. Detect these
+  // verbs BEFORE the LLM call (and before reserveEditSlot, so failed intents
+  // don't burn quota) and return a structured 422 telling the client to route
+  // the user to /studio for a fresh /api/generate. We do NOT auto-pivot —
+  // that would silently bill a monthlyUsage slot and destroy edit history
+  // without consent. See `structural-fix-detect.ts` for the verb list and
+  // rationale.
+  const structuralFix = detectStructuralFixRequest(prompt);
+  if (structuralFix.triggered) {
+    return NextResponse.json(buildStructuralRegenRejection(structuralFix), { status: 422 });
   }
 
   const isTemplate = (assetId as string).startsWith('template-');
