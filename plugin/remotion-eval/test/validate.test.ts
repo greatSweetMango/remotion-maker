@@ -9,6 +9,8 @@ import {
   isAudioAllowListed,
   validateRemotionCode,
   countParamsKeys,
+  validateLucideIdentifiers,
+  __lucideWhitelistSize,
 } from '../src/validate.ts';
 
 const GOOD = `
@@ -181,4 +183,35 @@ const Scene = () => null;`;
   const r = validateRemotionCode(code);
   assert.equal(r.ok, true);
   assert.equal(r.warnings.length, 0, 'Scene satisfies the PascalCase check; no warnings expected');
+});
+
+// TM-175 mirror — lucide whitelist loaded from snapshot JSON.
+
+test('TM-175: whitelist snapshot loaded with thousands of entries', () => {
+  assert.ok(__lucideWhitelistSize() > 1000, 'snapshot should contain the full lucide-react export list');
+});
+
+test('TM-175: validateLucideIdentifiers passes for real exports', () => {
+  assert.deepEqual(validateLucideIdentifiers(`<lucide.Star/><lucide.Heart/>`), []);
+});
+
+test('TM-175: validateLucideIdentifiers flags invented Flowers', () => {
+  const errors = validateLucideIdentifiers(`<lucide.Flowers/>`);
+  assert.equal(errors.length, 1);
+  assert.ok(/lucide\.Flowers/.test(errors[0]));
+  assert.ok(/not a real lucide-react export/.test(errors[0]));
+});
+
+test('TM-175: validateRemotionCode rejects invented lucide icon end-to-end', () => {
+  const code = `const PARAMS = {}; const C = () => <lucide.Flowers size={48}/>;`;
+  const r = validateRemotionCode(code);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /lucide\.Flowers/.test(e)));
+});
+
+test('TM-175: validateRemotionCode accepts real lucide icon end-to-end', () => {
+  const code = `const PARAMS = {}; const C = () => <lucide.Star size={48}/>;`;
+  const r = validateRemotionCode(code);
+  // ok depends on other checks (sucrase, PARAMS warning) — but no lucide error:
+  assert.ok(!r.errors.some((e) => /lucide\./.test(e) && /invented|not a real/i.test(e)));
 });

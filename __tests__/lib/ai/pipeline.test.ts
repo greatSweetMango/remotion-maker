@@ -898,6 +898,68 @@ describe('TM-111 — sanitizeForbiddenTokens', () => {
     expect(code).toBe(input);
     expect(notes.filter(n => /lucide\.Icon/.test(n))).toHaveLength(0);
   });
+
+  // TM-175 — invented PascalCase lucide identifiers (post-TM-118 residue).
+  // The TM-118 scrubber only catches the literal `Icon name=` API shape;
+  // TM-166 surfaced a second class where the LLM emits `<lucide.Flowers/>`
+  // (no `name=`) which is `undefined` at runtime → `<Unknown>` EB.
+  it('rewrites invented <lucide.Flowers/> → <lucide.Flower/> (TM-175 fuzzy fix)', () => {
+    const input = `<lucide.Flowers size={64} color="#ff00ff" />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Flower\b/);
+    expect(code).not.toMatch(/lucide\.Flowers\b/);
+    expect(notes.join(' ')).toMatch(/Flowers.*Flower/);
+  });
+
+  it('rewrites invented <lucide.CharacterIcon/> → <lucide.User/> (TM-175)', () => {
+    const input = `<lucide.CharacterIcon size={48} />`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.User\b/);
+    expect(code).not.toMatch(/lucide\.CharacterIcon\b/);
+  });
+
+  it('falls back to <lucide.Star/> for unknown invented icons (TM-175)', () => {
+    const input = `<lucide.TotallyMadeUpThing size={48} />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Star\b/);
+    expect(notes.join(' ')).toMatch(/TotallyMadeUpThing.*Star/);
+  });
+
+  it('rewrites bare member access `const I = lucide.Flowers` (TM-175)', () => {
+    const input = `const Icon = lucide.Flowers; return <Icon/>;`;
+    const { code } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/lucide\.Flower\b/);
+    expect(code).not.toMatch(/lucide\.Flowers\b/);
+  });
+
+  it('handles multiple invented icons in one pass with a summary note (TM-175)', () => {
+    const input = `<lucide.Flowers/><lucide.Hearts/><lucide.SunRise/>`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toMatch(/<lucide\.Flower\b/);
+    expect(code).toMatch(/<lucide\.Heart\b/);
+    expect(code).toMatch(/<lucide\.Sunrise\b/);
+    const summary = notes.find(n => n.includes('invented lucide icon'));
+    expect(summary).toBeDefined();
+    expect(summary!).toMatch(/Flowers→Flower/);
+    expect(summary!).toMatch(/Hearts→Heart/);
+    expect(summary!).toMatch(/SunRise→Sunrise/);
+  });
+
+  it('does not touch real lucide exports — Star/Heart/Sparkles/Flower (TM-175 positive)', () => {
+    const input = `<lucide.Star/><lucide.Heart/><lucide.Sparkles/><lucide.Flower/>`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe(input);
+    expect(notes.filter(n => /invented lucide icon/.test(n))).toHaveLength(0);
+  });
+
+  it('does not touch lucide.Icon (real export, handled by TM-118 separately) (TM-175)', () => {
+    // `Icon` IS a real lucide export. Without a `name=` prop the TM-118
+    // scrubber leaves it alone, and TM-175 must not falsely flag it.
+    const input = `<lucide.Icon iconNode={node} />`;
+    const { code, notes } = sanitizeForbiddenTokens(input);
+    expect(code).toBe(input);
+    expect(notes.filter(n => /invented lucide/.test(n))).toHaveLength(0);
+  });
 });
 
 describe('TM-102 — cost projection', () => {

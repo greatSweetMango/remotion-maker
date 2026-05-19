@@ -6,10 +6,18 @@
  *   2. `sanitizeCode` — strips common-but-harmless decorations (imports, exports)
  *   3. `evaluator.ts` — `new Function(...)` with strict mode + restricted args
  *
+ * TM-175: `validateCode` also enforces the lucide-react export whitelist
+ * (`validateLucideIdentifiers`). This is a defensive layer — the
+ * sanitizer in `pipeline.ts::sanitizeForbiddenTokens` (rule §10) normally
+ * rewrites invented icons before validation; this catches any path that
+ * skips the sanitizer (e.g. user-pasted code, future call sites).
+ *
  * NOTE: This file does **not** isolate execution into a Worker/iframe.
  * See ADR-PENDING-TM-34 for rationale (React component handoff blocks
  * cross-realm isolation; isolation must instead happen at LLM-output gate).
  */
+
+import { LUCIDE_VALID_NAMES } from '@/lib/lucide-whitelist';
 
 interface ValidationResult {
   valid: boolean;
@@ -373,6 +381,44 @@ export function validateImageUrlComposition(code: string): string[] {
   return errors;
 }
 
+/**
+ * TM-175 — invented lucide icon detection.
+ *
+ * Scans `lucide.XYZ` member-access tokens (covers both `<lucide.XYZ/>` JSX
+ * and bare `lucide.XYZ` expressions) and reports each PascalCase identifier
+ * that is NOT a real `lucide-react` export. Returns one human-readable
+ * error per distinct invented name, including the name itself so the LLM
+ * (or human) can correct it on retry.
+ *
+ * The whitelist is built from `Object.keys(import * as lucide-react)` at
+ * module load and tracks the pinned npm version; see `lucide-whitelist.ts`.
+ *
+ * This is the defense-in-depth layer behind `sanitizeForbiddenTokens`
+ * rule §10 — the sanitizer normally rewrites invented icons to `Star`
+ * before validation runs. Anything that reaches this check is either
+ * (a) user-pasted code that skipped the sanitizer, or (b) a regression
+ * in the sanitizer (the test corpus enforces these stay in sync).
+ */
+const LUCIDE_MEMBER_RE = /\blucide\s*\.\s*([A-Z][A-Za-z0-9]*)\b/g;
+
+export function validateLucideIdentifiers(code: string): string[] {
+  const errors: string[] = [];
+  const seen = new Set<string>();
+  LUCIDE_MEMBER_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = LUCIDE_MEMBER_RE.exec(code)) !== null) {
+    const name = m[1];
+    if (LUCIDE_VALID_NAMES.has(name)) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    errors.push(
+      `Invented lucide icon: \`lucide.${name}\` is not a real lucide-react export — use a name from https://lucide.dev/icons (e.g. Star, Heart, Sparkles)`,
+    );
+  }
+  LUCIDE_MEMBER_RE.lastIndex = 0;
+  return errors;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
@@ -396,6 +442,12 @@ export function validateCode(code: string): ValidationResult {
   // TM-168 — imageUrl composition rules (only fire when PARAMS.imageUrl
   // is declared; no-op for non-image assets).
   for (const e of validateImageUrlComposition(code)) {
+    if (!errors.includes(e)) errors.push(e);
+  }
+
+  // TM-175 — invented PascalCase lucide identifiers (defensive layer; the
+  // pipeline sanitizer normally rewrites these to `Star` before we get here).
+  for (const e of validateLucideIdentifiers(code)) {
     if (!errors.includes(e)) errors.push(e);
   }
 

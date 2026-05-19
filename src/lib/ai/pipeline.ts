@@ -22,6 +22,7 @@ import {
 import { extractParameters } from './extract-params';
 import { transpileTSX } from '@/lib/remotion/transpiler';
 import { validateCode, sanitizeCode } from '@/lib/remotion/sandbox';
+import { LUCIDE_VALID_NAMES, pickLucideFallback } from '@/lib/lucide-whitelist';
 import { runAssetGenStage, detectLivingEntity, type AssetGenStageResult } from './asset-gen-stage';
 import { recordMark, newRequestId, shouldEmitMarks } from './latency-profile';
 import type {
@@ -237,6 +238,60 @@ export function sanitizeForbiddenTokens(input: string): ForbiddenSanitizeResult 
       return `<lucide.${mapped}${cleanBefore}${cleanAfter}/>`;
     });
     notes.push('rewrote <lucide.Icon name="..."/> hallucination to a real lucide icon');
+  }
+
+  // 10. TM-175 — invented PascalCase lucide icons (post-TM-118 residue).
+  //
+  //     TM-118 handles the literal `<lucide.Icon name="..."/>` shape only.
+  //     TM-166 surfaced a second class: gpt-4o emits a valid-looking
+  //     PascalCase identifier that is NOT in `lucide-react`'s exports.
+  //     Observed cases:
+  //
+  //         <lucide.Flowers .../>       (real export is `Flower`)
+  //         <lucide.CharacterIcon .../> (no such name)
+  //         <lucide.SunRise .../>       (real export is `Sunrise`)
+  //
+  //     These reach the evaluator as `lucide.Flowers` → `undefined` →
+  //     React renders `undefined` as a type → "Element type is invalid"
+  //     throw → `<Unknown>` ErrorBoundary residue (the exact post-TM-118
+  //     failure mode for the TM-166 corpus).
+  //
+  //     The whitelist (`LUCIDE_VALID_NAMES`) is computed at module load
+  //     from `Object.keys(lucide-react)`, so it auto-tracks npm bumps.
+  //     We scan two contexts:
+  //
+  //       (a) JSX element: `<lucide.XYZ ` / `<lucide.XYZ/>` / `<lucide.XYZ>`
+  //       (b) member access: `lucide.XYZ` outside JSX (e.g. `const I = lucide.Foo;`)
+  //
+  //     For each unknown identifier we substitute the fuzzy fix or
+  //     `Star` (consistent with TM-118 fallback strategy), and record a
+  //     note listing the offending names for telemetry. We deliberately
+  //     scrub rather than reject — consistent with TM-118 policy where
+  //     a known-good icon is preferable to a hard failure that blanks
+  //     the asset.
+  const luxIdentRe = /\blucide\s*\.\s*([A-Z][A-Za-z0-9]*)\b/g;
+  const seenInvented = new Map<string, string>();
+  let m: RegExpExecArray | null;
+  while ((m = luxIdentRe.exec(code)) !== null) {
+    const name = m[1];
+    if (LUCIDE_VALID_NAMES.has(name)) continue;
+    if (seenInvented.has(name)) continue;
+    seenInvented.set(name, pickLucideFallback(name));
+  }
+  if (seenInvented.size > 0) {
+    for (const [bad, good] of seenInvented) {
+      // Replace every `lucide.<bad>` occurrence with `lucide.<good>`.
+      // Anchored on word boundaries so `lucide.FlowersPro` (also unknown,
+      // would be in seenInvented as its own key) isn't half-rewritten.
+      const re = new RegExp(`\\blucide\\s*\\.\\s*${bad}\\b`, 'g');
+      code = code.replace(re, `lucide.${good}`);
+    }
+    const summary = [...seenInvented.entries()]
+      .map(([bad, good]) => `${bad}→${good}`)
+      .join(', ');
+    notes.push(
+      `rewrote invented lucide icon(s) [${summary}] — not real lucide-react exports`,
+    );
   }
 
   return { code, notes };
