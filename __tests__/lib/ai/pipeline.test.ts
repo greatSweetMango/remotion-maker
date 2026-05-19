@@ -460,6 +460,75 @@ const Scene1 = () => (<AbsoluteFill style={{ backgroundColor: '#000' }} />);`;
   });
 });
 
+describe('TM-181 — composer scene-prefixed-imageUrl self-heal', () => {
+  // TM-173 regression: SCENE_CODE generator emitted `<Img src={scene0_imageUrl}>`
+  // and `<Img src={scene1_imageUrl}>` (over-applying the `scene{N}_` prefix
+  // rule to the GLOBAL `imageUrl` field). The TM-168 validator then
+  // rejected the composed code and TM-111 fell back to single-shot,
+  // dropping the asset-gen PNG entirely. Compose-time fix: rewrite every
+  // scene-prefixed `imageUrl` identifier — bare or `PARAMS.`-prefixed —
+  // back to `PARAMS.imageUrl`, and strip per-scene params shadows.
+  const IMG = '/uploads/asset-gen/abc123.png';
+
+  it('rewrites bare scene{N}_imageUrl → PARAMS.imageUrl in JSX src', () => {
+    const SCENE = `const Scene1Params = { scene0_x: 1 } as const;
+const Scene1 = () => (<AbsoluteFill><Img src={scene0_imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE, SCENE], IMG);
+    expect(composed).not.toMatch(/\bscene0_imageUrl\b/);
+    expect(composed).not.toMatch(/\bscene\d+_imageUrl\b/);
+    expect(composed).toMatch(/<Img\s+src=\{PARAMS\.imageUrl\}/);
+  });
+
+  it('rewrites PARAMS.scene{N}_imageUrl → PARAMS.imageUrl', () => {
+    const SCENE_A = `const Scene1Params = {} as const;
+const Scene1 = () => (<AbsoluteFill><Img src={PARAMS.scene0_imageUrl} /></AbsoluteFill>);`;
+    const SCENE_B = `const Scene2Params = {} as const;
+const Scene2 = () => (<AbsoluteFill><Img src={PARAMS.scene1_imageUrl} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_A, SCENE_B], IMG);
+    expect(composed).not.toMatch(/PARAMS\s*\.\s*scene\d+_imageUrl/);
+    // Both <Img> sources now point at PARAMS.imageUrl.
+    const matches = composed.match(/<Img\s+src=\{PARAMS\.imageUrl\}/g) ?? [];
+    expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('strips scene{N}_imageUrl shadow entries from per-scene params consts', () => {
+    const SCENE = `const Scene1Params = { scene0_x: 1, scene0_imageUrl: 'https://shadow.example/x.png', scene0_y: 2 } as const;
+const Scene1 = () => (<AbsoluteFill><Img src={PARAMS.imageUrl} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE, SCENE], IMG);
+    expect(composed).not.toMatch(/scene0_imageUrl\s*:/);
+    // Sibling per-scene params survive.
+    expect(composed).toMatch(/scene0_x\s*:\s*1/);
+    expect(composed).toMatch(/scene0_y\s*:\s*2/);
+    // Top-level imageUrl field is still emitted (ADR-0002).
+    expect(composed).toMatch(/imageUrl: "\/uploads\/asset-gen\/abc123\.png", \/\/ type: text/);
+  });
+
+  it('leaves normal PARAMS.imageUrl references untouched', () => {
+    const SCENE = `const Scene1Params = { scene0_x: 1 } as const;
+const Scene1 = () => (<AbsoluteFill><Img src={PARAMS.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE, SCENE], IMG);
+    expect(composed).toMatch(/<Img\s+src=\{PARAMS\.imageUrl\}/);
+    expect(composed).not.toMatch(/\bscene\d+_imageUrl\b/);
+  });
+
+  it('handles two-digit scene indices (scene10_imageUrl, scene12_imageUrl)', () => {
+    const SCENE_A = `const Scene1Params = {} as const;
+const Scene1 = () => (<AbsoluteFill><Img src={scene10_imageUrl} /></AbsoluteFill>);`;
+    const SCENE_B = `const Scene2Params = {} as const;
+const Scene2 = () => (<AbsoluteFill><Img src={PARAMS.scene12_imageUrl} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE_A, SCENE_B], IMG);
+    expect(composed).not.toMatch(/scene1[02]_imageUrl/);
+    expect(composed).toMatch(/<Img\s+src=\{PARAMS\.imageUrl\}/);
+  });
+
+  it('does not corrupt unrelated identifiers like scene0_image (no _url suffix)', () => {
+    const SCENE = `const Scene1Params = { scene0_image_caption: 'hi' } as const;
+const Scene1 = () => (<AbsoluteFill><Img src={PARAMS.imageUrl} /></AbsoluteFill>);`;
+    const composed = composeSceneCodes(VALID_OUTLINE, [SCENE, SCENE], IMG);
+    expect(composed).toMatch(/scene0_image_caption\s*:\s*'hi'/);
+  });
+});
+
 describe('TM-102 pipeline — orchestrator', () => {
   beforeEach(() => mockedChat.mockReset());
 

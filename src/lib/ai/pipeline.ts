@@ -1043,6 +1043,46 @@ export function composeSceneCodes(
     }
   }
 
+  // TM-181 — scene-prefixed-`imageUrl` self-heal. The scene-code system
+  // prompt tells gpt-4o that per-scene params take a `scene{N}_` prefix
+  // (rule #1) but ALSO that `imageUrl` lives on the top-level composed
+  // PARAMS (single asset, shared across scenes). The model over-applies
+  // the prefix rule and emits identifiers like `scene0_imageUrl`,
+  // `scene1_imageUrl`, `PARAMS.scene0_imageUrl`, etc. None of those exist
+  // — they trip the TM-168 sandbox validator and the multi-step pipeline
+  // falls back to single-shot, dropping the asset-gen PNG.
+  //
+  // Fix: rewrite every `scene\d+_imageUrl` occurrence (with or without a
+  // `PARAMS.` prefix) to `PARAMS.imageUrl` in each fragment. We also
+  // strip any `scene{N}_imageUrl: ...` entry from per-scene params consts
+  // so the per-scene PARAMS auto-spread doesn't shadow the top-level
+  // imageUrl field. Runs whether or not `imageUrl` is present — even if
+  // asset-gen was skipped, leaving a scene-prefixed reference behind is
+  // worse than collapsing it to PARAMS.imageUrl (which evaluates to
+  // `undefined` cleanly, same as today's no-asset case).
+  for (let i = 0; i < renamedFragments.length; i++) {
+    let frag = renamedFragments[i];
+    // 1. PARAMS.scene{N}_imageUrl → PARAMS.imageUrl
+    frag = frag.replace(/\bPARAMS\s*\.\s*scene\d+_imageUrl\b/g, 'PARAMS.imageUrl');
+    // 2. Bare scene{N}_imageUrl identifier (JSX expressions, destructure
+    //    defaults, prop reads) → PARAMS.imageUrl. Use a negative lookbehind
+    //    so we don't match the field-name half of an object-property
+    //    declaration like `scene0_imageUrl: '...'` (handled in step 3).
+    frag = frag.replace(
+      /(?<![.\w])scene\d+_imageUrl(?!\s*:)/g,
+      'PARAMS.imageUrl',
+    );
+    // 3. Strip any `scene{N}_imageUrl: <value>,?` entry from per-scene
+    //    params object literals — top-level PARAMS already carries
+    //    `imageUrl` via the imageUrlField below, and a per-scene shadow
+    //    breaks the customize-UI auto-extract.
+    frag = frag.replace(
+      /\bscene\d+_imageUrl\s*:\s*(?:'[^']*'|"[^"]*"|`[^`]*`|[^,}\n]+),?\s*/g,
+      '',
+    );
+    renamedFragments[i] = frag;
+  }
+
   const fragments = renamedFragments.join('\n\n');
 
   // TM-178 — bare-`imageUrl` self-heal. The scene-code system prompt
