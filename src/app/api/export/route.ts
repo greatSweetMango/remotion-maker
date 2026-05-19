@@ -1,46 +1,19 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
-import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
+// TM-171 — bundle cache lifted to `src/lib/remotion/bundle.ts` so the
+// composition-critique loop on the generate path can reuse the exact same
+// cached serve URL. Keeps the original TM-89 entry-point + alias config.
+import { getSharedBundlePath } from '@/lib/remotion/bundle';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 const PRO_FORMATS = ['mp4', 'webm'];
-
-let bundleCache: string | null = null;
-
-async function getBundlePath(): Promise<string> {
-  if (bundleCache) return bundleCache;
-
-  // TM-89: bundle entry must call `registerRoot()`. UniversalComposition.tsx
-  // does not (it's also consumed by the in-app <Player> path which registers
-  // implicitly), so we point at a thin wrapper that registers RemotionRoot.
-  const entryPoint = path.resolve(process.cwd(), 'src/remotion/export-entry.tsx');
-  // The entry imports `@/lib/remotion/evaluator` (via UniversalComposition).
-  // Next.js / tsconfig resolves the `@/*` alias for us at runtime, but the
-  // standalone @remotion/bundler is unaware of tsconfig paths — inject the
-  // alias here, mirroring the TM-75 visual-regression driver.
-  bundleCache = await bundle({
-    entryPoint,
-    webpackOverride: (config) => ({
-      ...config,
-      resolve: {
-        ...config.resolve,
-        alias: {
-          ...(config.resolve?.alias || {}),
-          '@': path.resolve(process.cwd(), 'src'),
-        },
-      },
-    }),
-  });
-
-  return bundleCache;
-}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -70,7 +43,7 @@ export async function POST(req: Request) {
   const outPath = path.join(tmpDir, `output.${format}`);
 
   try {
-    const bundlePath = await getBundlePath();
+    const bundlePath = await getSharedBundlePath();
 
     const codec = format === 'gif' ? 'gif' : format === 'webm' ? 'vp8' : 'h264';
     const mimeType = format === 'gif' ? 'image/gif' : format === 'webm' ? 'video/webm' : 'video/mp4';

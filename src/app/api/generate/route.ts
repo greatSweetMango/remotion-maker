@@ -299,6 +299,12 @@ export async function POST(req: Request) {
       ...((result as typeof result & { selfCritique?: import('@/types').SelfCritiqueMetadata }).selfCritique
         ? { selfCritique: (result as typeof result & { selfCritique?: import('@/types').SelfCritiqueMetadata }).selfCritique }
         : {}),
+      // TM-171 — surface composition-critique metadata (judge score on the
+      // RENDERED frame, not just the asset PNG). Closes TM-166 RCA Axis 4.
+      // Only present when AI_COMPOSITION_CRITIQUE=1 AND the loop ran.
+      ...((result as typeof result & { compositionCritique?: import('@/types').CompositionCritiqueMetadata }).compositionCritique
+        ? { compositionCritique: (result as typeof result & { compositionCritique?: import('@/types').CompositionCritiqueMetadata }).compositionCritique }
+        : {}),
     });
     if (profileEnabled) resp.headers.set('x-tm156-req', reqId);
     // TM-160 — fire SSE done event so the subscriber closes promptly.

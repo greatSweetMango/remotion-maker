@@ -155,6 +155,27 @@ export interface SelfCritiqueMetadata {
   extraCostUsd: number;
 }
 
+/**
+ * TM-171 — composition-critique metadata. TM-138 self-critique only judges
+ * the asset-gen PNG; this judges the actual rendered Remotion frame, closing
+ * Axis 4 of the TM-166 RCA. Present only when AI_COMPOSITION_CRITIQUE=1 and
+ * the composition-critique loop actually ran on this request.
+ */
+export interface CompositionCritiqueMetadata {
+  /** Judge score 0-100 for the snapshotted frame. */
+  score: number;
+  /** Threshold the score was compared against (env or 70). */
+  threshold: number;
+  /** True when score < threshold — composition rejected by the judge. */
+  belowThreshold: boolean;
+  /** Frame number that was snapshotted (default = mid). */
+  frame: number;
+  /** Wall-clock ms: renderStill + judge call combined. */
+  latencyMs: number;
+  /** $ spent on the judge call. */
+  extraCostUsd: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
   | {
@@ -164,6 +185,8 @@ export type GenerateApiResponse =
       assetGenStages?: PipelineTiming;
       /** TM-150 — present when TM-138 self-critique ran. */
       selfCritique?: SelfCritiqueMetadata;
+      /** TM-171 — present when composition-critique ran. */
+      compositionCritique?: CompositionCritiqueMetadata;
     };
 
 /** Map of clarify question id → selected choice id */
