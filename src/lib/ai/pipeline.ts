@@ -1510,13 +1510,28 @@ export async function generateAssetMultiStepAsApiResponse(
     process.env.AI_MULTI_STEP = '0';
     const fallbackStart = Date.now();
     try {
-      const fallback = await generateAsset(prompt, model);
+      // TM-182 — preserve the user's clarify answers AND force asset-gen for
+      // living-entity prompts on the fallback path. Before this, the fallback
+      // called `generateAsset(prompt, model)` with neither, so the single-shot
+      // `eligibleForAssetGen` gate (which requires `answers`) skipped the PNG
+      // entirely — multi-step would fail, fall back, and serve a vector-only
+      // (empty) "곰돌이 walking" scene fast: the TM-182 empty-video regression.
+      // The fallback is past the generate decision, so forcing asset-gen here
+      // is never wasted spend.
+      const livingEntityFallback = detectLivingEntity(prompt, opts.answers).matched;
+      const fallback = await generateAsset(prompt, model, {
+        answers: opts.answers,
+        forceAssetGen: livingEntityFallback,
+        __latencyReqId: opts.__latencyReqId,
+      });
       const fallbackMs = Date.now() - fallbackStart;
+      const fallbackAssetGenUsed =
+        'assetGen' in fallback && (fallback as { assetGen?: unknown }).assetGen != null;
       const fallbackTiming: PipelineTiming = {
         mode: 'single-shot',
-        stages: [{ name: 'single-shot-fallback', ms: fallbackMs, meta: { reason: message.slice(0, 120) } }],
+        stages: [{ name: 'single-shot-fallback', ms: fallbackMs, meta: { reason: message.slice(0, 120), assetGenUsed: fallbackAssetGenUsed } }],
         totalMs: fallbackMs,
-        asset_gen_used: false,
+        asset_gen_used: fallbackAssetGenUsed,
         scenes: 0,
       };
       const fallbackWarning =
