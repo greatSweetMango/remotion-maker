@@ -180,7 +180,7 @@ describe('generateAsset', () => {
 });
 
 // TM-51: placeholder/empty-body guard for PRO model regressions.
-import { detectPlaceholderCode } from '@/lib/ai/generate';
+import { detectPlaceholderCode, detectEmptyComposition } from '@/lib/ai/generate';
 
 describe('detectPlaceholderCode (TM-51)', () => {
   it('rejects the canonical 25-char gpt-4o stub', () => {
@@ -269,6 +269,80 @@ export const GeneratedAsset = ({
 };`;
     const reasons = detectPlaceholderCode(skeleton);
     expect(reasons.some((r) => r.includes('all params'))).toBe(true);
+  });
+});
+
+describe('detectEmptyComposition (TM-182 — no visible content gate)', () => {
+  it('flags a transparent AbsoluteFill with no Img and no leaf primitive (the empty-video fingerprint)', () => {
+    const empty = `const PARAMS = {
+      bgColor: "#000000", // type: color
+    } as const;
+    export const GeneratedAsset = ({ bgColor = PARAMS.bgColor }: typeof PARAMS = PARAMS) => {
+      const frame = useCurrentFrame();
+      const x = interpolate(frame, [0, 300], [0, -1920]);
+      return (
+        <AbsoluteFill style={{ backgroundColor: 'transparent', transform: 'translateX(' + x + 'px)' }}>
+          <Sequence from={0} durationInFrames={300} />
+        </AbsoluteFill>
+      );
+    };`;
+    const reasons = detectEmptyComposition(empty);
+    expect(reasons.length).toBeGreaterThan(0);
+    expect(reasons[0]).toMatch(/no visible content/);
+  });
+
+  it('passes a scene that renders an <Img> (asset-gen PNG present)', () => {
+    const withImg = `const PARAMS = {
+      imageUrl: "https://cdn.example.com/bear.png", // type: image
+    } as const;
+    export const GeneratedAsset = ({ imageUrl = PARAMS.imageUrl }: typeof PARAMS = PARAMS) => {
+      const frame = useCurrentFrame();
+      const x = interpolate(frame, [0, 300], [0, -200]);
+      return (
+        <AbsoluteFill>
+          <Img src={imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'translateX(' + x + 'px)' }} />
+        </AbsoluteFill>
+      );
+    };`;
+    expect(detectEmptyComposition(withImg)).toEqual([]);
+  });
+
+  it('passes a scene that binds PARAMS.imageUrl even without a literal <Img>', () => {
+    const refsParams = `const PARAMS = { imageUrl: "https://x/y.png" } as const;
+    const Bg = () => <Img src={PARAMS.imageUrl} />;
+    export const GeneratedAsset = () => (<AbsoluteFill>{/* see Bg */}<Bg /></AbsoluteFill>);`;
+    // PARAMS.imageUrl reference short-circuits to "visible".
+    expect(detectEmptyComposition(refsParams)).toEqual([]);
+  });
+
+  it('does NOT over-reject a thin-but-legitimate text scene (one animated div)', () => {
+    // This is the TM-51 "accepts substantive code" fixture: transparent fill +
+    // a single visible <div>. It paints something → must pass.
+    const thin = `const PARAMS = { primaryColor: "#7C3AED" } as const;
+    export const GeneratedAsset = ({ primaryColor = PARAMS.primaryColor }: typeof PARAMS = PARAMS) => {
+      const frame = useCurrentFrame();
+      const opacity = interpolate(frame, [0, 30], [0, 1]);
+      return (
+        <AbsoluteFill style={{ backgroundColor: 'transparent' }}>
+          <div style={{ color: primaryColor, opacity }}>Hi</div>
+        </AbsoluteFill>
+      );
+    };`;
+    expect(detectEmptyComposition(thin)).toEqual([]);
+  });
+
+  it('passes a vector scene with svg/rect primitives (data-viz style, no Img)', () => {
+    const vector = `const PARAMS = { barColor: "#10b981" } as const;
+    export const GeneratedAsset = ({ barColor = PARAMS.barColor }: typeof PARAMS = PARAMS) => (
+      <AbsoluteFill>
+        <svg width="1920" height="1080"><rect x="100" y="100" width="200" height="400" fill={barColor} /></svg>
+      </AbsoluteFill>
+    );`;
+    expect(detectEmptyComposition(vector)).toEqual([]);
+  });
+
+  it('returns no reasons for empty string (delegated to detectPlaceholderCode)', () => {
+    expect(detectEmptyComposition('')).toEqual([]);
   });
 });
 

@@ -62,6 +62,19 @@ export interface GenerateOptions {
    */
   disableAssetGen?: boolean;
   /**
+   * TM-182 — force the single-shot asset-gen branch to run for a
+   * living-entity prompt EVEN WHEN `answers` is absent. The default
+   * `eligibleForAssetGen` gate (TM-136) requires `answers` to avoid burning
+   * $0.04 on a clarify round-1 that hasn't committed to generate yet. The
+   * multi-step → single-shot fallback (pipeline.ts TM-111) does not carry
+   * answers, so without this flag the fallback silently drops the PNG and
+   * serves a vector-only (often empty) "곰돌이 walking" scene fast — the
+   * exact TM-182 empty-video regression. The fallback is past the
+   * clarify/generate decision (multi-step already committed to generate),
+   * so firing asset-gen here is never wasted. Default false.
+   */
+  forceAssetGen?: boolean;
+  /**
    * TM-136 — test seam. Lets unit tests inject a stubbed `runAssetGenStage`
    * implementation so they don't hit OpenAI / the filesystem. When omitted,
    * the real `runAssetGenStage` is used.
@@ -163,6 +176,60 @@ export function detectPlaceholderCode(code: string): string[] {
   if (/\/\/\s*animation\s+logic\s*$/im.test(trimmed)) {
     reasons.push('skeleton comment `// animation logic` left in code');
   }
+  return reasons;
+}
+
+/**
+ * TM-182 — "no visible content" acceptance gate (candidate D).
+ *
+ * `detectPlaceholderCode` catches *structural* stubs (too short, no PARAMS,
+ * `() => null`, skeleton comments). It does NOT catch code that is
+ * structurally valid — long, has PARAMS, has an `<AbsoluteFill>` — yet
+ * **paints nothing the user can see**. This is the exact TM-182 regression
+ * fingerprint: the multi-step → single-shot fallback dropped the asset-gen
+ * PNG, the LLM emitted a transparent `<AbsoluteFill>` with no `<Img>` and no
+ * substantive paint primitives, and the user got a black/white video served
+ * abnormally fast (no asset-gen latency).
+ *
+ * Per the TM-182 acceptance contract ("절대 silent blank 금지"), an empty
+ * composition must NEVER reach the Player silently — it returns a reason so
+ * the caller routes it through the same retry-then-surface machinery as a
+ * placeholder.
+ *
+ * PRECISION over recall: a thin-but-legitimate scene (e.g. one animated
+ * text `<div>` on a transparent fill — see the TM-51 "accepts substantive
+ * code" fixture) MUST pass. We only fire when the scene is genuinely
+ * paint-empty:
+ *   - no `<Img>` anywhere, AND
+ *   - no PARAMS.imageUrl reference (would resolve to an Img elsewhere), AND
+ *   - the only painting tags are container-level `<AbsoluteFill>` /
+ *     `<Sequence>` wrappers with NO visible leaf primitive
+ *     (div/svg/rect/circle/path/text/h1/h2/p/span/Img) carrying real content.
+ *
+ * Returns a list of reasons; empty list = the composition paints something.
+ */
+const VISIBLE_LEAF_TAG = /<(div|svg|rect|circle|ellipse|line|polyline|polygon|path|text|tspan|h[1-6]|p|span|Img|video|Video|OffthreadVideo)\b/g;
+
+export function detectEmptyComposition(code: string): string[] {
+  const reasons: string[] = [];
+  const trimmed = (code ?? '').trim();
+  if (!trimmed) return reasons; // empty handled by detectPlaceholderCode
+
+  // An <Img> or a PARAMS.imageUrl binding always counts as visible content.
+  if (/<Img\b/.test(trimmed) || /PARAMS\.imageUrl/.test(trimmed)) {
+    return reasons;
+  }
+
+  // Count visible leaf primitives. Container wrappers (AbsoluteFill /
+  // Sequence) are intentionally excluded — a tree of only wrappers paints
+  // nothing.
+  const leafMatches = trimmed.match(VISIBLE_LEAF_TAG) ?? [];
+  if (leafMatches.length === 0) {
+    reasons.push(
+      'no visible content: composition has no <Img> and no leaf paint primitive (div/svg/text/...) — only container wrappers (TM-182 empty-video fingerprint)',
+    );
+  }
+
   return reasons;
 }
 
@@ -402,7 +469,14 @@ async function generateOnce(
   }
 
   // TM-51: post-validate for placeholder/empty-body stubs (gpt-4o failure mode).
-  const placeholderReasons = detectPlaceholderCode(code);
+  // TM-182: also post-validate for "no visible content" empty compositions
+  // (structurally valid but paints nothing — the empty-video fingerprint).
+  // Both route through the same `placeholder` retry-then-surface path so an
+  // empty output is NEVER served silently (acceptance: 절대 silent blank 금지).
+  const placeholderReasons = [
+    ...detectPlaceholderCode(code),
+    ...detectEmptyComposition(code),
+  ];
   if (placeholderReasons.length > 0) {
     return { kind: 'placeholder', reasons: placeholderReasons, rawCode: code };
   }
@@ -865,7 +939,11 @@ async function generateAssetSingleShot(
   // can't be predicted here without re-prompting; we accept the false
   // negative for round-1 concrete living-entity prompts — the next edit
   // round will populate the cache anyway).
-  const eligibleForAssetGen = !!opts.answers && Object.keys(opts.answers).length > 0;
+  // TM-182 — `forceAssetGen` lets the multi-step fallback opt-in even
+  // without answers (it has already committed to generate), so the PNG is
+  // never silently dropped on the fallback path.
+  const eligibleForAssetGen =
+    opts.forceAssetGen === true || (!!opts.answers && Object.keys(opts.answers).length > 0);
   let assetGen: AssetGenStageResult | null = null;
   if (!opts.disableAssetGen && eligibleForAssetGen) {
     const hit = detectLivingEntity(prompt, opts.answers);
