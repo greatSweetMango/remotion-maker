@@ -58,7 +58,9 @@ export const CounterAnimation = ({
           borderRadius: 2,
           width: `${progress * 100}%`,
           marginTop: 16,
-          transition: 'width 0.1s',
+          // TM-185: width is frame-driven via `progress` (useCurrentFrame);
+          // a CSS transition would freeze at t=0 under Remotion's
+          // frame-isolated render, so it is intentionally omitted.
         }} />
       </div>
     </AbsoluteFill>

@@ -486,6 +486,119 @@ export function validateLucideIdentifiers(code: string): string[] {
   return errors;
 }
 
+/**
+ * TM-185 — frame-driven motion enforcement (CSS-animation deny).
+ *
+ * Background: a major Class-A residual cause of "the animation doesn't move"
+ * is LLM-emitted CSS animation. Remotion renders each frame in ISOLATION
+ * (the player seeks to a frame and paints a fresh DOM with no wall-clock
+ * continuity), so CSS `transition`, the `animation` shorthand, and
+ * `@keyframes` never advance — they freeze at their t=0 state (see
+ * Remotion docs /flickering). The deny-list in FORBIDDEN_PATTERNS already
+ * rejects `setTimeout` / `setInterval` / `requestAnimationFrame`, but CSS
+ * animation slips through because it is "just a style". This validator
+ * closes that gap: all visual change MUST derive from `useCurrentFrame()`.
+ *
+ * Three forbidden shapes (each frozen at t=0 under frame-isolated render):
+ *
+ *   1. `@keyframes` — only meaningful inside a `<style>` tag / template-string
+ *      CSS block; the keyframe timeline is driven by wall-clock, not frame.
+ *   2. `transition:` style key with a NON-ZERO time — interpolates between
+ *      successive DOM states over wall-clock; in a seeked render the prior
+ *      state never existed, so it snaps with no tween.
+ *   3. `animation:` / `animationName:` style key — binds a `@keyframes`
+ *      timeline; same wall-clock problem.
+ *
+ * FALSE-POSITIVE avoidance (the hard part — frame-driven code must NEVER
+ * be rejected):
+ *   - The regexes anchor on the CSS *property key* form (`transition:` /
+ *     `animation:` as an object key or CSS declaration), NOT on the bare
+ *     word. So identifiers like `ZoomTransition`, `CounterAnimation`,
+ *     `WebkitTransition`, `transitionRef`, or a local `const transition = …`
+ *     do NOT match (the key form requires the token to START the property
+ *     name and be immediately followed by `:`).
+ *   - `WebkitTransition` / `MozAnimation` etc. are vendor-prefixed React
+ *     style keys; they START with an uppercase vendor prefix, so the
+ *     lowercase-anchored key regex skips them. (They are equally frozen, but
+ *     they are vanishingly rare in LLM output and excluding them keeps the
+ *     false-positive surface provably empty against the template corpus.)
+ *   - A ZERO-duration / `none` transition (`transition: 'none'`,
+ *     `transition: '0s'`, `transitionDuration: 0`) animates nothing and is
+ *     harmless — allowed. Only a transition with a positive time unit
+ *     (`0.3s`, `200ms`) is rejected.
+ *   - `transitionProperty` WITHOUT a non-zero `transitionDuration` is inert
+ *     (default duration 0s) — allowed.
+ *
+ * Validated against the 35-template corpus: only the genuine frozen
+ * `transition: 'width 0.1s'` in CounterAnimation triggers (fixed in the
+ * same PR), leaving false-positive count 0.
+ */
+
+// `@keyframes` declaration anywhere (template-literal CSS / <style> block).
+const CSS_KEYFRAMES_RE = /@keyframes\b/;
+
+// `animation:` or `animationName:` as an object/CSS property key.
+// Anchored: must be preceded by `{`, `,`, `;`, whitespace, or start — and
+// the key must be lowercase `animation` (so `WebkitAnimation`, identifiers
+// like `myAnimation`, component names, etc. do NOT match).
+const CSS_ANIMATION_KEY_RE = /(?:^|[\s,;{])animation(?:Name)?\s*:/;
+
+// `transition:` / `transitionProperty:` / `transitionDuration:` property key,
+// captured so we can inspect the value for a non-zero time.
+// We grab the value up to the next `,` / `}` / `;` / newline.
+const CSS_TRANSITION_DECL_RE =
+  /(?:^|[\s,;{])transition(Property|Duration)?\s*:\s*([^,;}\n]+)/g;
+
+// A positive time token: a number > 0 followed by s/ms (e.g. 0.3s, 200ms,
+// 1s). `0s`, `0ms`, `0.0s` are NOT positive. Bare `0` / `none` → no time.
+const POSITIVE_TIME_RE = /(?<!\d)(\d*\.?\d+)\s*(ms|s)\b/g;
+
+function hasPositiveTime(value: string): boolean {
+  POSITIVE_TIME_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = POSITIVE_TIME_RE.exec(value)) !== null) {
+    if (parseFloat(m[1]) > 0) return true;
+  }
+  return false;
+}
+
+export function validateFrameDrivenMotion(code: string): string[] {
+  const errors: string[] = [];
+
+  if (CSS_KEYFRAMES_RE.test(code)) {
+    errors.push(
+      'Frame-driven motion (TM-185): `@keyframes` CSS animation freezes at t=0 under Remotion frame-isolated render — drive all motion from useCurrentFrame()→interpolate()/spring() instead',
+    );
+  }
+
+  if (CSS_ANIMATION_KEY_RE.test(code)) {
+    errors.push(
+      "Frame-driven motion (TM-185): CSS `animation`/`animationName` style key freezes at t=0 under Remotion frame-isolated render — drive motion from useCurrentFrame()→interpolate()/spring() instead",
+    );
+  }
+
+  // transition: only the duration-bearing shorthand / transitionDuration
+  // matters. `transition: 'none'` / `'0s'` and a bare `transitionProperty`
+  // are inert and allowed.
+  CSS_TRANSITION_DECL_RE.lastIndex = 0;
+  let t: RegExpExecArray | null;
+  let transitionReported = false;
+  while ((t = CSS_TRANSITION_DECL_RE.exec(code)) !== null) {
+    if (transitionReported) break;
+    const kind = t[1]; // undefined (shorthand) | 'Property' | 'Duration'
+    const value = t[2] ?? '';
+    if (kind === 'Property') continue; // transitionProperty alone is inert
+    if (!hasPositiveTime(value)) continue; // none / 0s / no time → harmless
+    transitionReported = true;
+    errors.push(
+      "Frame-driven motion (TM-185): CSS `transition` with a non-zero time freezes at t=0 under Remotion frame-isolated render — drive the animated property from useCurrentFrame()→interpolate()/spring() instead of a CSS transition",
+    );
+  }
+  CSS_TRANSITION_DECL_RE.lastIndex = 0;
+
+  return errors;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
@@ -521,6 +634,13 @@ export function validateCode(code: string): ValidationResult {
   // TM-176 — full-bleed <Img> with objectFit:'contain' letterboxes the scene
   // (the asset-gen PNG IS the full scene; use 'cover' instead).
   for (const e of validateFullBleedImgObjectFit(code)) {
+    if (!errors.includes(e)) errors.push(e);
+  }
+
+  // TM-185 — CSS animation (@keyframes / transition / animation shorthand)
+  // freezes at t=0 under Remotion frame-isolated render. All motion must be
+  // frame-driven via useCurrentFrame().
+  for (const e of validateFrameDrivenMotion(code)) {
     if (!errors.includes(e)) errors.push(e);
   }
 
