@@ -247,6 +247,57 @@ ANIMATION QUALITY STANDARDS:
 - Animations should loop gracefully or have clear start/end
 - Default composition: 1920x1080, 30fps, 150 frames (5 seconds)
 
+FRAME-DRIVEN MOTION (TM-185 — MANDATORY; violating this ships a FROZEN, non-moving video):
+Remotion renders EVERY frame in ISOLATION — the player seeks to a frame and
+paints a fresh DOM with NO wall-clock continuity. Anything driven by the
+browser clock therefore FREEZES at its t=0 state. This is the #1 cause of
+"the animation doesn't move".
+
+- REQUIRED: EVERY visual change (position, scale, rotation, opacity, color,
+  width/height, path, blur, etc.) MUST be derived from \`useCurrentFrame()\`
+  via \`interpolate()\` / \`spring()\` / \`interpolateColors()\` and applied as
+  an inline style value that is recomputed each frame. If a value does not
+  change with \`frame\`, it does not animate.
+- FORBIDDEN (each is REJECTED by the sandbox and freezes at t=0):
+  * CSS \`@keyframes\` (in a \`<style>\` tag or template-string CSS).
+  * the CSS \`transition\` property with a non-zero time
+    (\`transition: 'width 0.3s'\`, \`transitionDuration: '200ms'\`) — it tweens
+    between wall-clock DOM states that do not exist in a seeked render.
+  * the CSS \`animation\` / \`animationName\` shorthand (binds a \`@keyframes\`
+    timeline).
+  * \`setTimeout\` / \`setInterval\` / \`requestAnimationFrame\` / \`Date.now()\`-based
+    timing (already denied) — use \`frame\` instead.
+  * \`from === to\` interpolations or static props with no \`frame\` dependency —
+    a value that never changes is not animation. UNUSED PARAMS / components
+    that never reach the rendered tree are REJECTED.
+- The ONLY clock is \`useCurrentFrame()\`. To make X move, write
+  \`const x = interpolate(frame, [0, 30], [0, 200])\` and set
+  \`style={{ transform: \\\`translateX(\\\${x}px)\\\` }}\` — never
+  \`style={{ transition: 'transform 0.3s' }}\`.
+
+FRAME-DRIVEN EXAMPLES (verified patterns — adapt, do NOT copy verbatim):
+\`\`\`tsx
+// (a) Enter + exit via two springs (NOT a CSS transition):
+const enter = spring({ frame, fps, config: { damping: 14 } });
+const exit  = spring({ frame: frame - (durationInFrames - 20), fps, config: { damping: 18 } });
+const scale = enter * (1 - exit);                       // pops in, settles, pops out
+const opacity = interpolate(frame, [0, 10, durationInFrames - 15, durationInFrames], [0, 1, 1, 0]);
+// <div style={{ transform: \`scale(\${scale})\`, opacity }}>…</div>
+
+// (b) Phase-offset limb / leg cycle via Math.sin (walking motion):
+const bobY = Math.sin(frame * 0.25) * 8;                // body bob
+const legA = Math.sin(frame * 0.3) * 30;                // front leg
+const legB = Math.sin(frame * 0.3 + Math.PI) * 30;      // back leg, anti-phase
+// apply legA/legB as SVG <g transform={\`rotate(\${legA} …)\`}> per limb
+
+// (c) Multi-layer parallax (different scroll speed per depth layer):
+const camX = interpolate(frame, [0, durationInFrames], [0, -400]);
+const bgX  = camX * 0.2;   // far layer scrolls slowest
+const mgX  = camX * 0.5;   // mid layer
+const fgX  = camX * 1.0;   // near layer scrolls fastest
+// each <AbsoluteFill style={{ transform: \`translateX(\${bgX}px)\` }}> … etc.
+\`\`\`
+
 CATEGORY-SPECIFIC GUIDELINES (read carefully — TM-71 visual-quality pass):
 
 [DATA-VIZ — bar/pie/line/ring/donut/counter/KPI]
@@ -783,7 +834,22 @@ RULES:
 4. The returned code MUST be ≥ 200 characters and contain real animation
    logic (interpolate / spring with non-trivial output range). No
    \`return null\`, no empty fragments.
-5. Respond strictly in JSON. The "code" string follows the same JSON
+5. FRAME-DRIVEN MOTION (TM-185 — MANDATORY). Remotion renders each frame in
+   ISOLATION with no wall-clock continuity, so browser-timed animation
+   FREEZES at t=0 (the "video doesn't move" failure). EVERY visual change
+   MUST derive from \`useCurrentFrame()\` via \`interpolate\` / \`spring\` /
+   \`interpolateColors\`, applied as a per-frame inline style value.
+   FORBIDDEN (each is REJECTED by the sandbox):
+   - CSS \`@keyframes\`.
+   - CSS \`transition\` with a non-zero time (e.g. \`transition: 'opacity 0.3s'\`,
+     \`transitionDuration: '200ms'\`).
+   - CSS \`animation\` / \`animationName\` shorthand.
+   - \`setTimeout\` / \`setInterval\` / \`requestAnimationFrame\` timing.
+   - \`from === to\` interpolations or static props that never change with
+     \`frame\` — a value that does not move is not animation.
+   Drive motion ONLY from \`frame\`:
+   \`const x = interpolate(frame, [0, 30], [0, 200]); style={{ transform: \\\`translateX(\\\${x}px)\\\` }}\`.
+6. Respond strictly in JSON. The "code" string follows the same JSON
    escaping rules as the single-shot path: \\n for newlines, \\" for
    quotes, no backticks at JSON-string boundary.
 

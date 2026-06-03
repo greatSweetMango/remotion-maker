@@ -2,6 +2,7 @@ import {
   isAudioAllowListed,
   sanitizeCode,
   validateCode,
+  validateFrameDrivenMotion,
   validateLucideIdentifiers,
 } from '@/lib/remotion/sandbox';
 import {
@@ -731,5 +732,117 @@ describe('TM-175 — validateLucideIdentifiers', () => {
     const code = `const C = () => <lucide.Star size={48}/>;`;
     const result = validateCode(code);
     expect(result.valid).toBe(true);
+  });
+});
+
+// TM-185 — CSS-animation deny. Time-based CSS animation freezes at t=0
+// under Remotion's frame-isolated render ("the video doesn't move").
+describe('TM-185 frame-driven motion enforcement', () => {
+  // --- The 5 acceptance reject cases ---------------------------------------
+  it('rejects @keyframes in a template-string CSS block', () => {
+    const code = `
+      const css = \`@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }\`;
+      const C = () => <AbsoluteFill><style>{css}</style></AbsoluteFill>;
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /TM-185.*@keyframes/.test(e))).toBe(true);
+  });
+
+  it('rejects CSS transition shorthand with a non-zero time', () => {
+    const code = `
+      const PARAMS = { color: '#fff' };
+      const C = () => <div style={{ width: '50%', transition: 'width 0.3s' }} />;
+    `;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /TM-185.*transition/.test(e))).toBe(true);
+  });
+
+  it('rejects transitionDuration with a non-zero ms time', () => {
+    const code = `const C = () => <div style={{ transitionDuration: '200ms' }} />;`;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /TM-185.*transition/.test(e))).toBe(true);
+  });
+
+  it('rejects the CSS animation shorthand', () => {
+    const code = `const C = () => <div style={{ animation: 'spin 2s linear infinite' }} />;`;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /TM-185.*animation/.test(e))).toBe(true);
+  });
+
+  it('rejects animationName binding a keyframe timeline', () => {
+    const code = `const C = () => <div style={{ animationName: 'pulse', animationDuration: '1s' }} />;`;
+    const result = validateCode(code);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => /TM-185.*animation/.test(e))).toBe(true);
+  });
+
+  // --- False-positive guards: frame-driven code MUST pass -------------------
+  it('ALLOWS clean frame-driven interpolate/spring code', () => {
+    const code = `
+      const PARAMS = { color: '#fff' };
+      const C = () => {
+        const frame = useCurrentFrame();
+        const { fps } = useVideoConfig();
+        const x = interpolate(frame, [0, 30], [0, 200]);
+        const s = spring({ frame, fps, config: { damping: 14 } });
+        return <AbsoluteFill style={{ transform: \`translateX(\${x}px) scale(\${s})\` }} />;
+      };
+    `;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('does NOT flag component identifiers like ZoomTransition / CounterAnimation', () => {
+    const code = `
+      const ZoomTransition = () => null;
+      const CounterAnimation = () => null;
+      const C = () => <AbsoluteFill><ZoomTransition /><CounterAnimation /></AbsoluteFill>;
+    `;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+  });
+
+  it('does NOT flag a local variable named transition or animation', () => {
+    const code = `
+      const transition = interpolate(useCurrentFrame(), [0, 30], [0, 1]);
+      const animation = transition * 2;
+      const C = () => <AbsoluteFill style={{ opacity: transition }}>{animation}</AbsoluteFill>;
+    `;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+  });
+
+  it('does NOT flag vendor-prefixed WebkitTransition keys', () => {
+    const code = `const C = () => <div style={{ WebkitTransition: 'none' }} />;`;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+  });
+
+  it('ALLOWS transition: none / 0s (inert, animates nothing)', () => {
+    expect(validateFrameDrivenMotion(`<div style={{ transition: 'none' }} />`)).toEqual([]);
+    expect(validateFrameDrivenMotion(`<div style={{ transition: 'width 0s' }} />`)).toEqual([]);
+    expect(validateFrameDrivenMotion(`<div style={{ transitionDuration: '0s' }} />`)).toEqual([]);
+  });
+
+  it('ALLOWS bare transitionProperty without a duration (inert)', () => {
+    const code = `const C = () => <div style={{ transitionProperty: 'width' }} />;`;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+  });
+
+  it('does NOT flag the word "transition" inside a string/text content', () => {
+    const code = `const C = () => <AbsoluteFill><div>scene transition here</div></AbsoluteFill>;`;
+    expect(validateFrameDrivenMotion(code)).toEqual([]);
+  });
+
+  it('reports the CSS transition only once even with multiple offenders', () => {
+    const code = `
+      const C = () => (<AbsoluteFill>
+        <div style={{ transition: 'width 0.3s' }} />
+        <div style={{ transition: 'opacity 0.5s' }} />
+      </AbsoluteFill>);
+    `;
+    const hits = validateFrameDrivenMotion(code).filter(e => /transition/.test(e));
+    expect(hits).toHaveLength(1);
   });
 });

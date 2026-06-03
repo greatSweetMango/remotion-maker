@@ -9,6 +9,7 @@
 import {
   GENERATION_SYSTEM_PROMPT,
   GENERATION_WITH_CLARIFY_SYSTEM_PROMPT,
+  SCENE_CODE_SYSTEM_PROMPT,
 } from '@/lib/ai/prompts';
 
 describe('GENERATION_SYSTEM_PROMPT — TM-71 category guidelines', () => {
@@ -125,6 +126,39 @@ describe('GENERATION_SYSTEM_PROMPT — TM-71 category guidelines', () => {
       expect(GENERATION_SYSTEM_PROMPT).toMatch(/\[TRANSITION/);
       expect(GENERATION_SYSTEM_PROMPT).toMatch(/\[TEXT-ANIM/);
       expect(GENERATION_SYSTEM_PROMPT).toMatch(/\[INFOGRAPHIC \/ LOADER\]/);
+    });
+  });
+
+  // TM-185 — frame-driven motion hardening (CSS-animation forbidden).
+  describe('TM-185 frame-driven motion block', () => {
+    it('forbids CSS @keyframes / transition / animation in GENERATION_SYSTEM_PROMPT', () => {
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/FRAME-DRIVEN MOTION \(TM-185/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/@keyframes/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/transition/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/animation/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/from\s*===\s*to/);
+    });
+
+    it('requires all motion to derive from useCurrentFrame()', () => {
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/useCurrentFrame\(\)/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/interpolate\(/);
+    });
+
+    it('embeds the three frame-driven few-shot examples', () => {
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/FRAME-DRIVEN EXAMPLES/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/spring\(\{\s*frame/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/Math\.sin\(frame/);
+      expect(GENERATION_SYSTEM_PROMPT).toMatch(/parallax/i);
+    });
+
+    it('clarify variant inherits the frame-driven block', () => {
+      expect(GENERATION_WITH_CLARIFY_SYSTEM_PROMPT).toMatch(/FRAME-DRIVEN MOTION \(TM-185/);
+    });
+
+    it('SCENE_CODE_SYSTEM_PROMPT carries the frame-driven rule', () => {
+      expect(SCENE_CODE_SYSTEM_PROMPT).toMatch(/TM-185/);
+      expect(SCENE_CODE_SYSTEM_PROMPT).toMatch(/@keyframes/);
+      expect(SCENE_CODE_SYSTEM_PROMPT).toMatch(/transition/);
     });
   });
 });
