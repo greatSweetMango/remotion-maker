@@ -176,6 +176,28 @@ export interface CompositionCritiqueMetadata {
   extraCostUsd: number;
 }
 
+/**
+ * TM-184 — motion-liveness gate telemetry. The positive "does it actually move
+ * across frames?" check. Present when the gate ran (env-gated, default on for
+ * character/scene). `stage` records which axis produced the verdict; `render`
+ * carries the cross-frame diff diagnostics when the render stage executed.
+ * Used to log the false-positive rate offline.
+ */
+export interface LivenessMetadata {
+  /** Final verdict for the served asset: 'live' | 'static' | 'skipped'. */
+  verdict: 'live' | 'static' | 'skipped';
+  /** Which stage produced the verdict ('ast' | 'render' | 'none'). */
+  stage: 'ast' | 'render' | 'none';
+  /** Max cross-frame mean-abs-diff (0-255) when the render stage ran. */
+  maxDiff?: number;
+  /** ε the diff was compared against. */
+  epsilon?: number;
+  /** Frames sampled by the render stage. */
+  frames?: number[];
+  /** Wall-clock ms for the liveness render+diff (render stage only). */
+  latencyMs?: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
   | {
@@ -187,6 +209,8 @@ export type GenerateApiResponse =
       selfCritique?: SelfCritiqueMetadata;
       /** TM-171 — present when composition-critique ran. */
       compositionCritique?: CompositionCritiqueMetadata;
+      /** TM-184 — present when the motion-liveness render stage ran. */
+      liveness?: LivenessMetadata;
     };
 
 /** Map of clarify question id → selected choice id */
