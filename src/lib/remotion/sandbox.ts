@@ -599,9 +599,100 @@ export function validateFrameDrivenMotion(code: string): string[] {
   return errors;
 }
 
+/**
+ * TM-191 — strip comments and string-literal *contents* so the deny-list
+ * scan only inspects executable code.
+ *
+ * Background: the deny-list patterns are deliberately textual (regex over
+ * source), which means a forbidden token appearing inside a `//` comment,
+ * a block comment, or a string literal produced a FALSE POSITIVE. The
+ * concrete regression (TM-182): the PARAMS-annotation comment
+ * `// type: color, sequence: global` tripped the `Forbidden: global` rule
+ * (line 68), so DataStory / HighlightReel / ProductIntro — every template
+ * that annotates `sequence: global` — was rejected by `validateRemotionCode`.
+ *
+ * Rather than weaken any individual pattern's word-boundary logic (which
+ * would have to be repeated per token and risks security drift), we remove
+ * the non-code surface ONCE, up front, and scan the result. Real `global`
+ * object access in executable code (`global.process`, `const g = global`)
+ * survives stripping and is still rejected — security is unchanged; only
+ * comment / string occurrences are exempted.
+ *
+ * String *contents* are blanked but the surrounding quotes are kept so that
+ * token boundaries and overall structure (and therefore the JSX-tag and
+ * `staticFile("...")` shape checks done elsewhere on the RAW code) are not
+ * disturbed — this helper is used ONLY for the FORBIDDEN_PATTERNS scan.
+ * The allow-list shape checks (`isAudioAllowListed`, imageUrl/Img rules)
+ * continue to run against the raw `code` because they intentionally need
+ * the literal string payloads.
+ *
+ * Implementation is a single linear scan (no regex backtracking) so it is
+ * cheap and cannot itself be a DoS vector.
+ */
+export function stripCommentsAndStrings(code: string): string {
+  let out = '';
+  let i = 0;
+  const n = code.length;
+  while (i < n) {
+    const c = code[i];
+    const next = code[i + 1];
+
+    // Line comment
+    if (c === '/' && next === '/') {
+      i += 2;
+      while (i < n && code[i] !== '\n') i++;
+      continue;
+    }
+    // Block comment
+    if (c === '/' && next === '*') {
+      out += '  ';
+      i += 2;
+      while (i < n && !(code[i] === '*' && code[i + 1] === '/')) {
+        out += code[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      i += 2; // skip closing */
+      continue;
+    }
+    // String / template literal — keep the delimiters, blank the contents.
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      out += quote;
+      i++;
+      while (i < n) {
+        const sc = code[i];
+        if (sc === '\\') {
+          // skip escaped char (blank it)
+          out += ' ';
+          if (i + 1 < n) out += ' ';
+          i += 2;
+          continue;
+        }
+        if (sc === quote) {
+          out += quote;
+          i++;
+          break;
+        }
+        // Preserve newlines (template literals span lines) so line numbers
+        // and the overall structure stay aligned.
+        out += sc === '\n' ? '\n' : ' ';
+        i++;
+      }
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 export function validateCode(code: string): ValidationResult {
   const errors: string[] = [];
   const audioAllowed = isAudioAllowListed(code);
+  // TM-191: scan the deny list against a code-only view (comments + string
+  // contents blanked) so forbidden tokens inside comments / strings are not
+  // false positives. Allow-list shape checks below still use the raw `code`.
+  const scanCode = stripCommentsAndStrings(code);
 
   for (const { pattern, label } of FORBIDDEN_PATTERNS) {
     // TM-128: skip the <Audio> deny rule when every <Audio> tag in the
@@ -610,12 +701,12 @@ export function validateCode(code: string): ValidationResult {
     // src, dynamic var, template-string, external URL, path traversal — do
     // NOT match the allow shape and therefore still trip this rule.
     if (audioAllowed && label.startsWith('Forbidden: <Audio>')) continue;
-    if (pattern.test(code) && !errors.includes(label)) {
+    if (pattern.test(scanCode) && !errors.includes(label)) {
       errors.push(label);
     }
   }
 
-  if (detectRecursivePromiseChain(code)) {
+  if (detectRecursivePromiseChain(scanCode)) {
     errors.push('Forbidden: recursive Promise chain');
   }
 

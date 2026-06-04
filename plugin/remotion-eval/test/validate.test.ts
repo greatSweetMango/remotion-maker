@@ -11,6 +11,7 @@ import {
   countParamsKeys,
   validateLucideIdentifiers,
   validateFullBleedImgObjectFit,
+  stripCommentsAndStrings,
   __lucideWhitelistSize,
 } from '../src/validate.ts';
 
@@ -241,4 +242,39 @@ test("TM-176: validateRemotionCode rejects full-bleed contain end-to-end", () =>
   const r = validateRemotionCode(code);
   assert.equal(r.ok, false);
   assert.ok(r.errors.some((e) => /TM-176/.test(e)));
+});
+
+// TM-191 — deny-list must not false-positive on tokens in comments / strings.
+test("TM-191: 'sequence: global' PARAMS comment does NOT trip Forbidden: global", () => {
+  const code = `const PARAMS = {
+    primaryColor: '#22d3ee', // type: color, sequence: global
+  } as const;
+  const Scene = () => <AbsoluteFill style={{ background: PARAMS.primaryColor }} />;`;
+  const r = validateRemotionCode(code);
+  assert.ok(!r.errors.includes('Forbidden: global'), JSON.stringify(r.errors));
+});
+
+test("TM-191: forbidden tokens inside a string literal are not flagged", () => {
+  const code = `const label = "the global eval fetch"; const C = () => <div>{label}</div>;`;
+  const r = validateRemotionCode(code);
+  assert.ok(!r.errors.includes('Forbidden: global'));
+  assert.ok(!r.errors.includes('Forbidden: eval'));
+  assert.ok(!r.errors.includes('Forbidden: fetch'));
+});
+
+test("TM-191 SECURITY: real global object access is STILL rejected", () => {
+  const r = validateRemotionCode(`const p = global.process;`);
+  assert.ok(r.errors.includes('Forbidden: global'), JSON.stringify(r.errors));
+});
+
+test("TM-191 SECURITY: real eval in code is STILL rejected despite comment mention", () => {
+  const r = validateRemotionCode(`// harmless eval mention\neval('x');`);
+  assert.ok(r.errors.includes('Forbidden: eval'));
+});
+
+test("TM-191: stripCommentsAndStrings blanks comments/strings, keeps code", () => {
+  const out = stripCommentsAndStrings(`const g = global; // global\nconst s = "global";`);
+  assert.match(out, /const g = global;/);
+  // only one 'global' (the executable one) survives
+  assert.equal((out.match(/global/g) || []).length, 1);
 });
