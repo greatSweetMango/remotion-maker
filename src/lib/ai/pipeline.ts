@@ -1218,6 +1218,26 @@ export interface MultiStepResult {
  */
 export type { PipelineTiming, PipelineTimingStage } from '@/types';
 
+/**
+ * TM-193 — single-shot fallback callback injected by the dispatcher
+ * (`generate.ts::generateAsset`). Previously `generateAssetMultiStepAsApiResponse`
+ * dynamically `import('./generate')` to recover from a pipeline failure, which
+ * created a `pipeline → generate` edge and (with the reverse dispatch edge) a
+ * circular dependency madge flagged. Injecting the fallback inverts the
+ * dependency to a single direction (`generate → pipeline`) without changing
+ * behavior: the dispatcher passes its own `generateAsset` and the pipeline
+ * calls it exactly as before (with `AI_MULTI_STEP=0` forced for this call).
+ */
+export type SingleShotFallback = (
+  prompt: string,
+  model: string | undefined,
+  opts: {
+    answers?: ClarifyAnswers;
+    forceAssetGen?: boolean;
+    __latencyReqId?: string;
+  },
+) => Promise<GenerateApiResponse>;
+
 export interface MultiStepOptions {
   answers?: ClarifyAnswers;
   /** TM-90 — disable the asset-gen stage even when a living-entity hits.
@@ -1225,6 +1245,13 @@ export interface MultiStepOptions {
   disableAssetGen?: boolean;
   /** TM-156 — propagate request id for structured stage marks. */
   __latencyReqId?: string;
+  /**
+   * TM-193 — single-shot fallback injected by the dispatcher to avoid a
+   * static/dynamic `pipeline → generate` import (circular dep). When absent
+   * (e.g. direct test callers), the pipeline lazily imports `generateAsset`
+   * as before — behavior-preserving for every existing call site.
+   */
+  singleShotFallback?: SingleShotFallback;
 }
 
 export async function generateAssetMultiStep(
@@ -1502,8 +1529,20 @@ export async function generateAssetMultiStepAsApiResponse(
         message,
       );
     }
-    // Dynamic import to avoid a circular dep with generate.ts.
-    const { generateAsset } = await import('./generate');
+    // TM-193 — the single-shot fallback is INJECTED by the dispatcher
+    // (`generate.ts::generateAsset`) instead of being dynamically imported
+    // here. This removes the last `pipeline → generate` import edge, breaking
+    // the generate↔pipeline circular dependency madge flagged (one-way
+    // `generate → pipeline` only). Direct callers (tests, benches) that drive
+    // the fallback path must pass `opts.singleShotFallback`.
+    const generateAsset = opts.singleShotFallback;
+    if (!generateAsset) {
+      // No injected fallback: re-throw the original pipeline error rather than
+      // silently dropping it. The production dispatch path always injects one,
+      // so this only surfaces for direct callers that opted out of the
+      // fallback while still hitting a pipeline failure.
+      throw err;
+    }
     // Force the single-shot path by clearing the AI_MULTI_STEP flag for
     // this call only (process.env mutation in Node is process-local).
     const prev = process.env.AI_MULTI_STEP;

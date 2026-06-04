@@ -726,6 +726,12 @@ export async function generateAsset(
     const out = await generateAssetMultiStepAsApiResponse(prompt, model, {
       answers: opts.answers,
       __latencyReqId: __reqId,
+      // TM-193 — inject the single-shot fallback so pipeline.ts no longer needs
+      // to `import('./generate')` for its TM-111 recovery path. This breaks the
+      // generate↔pipeline circular dependency (now one-way generate → pipeline).
+      // `generateAsset` re-dispatches with AI_MULTI_STEP=0 forced by the
+      // pipeline fallback block, so this routes to single-shot exactly as before.
+      singleShotFallback: generateAsset,
     } as Parameters<typeof generateAssetMultiStepAsApiResponse>[2]);
     _mark({ req: __reqId, phase: 'generateAsset.total', ms: Date.now() - __genStart, meta: { branch: 'multi-step', type: out.type } });
     return out;
