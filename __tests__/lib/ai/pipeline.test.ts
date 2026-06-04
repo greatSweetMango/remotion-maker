@@ -858,9 +858,10 @@ describe('TM-111 — generateAssetMultiStepAsApiResponse single-shot fallback', 
     // should kick in regardless of which stage failed.
     mockedChat.mockRejectedValueOnce(new Error('TM-102 outline: AI did not return valid JSON'));
 
-    // Fallback path calls generateAsset → which dynamically imports
-    // from generate.ts. We mock generateAsset by intercepting the
-    // dynamic import via Jest's module registry.
+    // TM-193 — the fallback is now INJECTED via opts.singleShotFallback
+    // rather than dynamically imported from generate.ts (the dynamic import
+    // was the last `pipeline → generate` edge that created the circular dep).
+    // Inject a stub matching the dispatcher's behavior.
     const fakeFallback = {
       type: 'generate' as const,
       asset: {
@@ -875,19 +876,18 @@ describe('TM-111 — generateAssetMultiStepAsApiResponse single-shot fallback', 
         height: 1080,
       },
     };
-    jest.doMock('@/lib/ai/generate', () => ({
-      generateAsset: jest.fn(async () => fakeFallback),
-    }));
+    const singleShotFallback = jest.fn(async () => fakeFallback);
 
     const { generateAssetMultiStepAsApiResponse } = await import('@/lib/ai/pipeline');
-    const result = await generateAssetMultiStepAsApiResponse('counter 0 to 100', 'gpt-4o');
+    const result = await generateAssetMultiStepAsApiResponse('counter 0 to 100', 'gpt-4o', {
+      singleShotFallback,
+    });
     expect(result.type).toBe('generate');
     if (result.type !== 'generate') throw new Error('expected generate');
     expect(result.asset.id).toBe('fallback-id');
     expect(result.warning).toMatch(/TM-111/);
     expect(result.multiStep?.fallback).toBe('single-shot');
-
-    jest.dontMock('@/lib/ai/generate');
+    expect(singleShotFallback).toHaveBeenCalledTimes(1);
   });
 });
 
