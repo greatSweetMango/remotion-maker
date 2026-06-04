@@ -187,6 +187,10 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /<\s*OffthreadVideo\b/, label: 'Forbidden: <OffthreadVideo> (visual-only assets — TM-123)' },
   { pattern: /<\s*IFrame\b/, label: 'Forbidden: <IFrame> (visual-only assets — TM-123)' },
 
+  // TM-140 / ADR-0027 mirror: bare `<Lottie>` denied (use <CatalogueLottie>).
+  // Kept in sync with src/lib/remotion/sandbox.ts (TM-115 invariant).
+  { pattern: /<\s*Lottie\b/, label: 'Forbidden: <Lottie> (use <CatalogueLottie asset=...> — ADR-0027)' },
+
   { pattern: /\bnew\s+(Shared)?Worker\b/, label: 'Forbidden: Worker' },
   { pattern: /\bnew\s+ServiceWorker\b/, label: 'Forbidden: ServiceWorker' },
 
@@ -250,6 +254,66 @@ function detectRecursivePromiseChain(code: string): boolean {
   return false;
 }
 
+/**
+ * TM-191 mirror — strip comments and string-literal *contents* so the
+ * deny-list scan only inspects executable code. Keep in sync with
+ * `stripCommentsAndStrings` in `src/lib/remotion/sandbox.ts` (the regression
+ * was the PARAMS-annotation comment `// type: color, sequence: global`
+ * tripping the `Forbidden: global` rule). Real `global` object access in
+ * executable code survives stripping and is still rejected — only comment /
+ * string occurrences are exempted. Single linear scan, no backtracking.
+ */
+export function stripCommentsAndStrings(code: string): string {
+  let out = '';
+  let i = 0;
+  const n = code.length;
+  while (i < n) {
+    const c = code[i];
+    const next = code[i + 1];
+
+    if (c === '/' && next === '/') {
+      i += 2;
+      while (i < n && code[i] !== '\n') i++;
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      out += '  ';
+      i += 2;
+      while (i < n && !(code[i] === '*' && code[i + 1] === '/')) {
+        out += code[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      i += 2;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      out += quote;
+      i++;
+      while (i < n) {
+        const sc = code[i];
+        if (sc === '\\') {
+          out += ' ';
+          if (i + 1 < n) out += ' ';
+          i += 2;
+          continue;
+        }
+        if (sc === quote) {
+          out += quote;
+          i++;
+          break;
+        }
+        out += sc === '\n' ? '\n' : ' ';
+        i++;
+      }
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 /** Count keys in `const PARAMS = { ... }`. Returns 0 when no PARAMS const. */
 export function countParamsKeys(code: string): number {
   const m = code.match(/const\s+PARAMS\s*=\s*\{([\s\S]*?)\}\s*(?:as\s+const)?/);
@@ -289,14 +353,18 @@ export function validateRemotionCode(code: unknown): ValidateResult {
 
   // 1. Deny list
   const audioAllowed = isAudioAllowListed(code);
+  // TM-191 mirror: scan a code-only view (comments + string contents blanked)
+  // so forbidden tokens inside comments / strings are not false positives.
+  // Allow-list shape checks below still use the raw `code`.
+  const scanCode = stripCommentsAndStrings(code);
   for (const { pattern, label } of FORBIDDEN_PATTERNS) {
     // TM-128 mirror: skip the <Audio> deny rule when every <Audio> tag in
     // the source matches the strict allow shape (literal staticFile call
     // with catalogue-regex slug).
     if (audioAllowed && label.startsWith('Forbidden: <Audio>')) continue;
-    if (pattern.test(code) && !errors.includes(label)) errors.push(label);
+    if (pattern.test(scanCode) && !errors.includes(label)) errors.push(label);
   }
-  if (detectRecursivePromiseChain(code)) {
+  if (detectRecursivePromiseChain(scanCode)) {
     errors.push('Forbidden: recursive Promise chain');
   }
 

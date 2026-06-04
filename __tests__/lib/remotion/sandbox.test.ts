@@ -1,6 +1,9 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   isAudioAllowListed,
   sanitizeCode,
+  stripCommentsAndStrings,
   validateCode,
   validateFrameDrivenMotion,
   validateLucideIdentifiers,
@@ -844,5 +847,95 @@ describe('TM-185 frame-driven motion enforcement', () => {
     `;
     const hits = validateFrameDrivenMotion(code).filter(e => /transition/.test(e));
     expect(hits).toHaveLength(1);
+  });
+});
+
+describe('TM-191 — deny-list false positives in comments / strings', () => {
+  // Regression: the PARAMS-annotation comment `// type: color, sequence: global`
+  // tripped the `Forbidden: global` rule, rejecting 3 standard templates.
+  const TEMPLATES_DIR = path.resolve(__dirname, '../../../src/remotion/templates');
+  const AFFECTED = ['DataStory', 'HighlightReel', 'ProductIntro'];
+
+  it.each(AFFECTED)(
+    '%s template validates as VALID (no false-positive "Forbidden: global" from sequence:global comments)',
+    (name) => {
+      const src = fs.readFileSync(path.join(TEMPLATES_DIR, `${name}.tsx`), 'utf8');
+      // sanity: the annotation that caused the regression is actually present.
+      expect(src).toMatch(/sequence:\s*global/);
+      const result = validateCode(src);
+      expect(result.errors).not.toContain('Forbidden: global');
+      expect(result.valid).toBe(true);
+    },
+  );
+
+  it('does NOT flag `global` inside a line comment', () => {
+    const code = `const C = () => <div/>; // note: runs in the global scope`;
+    expect(validateCode(code).errors).not.toContain('Forbidden: global');
+    expect(validateCode(code).valid).toBe(true);
+  });
+
+  it('does NOT flag `global` inside a block comment', () => {
+    const code = `/* sequence: global */ const C = () => <div/>;`;
+    expect(validateCode(code).errors).not.toContain('Forbidden: global');
+  });
+
+  it('does NOT flag forbidden tokens inside a string literal', () => {
+    const code = `const C = () => <div>{"the global eval fetch document.cookie"}</div>;`;
+    const result = validateCode(code);
+    expect(result.errors).not.toContain('Forbidden: global');
+    expect(result.errors).not.toContain('Forbidden: eval');
+    expect(result.errors).not.toContain('Forbidden: fetch');
+    expect(result.errors).not.toContain('Forbidden: document.cookie');
+  });
+
+  it('does NOT flag forbidden tokens inside a template literal', () => {
+    const code = 'const label = `access the global object via eval()`;';
+    expect(validateCode(code).errors).not.toContain('Forbidden: global');
+    expect(validateCode(code).errors).not.toContain('Forbidden: eval');
+  });
+
+  // SECURITY: real access in executable code MUST still be rejected.
+  it('STILL rejects real `global` object access in executable code', () => {
+    const code = `const proc = global.process;`;
+    expect(validateCode(code).errors).toContain('Forbidden: global');
+    expect(validateCode(code).valid).toBe(false);
+  });
+
+  it('STILL rejects bare `global` reference in executable code', () => {
+    const code = `const g = global; g.x = 1;`;
+    expect(validateCode(code).errors).toContain('Forbidden: global');
+  });
+
+  it('STILL rejects real eval / fetch even when also mentioned in a comment', () => {
+    const code = `
+      // this comment says eval and fetch but those are harmless
+      eval('x');
+    `;
+    expect(validateCode(code).errors).toContain('Forbidden: eval');
+  });
+
+  it('STILL rejects globalThis access (not masked by the strip)', () => {
+    const code = `const x = globalThis.process;`;
+    expect(validateCode(code).errors).toContain('Forbidden: globalThis');
+  });
+
+  describe('stripCommentsAndStrings unit', () => {
+    it('blanks line comment contents but keeps newlines', () => {
+      const out = stripCommentsAndStrings('a // global\nb');
+      expect(out).not.toMatch(/global/);
+      expect(out).toMatch(/a /);
+      expect(out).toMatch(/\nb/);
+    });
+
+    it('blanks string contents but keeps the quotes', () => {
+      const out = stripCommentsAndStrings(`const s = "global eval";`);
+      expect(out).not.toMatch(/global/);
+      expect(out).toContain('"');
+    });
+
+    it('preserves executable identifiers outside strings/comments', () => {
+      const out = stripCommentsAndStrings(`const g = global; // comment`);
+      expect(out).toMatch(/const g = global;/);
+    });
   });
 });
