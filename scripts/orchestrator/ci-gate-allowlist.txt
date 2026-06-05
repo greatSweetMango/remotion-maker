@@ -1,0 +1,19 @@
+# scripts/orchestrator/ci-gate-allowlist.txt  (TM-208, ADR-PENDING-TM-208)
+#
+# Known chronically-red CI checks that ci-gate.sh must NOT treat as
+# merge-blocking. One substring per line; a check is allowlisted if any line
+# here is a substring of the check name. '#' comments and blank lines ignored.
+#
+# Override/extend at runtime with the CI_GATE_KNOWN_RED env var (comma- or
+# newline-separated) — env entries are ADDED to (not replacing) this file.
+#
+# IMPORTANT: an entry here only *bypasses* the merge gate. It does NOT fix the
+# underlying CI. Each entry below should have a tracked fix task; remove the
+# entry once the check is green again.
+
+# 'Lint — circular dependencies' — exit 127, `depcruise` (dependency-cruiser)
+# is not installed in CI. Chronically red for weeks. Real fix tracked as a
+# separate spawned task (CI infra). Until then we must not let it freeze the
+# autonomous merge pipeline. (Also hardcoded as the built-in default in
+# ci-gate.sh so the gate is safe even if this file is missing.)
+Lint — circular dependencies

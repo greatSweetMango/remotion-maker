@@ -310,6 +310,29 @@ for summary in team_lead_summaries:
     # Orchestrator 는 PR 머지만 수행 → 머지 시점에 코드 + wiki 가 함께 main 진입.
     assert summary.pr_url, `${summary.task_id}: PR URL 누락 — TeamLead 가 PR 생성 안 함, escalate`
     pr_number = parseInt(basename(summary.pr_url))
+
+    # === TM-208: Hard CI merge gate (ADR-PENDING-TM-208) ===
+    # gh pr merge 직전, CI 가 green 인지 강제. 단 만성-red allowlist
+    # ('Lint — circular dependencies' = depcruise 미설치 exit 127) 는 머지
+    # 차단하지 않는다 — 전면 차단 시 모든 PR 이 막혀 머지 마비되기 때문.
+    # additive 가드: green/known-red-only 면 기존과 동일하게 머지 진행(exit 0),
+    # 그 외 red 또는 미완료 pending 이면 exit 20 → 머지 보류 + task escalate.
+    # STOP/stop-guard 등 기존 가드는 일절 약화하지 않음 (더 엄격하게만 함).
+    bash scripts/orchestrator/ci-gate.sh {pr_number}
+    ci_rc=$?
+    if ci_rc == 20:
+      # 머지 보류. 해당 task 를 blocked 로 escalate + 사유 transcript.
+      # (tasks.json 직접 write 금지 — Step 5 단일-writer 규약대로 set_task_status 경유)
+      mcp__task-master-ai__set_task_status(id={task_id}, status="blocked")
+      transcript: `[ci-gate] BLOCKED merge of PR #${pr_number} (${task_id}) — non-allowlisted CI red. ci-gate.sh stdout 의 blocking[] 참조. 머지 보류, task→blocked.`
+      continue   # 이 summary 머지 skip — 다음 summary 처리 (락/worktree 유지)
+    # ci_rc == 0 (green 또는 allowlisted-red-only): 통상 머지 진행
+    # 그 외 비정상(64 등): transcript 경고 후 보수적으로 머지 보류 + escalate
+    elif ci_rc != 0:
+      mcp__task-master-ai__set_task_status(id={task_id}, status="blocked")
+      transcript: `[ci-gate] abnormal exit ${ci_rc} for PR #${pr_number} — 보수적으로 머지 보류.`
+      continue
+
     gh pr merge {pr_number} --squash --delete-branch
     git pull --ff-only origin main  # 머지 결과 가져오기
 

@@ -58,6 +58,8 @@ next-env.d.ts
 # TM-215 — set-current-task.sh runtime anchor; tracking it caused repeated
 # merge/pull conflicts across concurrent TeamLead PRs (orchestrator-v2 wave1).
 .agent-state/current-task
+# TM-208 — ci-gate.sh chronically-red telemetry (runtime, best-effort, never tracked)
+.agent-state/ci-gate-red-history.jsonl
 
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/
