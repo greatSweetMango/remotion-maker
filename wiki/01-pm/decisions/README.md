@@ -41,3 +41,5 @@ status: active
 - [[0031-preflight-guardrail|ADR-0031: Preflight guardrail — 디스패치 전 키/dev-server/env fail-fast (OpenAI Swarm input-guardrail 패턴)]]
 - [[0032-tasks-json-single-writer|ADR-0032: tasks.json 단일-writer 직렬화 (TM-96 mutex 확장, 동시쓰기 race 제거)]]
 - [[0033-progress-ledger|ADR-0033: Magentic-One progress-ledger + phase_loop stall detector (in-flight health for TeamLeads)]]
+- [[0034-phase-checkpoint|ADR-0034: TeamLead Phase 체크포인트/재개 (LangGraph 패턴, kill 후 마지막 Phase부터 재개)]]
+- [[0035-hard-ci-gate|ADR-0035: 머지 전 Hard CI 게이트 + chronically-red allowlist]]
