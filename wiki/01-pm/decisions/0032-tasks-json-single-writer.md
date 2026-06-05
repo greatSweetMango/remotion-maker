@@ -1,12 +1,12 @@
 ---
-title: "ADR-PENDING-TM-209: tasks.json 단일-writer 직렬화"
+title: "ADR-0032: tasks.json 단일-writer 직렬화"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/infra, area/agent-company]
 status: accepted
 ---
 
-# ADR-PENDING-TM-209: tasks.json 단일-writer 직렬화
+# ADR-0032: tasks.json 단일-writer 직렬화
 
 ## 컨텍스트
 
