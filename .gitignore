@@ -60,6 +60,10 @@ next-env.d.ts
 .agent-state/current-task
 # TM-208 — ci-gate.sh chronically-red telemetry (runtime, best-effort, never tracked)
 .agent-state/ci-gate-red-history.jsonl
+# TM-206 — TeamLead Phase checkpoint (last_completed_phase + artifacts), worktree-local
+# runtime file written at every Phase boundary for kill→re-dispatch resume.
+# Never tracked (same rationale as current-task: per-worktree, would conflict on PRs).
+.agent-state/checkpoint.json
 
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/
