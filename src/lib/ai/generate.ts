@@ -41,8 +41,15 @@ import {
   isCompositionCritiqueEnabled,
   type CompositionCritiqueResult,
 } from './composition-critique';
+import {
+  detectStaticMotionSource,
+  checkRenderedLiveness,
+  isLivenessGateEnabled,
+  isLivenessRenderEnabled,
+  type LivenessRenderResult,
+} from './liveness-check';
 import path from 'node:path';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata } from '@/types';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata, LivenessMetadata } from '@/types';
 
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
@@ -104,6 +111,12 @@ export interface GenerateOptions {
    * renderStill + judge path without bundling Remotion or touching Chrome.
    */
   __compositionCritique?: typeof critiqueComposition;
+  /**
+   * TM-184 — test seam for the motion-liveness render stage. When present,
+   * replaces `checkRenderedLiveness` so unit tests can stub the renderStill +
+   * cross-frame diff without bundling Remotion or touching Chrome.
+   */
+  __livenessRender?: typeof checkRenderedLiveness;
   /**
    * TM-156 — request id forwarded from the route handler so every
    * structured latency mark emitted deeper in the stack (asset-gen,
@@ -473,9 +486,21 @@ async function generateOnce(
   // (structurally valid but paints nothing — the empty-video fingerprint).
   // Both route through the same `placeholder` retry-then-surface path so an
   // empty output is NEVER served silently (acceptance: 절대 silent blank 금지).
+  // TM-184: positive motion-liveness AST pre-filter. Promotes prompts.ts'
+  // useCurrentFrame self-check to enforcement — a composition with zero
+  // frame-driven references (or only CSS-frozen motion, via TM-185) is
+  // provably static and routes through the SAME placeholder retry-then-warn
+  // path so a static result is NEVER served silently. Complementary to
+  // TM-182 detectEmptyComposition (paints-nothing) — they catch different
+  // failures and we dedupe via the shared `reasons` list. Free (no render);
+  // the render-diff stage runs later in generateAsset where the bundle exists.
+  const livenessAstReasons = isLivenessGateEnabled()
+    ? detectStaticMotionSource(code).map((r) => r.message)
+    : [];
   const placeholderReasons = [
     ...detectPlaceholderCode(code),
     ...detectEmptyComposition(code),
+    ...livenessAstReasons,
   ];
   if (placeholderReasons.length > 0) {
     return { kind: 'placeholder', reasons: placeholderReasons, rawCode: code };
@@ -1139,6 +1164,72 @@ async function generateAssetSingleShot(
       if (process.env.NODE_ENV !== 'production') {
         console.warn(
           '[generateAsset] TM-171 composition-critique threw, continuing:',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
+
+  // ----- TM-184 — motion-liveness render stage (cross-frame diff) -----
+  //
+  // The AST pre-filter (processGenerateResponse) already rejected outputs with
+  // zero frame-driven references via the retry path. This second stage catches
+  // the subtler failure: source LOOKS frame-driven (uses interpolate/spring)
+  // but the rendered frames are effectively identical (value computed but never
+  // bound to a visible property, bound off-screen, etc.). Renders frames
+  // 0/mid/last via the SAME shared bundle + renderStill TM-171 uses, downscales,
+  // and compares. We only attach telemetry here (the served asset already
+  // passed the hard AST gate). A 'static' verdict surfaces a non-blocking
+  // warning so the user is informed rather than served a silent dead video —
+  // a full code-regen on this signal is a follow-up (needs prompt re-assembly).
+  //
+  // ADR-0001: generate path only. Never blocks — any infra failure → 'skipped'.
+  // Latency budget (<2s): 3 cached-bundle stills ≈ 0.3-0.6s each on warm Chrome.
+  if (
+    isLivenessRenderEnabled()
+    && finalized.type === 'generate'
+  ) {
+    try {
+      const { getSharedBundlePath } = await import('@/lib/remotion/bundle');
+      const bundlePath = await getSharedBundlePath();
+      const paramsRecord = Object.fromEntries(
+        finalized.asset.parameters.map((p) => [p.key, p.value]),
+      );
+      const livenessFn = opts.__livenessRender ?? checkRenderedLiveness;
+      const result: LivenessRenderResult = await livenessFn({
+        jsCode: finalized.asset.jsCode,
+        params: paramsRecord,
+        durationInFrames: finalized.asset.durationInFrames,
+        bundlePath,
+      });
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[generateAsset] TM-184 liveness:', {
+          verdict: result.verdict,
+          maxDiff: Number(result.maxDiff.toFixed(2)),
+          epsilon: result.epsilon,
+          frames: result.frames,
+          latencyMs: result.latencyMs,
+        });
+      }
+      (finalized as typeof finalized & { liveness?: LivenessMetadata }).liveness = {
+        verdict: result.verdict,
+        stage: 'render',
+        maxDiff: result.maxDiff,
+        epsilon: result.epsilon,
+        frames: result.frames,
+        latencyMs: result.latencyMs,
+      };
+      if (result.verdict === 'static' && !finalized.warning) {
+        // Non-blocking, never silent: tell the user the result looks frozen.
+        finalized.warning =
+          'This animation may not visibly move — the rendered frames are nearly identical. ' +
+          'Try regenerating, or add motion (e.g. "fade/slide/pulse over 3s").';
+      }
+    } catch (err) {
+      // Never block on liveness-render failures. Degrade to no telemetry.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] TM-184 liveness render threw, continuing:',
           err instanceof Error ? err.message : String(err),
         );
       }
