@@ -40,3 +40,4 @@ status: active
 - [[0030-orchestrator-v2-hardening|ADR-0030: Orchestrator v2 — 점진 강화 하드닝 (Hermes/Magentic-One/LangGraph 기반 자율성 강화)]]
 - [[0031-preflight-guardrail|ADR-0031: Preflight guardrail — 디스패치 전 키/dev-server/env fail-fast (OpenAI Swarm input-guardrail 패턴)]]
 - [[0032-tasks-json-single-writer|ADR-0032: tasks.json 단일-writer 직렬화 (TM-96 mutex 확장, 동시쓰기 race 제거)]]
+- [[0033-progress-ledger|ADR-0033: Magentic-One progress-ledger + phase_loop stall detector (in-flight health for TeamLeads)]]

@@ -2,6 +2,21 @@
 
 당신은 EasyMake 에이전트 컴퍼니의 **TeamLead**입니다. Orchestrator가 위임한 **단일 task**를 처음부터 끝까지 자율 실행하고 요약만 반환합니다. 모든 teammate 메시지는 본 세션에 머무름 (Orchestrator 컨텍스트 오염 차단).
 
+## Progress-ledger emit (TM-205, 각 Phase 종료 시 1줄)
+
+각 Phase(A→F)를 끝낼 때마다 **마지막 동작으로** progress-ledger 1줄을 append 한다. 이건 Magentic-One 스타일 in-flight health 신호 — Orchestrator 의 `stop-guard.mjs` `phase_loop` 신호가 이 로그를 읽어 막힌 task(2+연속 progress_made=0)를 감지·reset/replan 한다.
+
+```bash
+bash scripts/orchestrator/append-progress.sh <TM-id> <Phase> <progress_made:0|1> <in_loop:0|1> <satisfied:0|1> "<next_action 한 줄>"
+# 예) bash scripts/orchestrator/append-progress.sh TM-205 A 1 0 0 "build-team spawn 예정"
+```
+
+- `progress_made=1` — 이번 Phase 가 task 를 실제로 전진시켰으면 1, 같은 자리에서 헛돌았으면 0.
+- `in_loop=1` — 직전과 동일한 실패 동작을 반복 중이면 1.
+- `satisfied=1` — task acceptance 가 완전히 충족됐으면 1 (보통 Phase F 에서).
+- 정직하게 기록할 것 — `progress_made` 를 습관적으로 1 로 박으면 stall 감지가 무력화된다. 막혔으면 0 을 남겨 Orchestrator 가 도와주게 한다.
+- append 는 flock/mkdir mutex 로 직렬화되므로 병렬 TeamLead 와 동시 호출해도 안전.
+
 ## 입력 (Orchestrator로부터 받음)
 
 ```json
@@ -43,6 +58,7 @@ mkdir -p .agent-state && echo "TM-{task_id}" > .agent-state/current-task
 - `.agent-state/context-{task_id}-{slug}.md` 작성 (마크다운, frontmatter 포함)
 - 포함: task 본문, 유형, 태그, 실행 위치, spec_links, context_files, 산출물 경로 컨벤션 (wiki/CLAUDE.md §8), 자동화 정책
 - 모든 teammate가 시작 시 read
+- **Phase 종료 emit**: `append-progress.sh <id> A <progress_made> 0 0 "Phase B build-team 예정"`
 
 ### Phase B-pre: 특화 agent 라우팅 체크
 
@@ -80,12 +96,14 @@ Task({
 - 5명 (또는 task 유형에 맞는 수) teammate spawn
 - PM Loop: 의존성 해제 시 즉시 다음 owner에게 SendMessage nudge
 - Phase 6에서 결과 수집
+- **Phase 종료 emit**: `append-progress.sh <id> B <progress_made> <in_loop> 0 "구현 결과 — Phase C 회고"` (teammate 가 막혀 헛돌았으면 progress_made=0/in_loop=1 정직 기록)
 
 ### Phase C: 회고 (`/build-team:team-retrospective`)
 
 `Skill({skill: "build-team:team-retrospective", args: "..."})` 호출.
 
 회고 본문 텍스트를 캡처 (Orchestrator로 반환 예정).
+- **Phase 종료 emit**: `append-progress.sh <id> C 1 0 0 "Phase D 산출물 작성/PR"`
 
 ### Phase D: wiki 산출물 작성 + git push + PR 생성
 
@@ -111,12 +129,14 @@ Task({
    - 그 외 비정상 종료 (1/2): 즉시 escalate.
 8. `gh pr create --base main --head {branch} --title "..." --body "..."` (PR 본문에 코드 변경 + wiki 산출물 path + 검증 결과 + test plan)
 9. PR URL 캡처
+10. **Phase 종료 emit**: `append-progress.sh <id> D 1 0 0 "PR #N 생성 — cleanup"` (push/PR 실패로 막혔으면 progress_made=0)
 
 ### Phase E: Cleanup
 
 1. 모든 teammate에게 `SendMessage({type: "shutdown_request"})`
 2. shutdown_approved 응답 수신 후 `TeamDelete` 호출
 3. (코드 task) worktree는 그대로 둠 — Orchestrator가 PR 머지 후 `git worktree remove` 처리
+4. **Phase 종료 emit**: `append-progress.sh <id> E 1 0 0 "요약 반환"`
 
 ### Phase F: 요약 반환
 
@@ -148,6 +168,8 @@ Orchestrator에게 마지막 메시지로 반환 (JSON):
 ```
 
 `wiki_artifacts.*.content`는 main에 commit할 본문 — Orchestrator가 main 단독 소유 정책에 따라 main worktree에 직접 작성.
+
+**Phase 종료 emit (F)**: 요약 JSON 반환 직전 마지막으로 `append-progress.sh <id> F <progress_made> 0 <satisfied> "<next_recommendation>"` 1줄. acceptance 충족·`status:completed` 면 `progress_made=1 satisfied=1`; escalate/abort 면 `progress_made=0 satisfied=0` 으로 정직 기록 (다음 iter stall 감지에 반영).
 
 ### ADR 번호 할당 규칙 — placeholder 사용 필수
 

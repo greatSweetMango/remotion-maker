@@ -4,7 +4,7 @@
 // Runs from .claude/commands/orchestrate.md Step 7-1 (after the existing
 // inline STOP / spend.95% / loop-count / openai_cap / ai-qa-final checks).
 //
-// Five additional STOP signals — when any fires, write .agent-state/STOP with a
+// Six additional STOP signals — when any fires, write .agent-state/STOP with a
 // reason line, emit a single telemetry line, and exit non-zero so the
 // orchestrator turn ends. All thresholds tunable via env vars (test override).
 //
@@ -18,6 +18,10 @@
 //      S hours; zombie task — likely TeamLead crashed mid-flight.
 //   5) Cost burst          — OpenAI spend rose ≥ $B inside the last H minutes
 //      (sliding window over spend-ledger.jsonl). Catches runaway loops.
+//   6) Phase loop (TM-205) — a task's progress-ledger.jsonl shows ≥ C
+//      consecutive progress_made=0 rows (newest-first). The TeamLead is
+//      stalled; recommend reset + replan on the next iter. Additive — does not
+//      alter any existing threshold or behaviour.
 //
 // Spend ledger format — .agent-state/spend-ledger.jsonl (append-only, JSONL):
 //
@@ -68,6 +72,10 @@ const DEFAULTS = {
   STALE_LOCK_HOURS: parseFloat(process.env.STOP_STALE_LOCK_HOURS || '6'),
   COST_BURST_USD: parseFloat(process.env.STOP_COST_BURST_USD || '3'),
   COST_BURST_MIN: parseInt(process.env.STOP_COST_BURST_MIN || '60', 10),
+  // TM-205 — phase_loop: consecutive progress_made=0 rows (per task) that
+  // signal a stalled TeamLead. Default 2 = "two phases in a row with no
+  // progress" → recommend reset + replan on the next iter.
+  PHASE_LOOP_CONSEC: parseInt(process.env.STOP_PHASE_LOOP_CONSEC || '2', 10),
 };
 
 function parseArgs(argv) {
@@ -255,6 +263,66 @@ function checkCostBurst(stateDir) {
   return null;
 }
 
+// ─── signal 6: phase loop (TM-205) ──────────────────────────────────────────
+// Read .agent-state/progress-ledger.jsonl (Magentic-One-style in-flight health
+// log — schema: {ts, task_id, phase, progress_made, in_loop, satisfied,
+// next_action}, appended once per TeamLead phase by append-progress.sh). For
+// each task_id, walk its rows newest-first and count the leading run of
+// progress_made=0. If that run reaches PHASE_LOOP_CONSEC for any task → the
+// TeamLead is stalled; recommend reset + replan. Additive signal: it never
+// touches the existing five, and (like them) writing STOP halts the loop so a
+// human / the orchestrator's Step-7 guard can re-dispatch the task.
+function checkPhaseLoop(stateDir) {
+  const path = join(stateDir, 'progress-ledger.jsonl');
+  if (!existsSync(path)) return null;
+  // Preserve append order; group rows per task_id.
+  const byTask = new Map();
+  for (const ln of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    if (!ln) continue;
+    let r;
+    try {
+      r = JSON.parse(ln);
+    } catch {
+      continue; // skip malformed
+    }
+    if (!r || typeof r.task_id !== 'string') continue;
+    // progress_made must be an explicit 0/1 (number or numeric string).
+    const pm = typeof r.progress_made === 'string'
+      ? Number(r.progress_made)
+      : r.progress_made;
+    if (pm !== 0 && pm !== 1) continue;
+    if (!byTask.has(r.task_id)) byTask.set(r.task_id, []);
+    byTask.get(r.task_id).push({ pm, phase: r.phase });
+  }
+  const stalled = [];
+  for (const [taskId, rows] of byTask) {
+    let run = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i].pm === 0) run++;
+      else break;
+    }
+    if (run >= DEFAULTS.PHASE_LOOP_CONSEC) {
+      stalled.push({ task_id: taskId, consecutive_no_progress: run });
+    }
+  }
+  if (stalled.length > 0) {
+    const worst = stalled
+      .slice()
+      .sort((a, b) => b.consecutive_no_progress - a.consecutive_no_progress);
+    return {
+      signal: 'phase_loop',
+      reason:
+        `${stalled.length} task(s) stalled — ` +
+        worst
+          .map((s) => `${s.task_id}:${s.consecutive_no_progress}× progress_made=0`)
+          .join(', ') +
+        ` ≥ ${DEFAULTS.PHASE_LOOP_CONSEC} consecutive (reset+replan recommended)`,
+      detail: { stalled, consec_threshold: DEFAULTS.PHASE_LOOP_CONSEC },
+    };
+  }
+  return null;
+}
+
 // ─── orchestration ──────────────────────────────────────────────────────────
 export function runChecks({ stateDir, reportsDir }) {
   const checks = [
@@ -263,6 +331,7 @@ export function runChecks({ stateDir, reportsDir }) {
     checkWorktreeLeak(),
     checkStaleLocks(stateDir),
     checkCostBurst(stateDir),
+    checkPhaseLoop(stateDir),
   ];
   return checks.filter(Boolean);
 }

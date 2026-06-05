@@ -131,6 +131,49 @@ else
   echo "[test] FAIL dry-run: exit=${DR_EXIT} STOP=$(ls "${SANDBOX}/c8/state/" 2>/dev/null)"; FAIL=$((FAIL+1))
 fi
 
+# Case 9 (TM-205): phase_loop — 2 consecutive progress_made=0 for one task
+mkdir -p "${SANDBOX}/c9/state" "${SANDBOX}/c9/reports"
+{
+  echo '{"ts":"2026-06-05T00:00:00Z","task_id":"TM-205","phase":"A","progress_made":1,"in_loop":0,"satisfied":0,"next_action":"start"}'
+  echo '{"ts":"2026-06-05T01:00:00Z","task_id":"TM-205","phase":"B","progress_made":0,"in_loop":1,"satisfied":0,"next_action":"retry"}'
+  echo '{"ts":"2026-06-05T02:00:00Z","task_id":"TM-205","phase":"B","progress_made":0,"in_loop":1,"satisfied":0,"next_action":"retry again"}'
+} > "${SANDBOX}/c9/state/progress-ledger.jsonl"
+GIT_WORKTREE_LIST_CMD='printf "worktree /a\n"' \
+  run_guard "${SANDBOX}/c9/state" "${SANDBOX}/c9/reports"
+case_assert "phase loop (2 consecutive no-progress)" 42 "phase_loop" "$OUT"
+
+# Case 10 (TM-205): healthy progress — phase_loop must NOT fire.
+# Mixes a trailing progress_made=1 and an unrelated task with a single 0.
+mkdir -p "${SANDBOX}/c10/state" "${SANDBOX}/c10/reports"
+{
+  echo '{"ts":"2026-06-05T00:00:00Z","task_id":"TM-205","phase":"A","progress_made":1,"in_loop":0,"satisfied":0,"next_action":"start"}'
+  echo '{"ts":"2026-06-05T01:00:00Z","task_id":"TM-205","phase":"B","progress_made":0,"in_loop":0,"satisfied":0,"next_action":"recover"}'
+  echo '{"ts":"2026-06-05T02:00:00Z","task_id":"TM-205","phase":"C","progress_made":1,"in_loop":0,"satisfied":1,"next_action":"done"}'
+  echo '{"ts":"2026-06-05T03:00:00Z","task_id":"TM-300","phase":"A","progress_made":0,"in_loop":0,"satisfied":0,"next_action":"first phase"}'
+} > "${SANDBOX}/c10/state/progress-ledger.jsonl"
+GIT_WORKTREE_LIST_CMD='printf "worktree /a\n"' \
+  run_guard "${SANDBOX}/c10/state" "${SANDBOX}/c10/reports"
+case_assert "healthy progress (no phase_loop)" 0 "" "$OUT"
+
+# Case 11 (TM-205): no progress-ledger file at all → phase_loop silent (back-compat)
+mkdir -p "${SANDBOX}/c11/state" "${SANDBOX}/c11/reports"
+GIT_WORKTREE_LIST_CMD='printf "worktree /a\n"' \
+  run_guard "${SANDBOX}/c11/state" "${SANDBOX}/c11/reports"
+case_assert "absent progress-ledger (no signal)" 0 "" "$OUT"
+
+# Case 12 (TM-205): per-task isolation — task with trailing 0×2 fires even when
+# another task is healthy; confirms grouping does not bleed across task_ids.
+mkdir -p "${SANDBOX}/c12/state" "${SANDBOX}/c12/reports"
+{
+  echo '{"ts":"2026-06-05T00:00:00Z","task_id":"TM-A","phase":"A","progress_made":1,"in_loop":0,"satisfied":0,"next_action":"ok"}'
+  echo '{"ts":"2026-06-05T00:30:00Z","task_id":"TM-B","phase":"A","progress_made":0,"in_loop":1,"satisfied":0,"next_action":"stuck"}'
+  echo '{"ts":"2026-06-05T01:00:00Z","task_id":"TM-A","phase":"B","progress_made":1,"in_loop":0,"satisfied":0,"next_action":"ok2"}'
+  echo '{"ts":"2026-06-05T01:30:00Z","task_id":"TM-B","phase":"B","progress_made":0,"in_loop":1,"satisfied":0,"next_action":"stuck2"}'
+} > "${SANDBOX}/c12/state/progress-ledger.jsonl"
+GIT_WORKTREE_LIST_CMD='printf "worktree /a\n"' \
+  run_guard "${SANDBOX}/c12/state" "${SANDBOX}/c12/reports"
+case_assert "per-task isolation (TM-B stalls)" 42 "phase_loop" "$OUT"
+
 echo
 echo "─── stop-guard tests: ${PASS} passed, ${FAIL} failed ───"
 [[ "${FAIL}" -eq 0 ]] || exit 1
