@@ -19,16 +19,18 @@
  * (pipeline.ts) decides when to invoke and respects the same-process
  * idempotency cache so repeated edits don't burn additional dollars.
  *
- * Storage: TM-109 pattern — `public/uploads/...`. R2 migration is a
- * follow-up task (see ADR-0022 "캐싱 → R2"). Local FS won't survive a
- * serverless redeploy, but EasyMake currently runs single-server.
+ * Storage (TM-89, ADR-0022 follow-up): a pluggable persistent cache via
+ * `./asset-cache`. Default backend = local FS (no creds); when R2 env vars
+ * are present the cache is served from R2 so it survives serverless
+ * redeploys. The only behaviour change vs TM-90 is that a cache hit skips
+ * the image-gen LLM call (cost recorded as 0 — see `recordAssetGenSpend`).
  */
 import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { generateAssetImage } from './asset-gen';
 import type { ClarifyAnswers } from '@/types';
 import { recordMark, isLatencyProfileEnabled } from './latency-profile';
+import { getAssetCache, ASSET_GEN_DIR_REL, ASSET_GEN_PUBLIC_PREFIX, type AssetCache } from './asset-cache';
+import { recordUsage } from './spend';
 
 /* ------------------------------------------------------------------ */
 /* Living-entity detection                                            */
@@ -81,8 +83,8 @@ export function detectLivingEntity(
 /* Hash + storage                                                     */
 /* ------------------------------------------------------------------ */
 
-export const ASSET_GEN_DIR_REL = path.join('public', 'uploads', 'asset-gen');
-export const ASSET_GEN_PUBLIC_PREFIX = '/uploads/asset-gen';
+// Re-exported from the FS cache backend so existing importers keep working.
+export { ASSET_GEN_DIR_REL, ASSET_GEN_PUBLIC_PREFIX };
 
 /** sha256 of canonical (prompt + sorted answers + style) — stable across runs. */
 export function hashAssetGenInputs(
@@ -112,21 +114,27 @@ export function __resetAssetGenCache(): void {
   inMemoryHashCache.clear();
 }
 
-function publicUrlFor(hash: string): string {
-  return `${ASSET_GEN_PUBLIC_PREFIX}/${hash}.png`;
-}
-
-function diskPathFor(hash: string): string {
-  return path.join(process.cwd(), ASSET_GEN_DIR_REL, `${hash}.png`);
-}
-
-async function fileExists(p: string): Promise<boolean> {
-  try {
-    await fs.access(p);
-    return true;
-  } catch {
-    return false;
-  }
+/**
+ * TM-89 — record the cost of an asset-gen image call into the spend ledger
+ * (`.agent-state/spend.json`). On a cache HIT this is a no-op (cost 0, no
+ * tokens) so the ledger never double-counts a re-used asset — satisfying the
+ * ADR-0022 "캐시 히트 시 비용 0 기록" requirement. On a MISS we attribute the
+ * flat gpt-image-1 price as an `openai` line so the nightly budget cap and
+ * `openai_total_usd` see image-gen spend (which token-based recordUsage would
+ * otherwise miss — images carry no prompt/completion token counts).
+ *
+ * Best-effort: recordUsage already swallows IO errors and returns null.
+ */
+export function recordAssetGenSpend(costUsd: number): void {
+  if (!costUsd || costUsd <= 0) return; // cache hit → zero-cost, nothing to record
+  // gpt-image-1 has no token usage; encode the flat per-image price as a
+  // single "input token" against a synthetic $1/1M-token rate so the existing
+  // openai cost math (in/1M) yields exactly costUsd.
+  recordUsage({
+    provider: 'openai',
+    model: 'gpt-image-1',
+    usage: { prompt_tokens: Math.round(costUsd * 1_000_000), completion_tokens: 0 },
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,6 +148,10 @@ export interface AssetGenStageInput {
   style?: string;
   /** Test seam — inject a stub generator so unit tests stay offline. */
   imageGenerator?: typeof generateAssetImage;
+  /** TM-89 test/DI seam — inject a cache backend (defaults to env selection). */
+  cache?: AssetCache;
+  /** TM-89 test seam — override the spend recorder (defaults to recordAssetGenSpend). */
+  recordSpend?: (costUsd: number) => void;
   /** TM-156 — request id propagation for structured stage marks. */
   __latencyReqId?: string;
 }
@@ -148,10 +160,12 @@ export interface AssetGenStageResult {
   imageUrl: string;
   costUsd: number;
   latencyMs: number;
-  /** True when the file already existed on disk (no API call made). */
+  /** True when the asset was served from cache (no image-gen call made). */
   cached: boolean;
   hash: string;
   matchedToken: string;
+  /** TM-89 — which cache backend served/stored this asset ("fs" | "r2"). */
+  cacheProvider?: string;
 }
 
 /**
@@ -179,34 +193,49 @@ export async function runAssetGenStage(
   const style = input.style ?? '';
   const hash = hashAssetGenInputs(input.prompt, input.answers, style);
 
-  const diskPath = diskPathFor(hash);
-  const publicUrl = publicUrlFor(hash);
+  const cache = input.cache ?? getAssetCache();
+  const recordSpend = input.recordSpend ?? recordAssetGenSpend;
+  const matchedToken = hit.matchedToken ?? '';
 
-  // 1. In-memory short-circuit (same process, repeat call).
+  // 1. In-memory short-circuit (same process, repeat call) — avoids even a
+  //    cache round-trip. The URL is reconstructed from the active backend on
+  //    the persistent-hit path below, so we only short-circuit here when we
+  //    already know the backend served it this process. To stay backend-
+  //    agnostic we re-check the persistent cache when not in-memory.
   if (inMemoryHashCache.has(hash)) {
-    return {
-      imageUrl: publicUrl,
-      costUsd: 0,
-      latencyMs: 0,
-      cached: true,
-      hash,
-      matchedToken: hit.matchedToken ?? '',
-    };
+    const memHit = await cache.get(hash);
+    if (memHit) {
+      recordSpend(0);
+      return {
+        imageUrl: memHit.url,
+        costUsd: 0,
+        latencyMs: 0,
+        cached: true,
+        hash,
+        matchedToken,
+        cacheProvider: memHit.provider,
+      };
+    }
+    // Entry vanished from the backend (e.g. redeploy wiped FS) — fall through.
   }
-  // 2. On-disk short-circuit (process restart, same hash).
-  if (await fileExists(diskPath)) {
+
+  // 2. Persistent cache lookup (FS or R2). Hit ⇒ skip image-gen (ADR-0022).
+  const persistedHit = await cache.get(hash);
+  if (persistedHit) {
     inMemoryHashCache.add(hash);
+    recordSpend(0); // ADR-0022: record cost 0 on a cache hit.
     return {
-      imageUrl: publicUrl,
+      imageUrl: persistedHit.url,
       costUsd: 0,
       latencyMs: 0,
       cached: true,
       hash,
-      matchedToken: hit.matchedToken ?? '',
+      matchedToken,
+      cacheProvider: persistedHit.provider,
     };
   }
 
-  // 3. Generate + persist.
+  // 3. Miss — generate + persist into the cache.
   const reqId = input.__latencyReqId ?? 'no-req';
   const profileOn = isLatencyProfileEnabled();
   const promptBuildStart = Date.now();
@@ -218,17 +247,18 @@ export async function runAssetGenStage(
   const result = await gen({ prompt: imagePrompt, __latencyReqId: reqId });
   if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.generate-total', ms: Date.now() - genStart, meta: { reportedLatencyMs: result.latencyMs, costUsd: result.costUsd } });
 
-  const diskStart = Date.now();
-  await fs.mkdir(path.dirname(diskPath), { recursive: true });
-  await fs.writeFile(diskPath, result.pngBytes);
-  if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.disk-write', ms: Date.now() - diskStart, meta: { bytes: result.pngBytes.length } });
+  const persistStart = Date.now();
+  const url = await cache.put({ cacheKey: hash, bytes: result.pngBytes });
+  if (profileOn) recordMark({ req: reqId, phase: 'asset-gen-stage.cache-put', ms: Date.now() - persistStart, meta: { bytes: result.pngBytes.length, provider: cache.name } });
   inMemoryHashCache.add(hash);
+  recordSpend(result.costUsd); // ADR-0022: attribute the generation cost.
 
   return {
-    imageUrl: publicUrl,
+    imageUrl: url,
     costUsd: result.costUsd,
     latencyMs: result.latencyMs,
     cached: false,
+    cacheProvider: cache.name,
     hash,
     matchedToken: hit.matchedToken ?? '',
   };
