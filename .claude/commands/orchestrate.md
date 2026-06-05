@@ -394,18 +394,60 @@ if test -f wiki/05-reports/2026-04-27-ai-qa-final.md:
   transcript: "[ai-qa] final report detected — STOP written, exit"
   exit
 
-# TM-101 — Night-mode STOP guard (5 추가 신호 + spend-ledger 분석)
+# TM-101/TM-205 — Night-mode STOP guard (6 추가 신호 + spend-ledger/progress-ledger 분석)
 #   - quality plateau (3회 bench mode_match_pct drift <1pp)
 #   - error rate spike (최근 5 task BLOCK/REQUEST_CHANGES ≥60%)
 #   - worktree leak (git worktree list ≥5)
 #   - stale lock (branch-locks.json started_at >6h)
 #   - cost burst (spend-ledger.jsonl 최근 60min 누적 ≥$3)
+#   - phase_loop (TM-205: progress-ledger.jsonl 같은 task_id 최근 2+연속 progress_made=0)
 # stop-guard.mjs 가 STOP 을 쓰면 exit 42; 본 가드 블록에서 즉시 종료.
-node scripts/orchestrator/stop-guard.mjs --json
-guard_rc=$?
-if [[ "$guard_rc" == "42" ]]; then
-  transcript: "[stop-guard] STOP fired — see .agent-state/STOP, exit"
-  exit
+# 먼저 --dry-run --json 으로 어떤 신호가 떴는지 읽어 phase_loop 만 분리 처리한다.
+guard_json=$(node scripts/orchestrator/stop-guard.mjs --dry-run --json | tail -1)
+fired_signals=$(echo "$guard_json" | jq -r '.fired[].signal' 2>/dev/null)
+
+# 7-1b) TM-205 stall 자기수정 — phase_loop 가 *유일*하게 뜬 경우는 전역 STOP 대신
+#       해당 task 만 reset+replan 하여 다음 iter 재디스패치한다 (loop 자체는 유지).
+#       progress-ledger.jsonl 의 같은 task_id 가 2+연속 progress_made=0 → TeamLead 가
+#       막힌 상태. 이때:
+#         (a) detail.stalled[].task_id 마다 branch-lock 해제 + worktree 회수
+#             (git worktree remove --force) → 깨끗한 슬롯 확보,
+#         (b) 해당 task 를 pending 으로 되돌리고 metadata.replan_count += 1,
+#             progress-ledger 에 phase="REPLAN" progress_made=1 1줄 append 로 run 리셋
+#             (다음 iter 에서 동일 신호 재발화 방지),
+#         (c) replan_count >= 3 이면 self-heal 포기 — task 를 blocked 로 두고 STOP 작성(사람 호출).
+#       이 분기는 **additive**: 기존 5신호 중 하나라도 함께 떴으면 (or replan_count 초과)
+#       아래 일반 STOP 경로로 떨어진다. phase_loop 외 다른 신호의 임계/동작은 불변.
+only_phase_loop=$(echo "$guard_json" | jq -r \
+  'if ((.fired|length) > 0) and (all(.fired[]; .signal == "phase_loop")) then "yes" else "no" end' 2>/dev/null)
+if [[ "$only_phase_loop" == "yes" ]]; then
+  echo "$guard_json" | jq -c '.fired[] | select(.signal=="phase_loop") | .detail.stalled[]' \
+  | while read -r s; do
+      tid=$(echo "$s" | jq -r '.task_id')          # "TM-205"
+      replan=$(task metadata.replan_count for tid, default 0)
+      if (( replan >= 3 )); then
+        transcript: "[stop-guard] ${tid} phase_loop persists after ${replan} replans — STOP, 사람 호출"
+        node scripts/orchestrator/stop-guard.mjs --json   # 이번엔 실제 STOP 작성
+        exit
+      fi
+      # (a) 슬롯 회수
+      release branch-lock for tid (scripts/lib/branch-locks.sh)
+      git worktree remove --force worktrees/${tid}-* 2>/dev/null || true
+      # (b) reset + replan
+      mcp__task-master-ai__set_task_status(id=tid, status="pending")
+      update tid metadata: replan_count = replan + 1, last_replan_reason="phase_loop stall"
+      bash scripts/orchestrator/append-progress.sh "$tid" REPLAN 1 0 0 "orchestrator reset+replan (iter $loop_count)"
+      transcript: "[stop-guard] ${tid} phase_loop → reset+replan (#$((replan+1))), 다음 iter 재디스패치"
+    done
+  # phase_loop 만 떴으므로 전역 STOP 없이 7-2 로 진행 (재디스패치는 다음 iter Step 2).
+else
+  # 일반 경로: 신호가 있으면 stop-guard 가 실제 STOP 작성(exit 42) → 즉시 종료.
+  node scripts/orchestrator/stop-guard.mjs --json
+  guard_rc=$?
+  if [[ "$guard_rc" == "42" ]]; then
+    transcript: "[stop-guard] STOP fired — see .agent-state/STOP, exit"
+    exit
+  fi
 fi
 # rc=0 → 통과, rc=1 → 비정상이지만 best-effort 로 iter 계속.
 
