@@ -1,12 +1,12 @@
 ---
-title: "ADR-PENDING-TM-206: TeamLead Phase 체크포인트 + kill→재개 (LangGraph 패턴)"
+title: "ADR-0034: TeamLead Phase 체크포인트 + kill→재개 (LangGraph 패턴)"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/infra, area/agent-company, orchestrator-v2, resilience]
 status: accepted
 ---
 
-# ADR-PENDING-TM-206: TeamLead Phase 체크포인트 + kill→재개 (LangGraph 패턴)
+# ADR-0034: TeamLead Phase 체크포인트 + kill→재개 (LangGraph 패턴)
 
 ## 컨텍스트
 
