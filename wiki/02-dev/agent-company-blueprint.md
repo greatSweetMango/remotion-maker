@@ -649,6 +649,27 @@ remotion-maker/
 5. `.claude/hooks/` 안전 게이트 + Stop 훅에서 `team-retrospective` 자동 트리거
 6. 작은 task 1건으로 `/build-team:build-team` dry-run → 회고 리포트 1개 생성 → 위키에 안착 확인
 
+## Orchestrator v2 하드닝(2026-06-05)
+
+야간 자율 모드에서 관측된 **5대 약점**(① TeamLead 단일 long-turn stall/작업유실 ② tasks.json 동시쓰기 race + int/str id 혼용 ③ API키/dev-server 부재 무처리 ④ 만성 red CI 무시 머지 ⑤ 느슨한 in-flight health)을 산업계 검증 패턴으로 하드닝한다. 방향: **점진 강화(#1/#2/#5/#6/#8 우선), durable-engine 즉시 도입 보류, GEPA 오프라인 전용·live self-modify 금지**.
+
+- 리서치 합본: [[../05-reports/2026-06-05-orchestrator-v2-research|2026-06-05 Orchestrator v2 리서치]]
+- 결정: [[../01-pm/decisions/PENDING-TM-204-orchestrator-v2-hardening|ADR-PENDING-TM-204]]
+
+| TM | 레버 | 랭크 | 해결 약점 | 상태 |
+|---|---|---|---|---|
+| TM-204 | 로드맵·ADR 영구화(본 문서) | — | (메타) | docs |
+| TM-205 | progress-ledger + stall 탐지 (Magentic-One) | #1 | ① ⑤ | 우선 |
+| TM-206 | phase checkpoint/resume (LangGraph) | #2 | ① | 우선 |
+| TM-207 | `execute_code` tool-calling 표준화 (Hermes) | #3 | 실행 신뢰성 | 후속 |
+| TM-208 | evaluator-optimizer 루프 (self-healing) | #4 | ④ | 후속 |
+| TM-209 | preflight guardrail (Swarm) | #5 | ③ | 우선 |
+| TM-210 | hard CI 게이트 | #6 | ④ | 우선 |
+| TM-211 | durable-engine (Temporal/WDK) | #7 | ① ⑤ | **보류** |
+| TM-212 | 단일-writer + id 정규화 | #8 | ② | 우선 |
+| TM-213 | skill distillation + GEPA (오프라인) | #9 | 장기 품질 | 오프라인 |
+| TM-214 | GEPA 메타/평가 하네스 (오프라인) | #9 | 장기 품질 | 오프라인 |
+
 ## 15. 관련 문서
 
 - [[status|개발 현황]]
