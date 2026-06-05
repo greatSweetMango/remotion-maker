@@ -309,6 +309,8 @@ for summary in team_lead_summaries:
     git worktree remove {worktree_path}
 
     # Task Master 상태 갱신
+    # TM-209: tasks.json 은 단일-writer. 직접 jq|mv 금지 — task-master MCP(또는
+    # scripts/lib/task-queue.sh) 경유로 .agent-state/.tasks.lock mutex 하에 직렬 적용.
     mcp__task-master-ai__set_task_status(id={task_id}, status="done")
 
     completed_count++   # 모드 종료 조건 평가용 (once/max_n)

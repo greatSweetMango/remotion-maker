@@ -52,6 +52,9 @@ next-env.d.ts
 .agent-state/STOP
 .agent-state/dashboard.json
 .agent-state/dashboard-logs/
+# TM-209 — tasks.json single-writer mutex runtime anchors (never tracked)
+.agent-state/.tasks.lock
+.agent-state/.tasks.mutex.d/
 
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/

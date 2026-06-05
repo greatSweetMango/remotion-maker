@@ -105,11 +105,16 @@ __task_queue_active_tag() {
 
 # --- mutex implementations (mirrors branch-locks.sh) ----------------------
 
+# Acquire an exclusive flock on fd 8 (already open by caller), then run the
+# command DIRECTLY in this shell so bash functions remain in scope. (Using
+# `flock -c "<string>"` would re-exec under sh and lose function definitions.)
 __task_queue_with_flock() {
-  # shellcheck disable=SC2068
-  flock --exclusive --timeout "${TASK_QUEUE_TIMEOUT_SEC}" \
-        --conflict-exit-code 75 \
-        8 -c "$(printf '%q ' "$@")"
+  if ! flock --exclusive --timeout "${TASK_QUEUE_TIMEOUT_SEC}" 8; then
+    echo "task-queue: could not acquire flock within ${TASK_QUEUE_TIMEOUT_SEC}s" >&2
+    return 75
+  fi
+  "$@"
+  # fd 8 is closed by the caller (task_queue_with_lock), releasing the lock.
 }
 
 __task_queue_with_shellmutex() {
