@@ -1,12 +1,12 @@
 ---
-title: "ADR-PENDING-TM-205: Magentic-One progress ledger + phase_loop stall detector"
+title: "ADR-0033: Magentic-One progress ledger + phase_loop stall detector"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/infra, area/agent-company, orchestrator-v2]
 status: accepted
 ---
 
-# ADR-PENDING-TM-205: Magentic-One progress ledger + phase_loop stall detector
+# ADR-0033: Magentic-One progress ledger + phase_loop stall detector
 
 ## 컨텍스트
 
@@ -44,4 +44,4 @@ Microsoft 의 **Magentic-One** orchestrator 는 이 문제를 *progress ledger* 
 - `append-progress.sh` — 40× 병렬 append 에서 lost-write 0, 전 라인 valid JSONL 확인. bool/ id validation 동작.
 - 새 의존성 0, render-light, mac mkdir 폴백 검증(이 환경엔 flock 부재).
 
-자세한 배경은 ADR-PENDING-TM-205 참조.
+자세한 배경은 ADR-0033 참조.
