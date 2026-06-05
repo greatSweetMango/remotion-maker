@@ -234,6 +234,36 @@ export interface MotionCritiqueMetadata {
   extraCostUsd: number;
 }
 
+/**
+ * TM-187 — composition-level motion regen-loop telemetry. The TM-138 PNG
+ * self-critique regen pattern applied at the COMPOSITION level: when TM-184
+ * liveness is 'static' OR TM-186 motion-critique breaches the ADR-0016
+ * per-category floor, the structured critique is injected into a single regen
+ * of the generated CODE and the motion gate re-runs. Present when the regen
+ * loop actually fired (i.e. the first pass tripped a motion gate). Records
+ * whether the regen recovered motion, how many attempts ran, and the loop-guard
+ * outcome so a non-recovering regen surfaces as a warning rather than a silent
+ * dead video or an unbounded loop.
+ */
+export interface MotionRegenMetadata {
+  /** True when at least one regen attempt actually ran. */
+  triggered: boolean;
+  /** Which gate tripped the regen: liveness 'static' or motion floor breach. */
+  trigger: 'liveness-static' | 'motion-floor' | 'both';
+  /** Number of regen attempts performed (0 = trigger present but guard blocked). */
+  attempts: number;
+  /** Max attempts allowed for this run (loop guard, 1-2). */
+  maxAttempts: number;
+  /** True when the final served code passed the motion gate after regen. */
+  recovered: boolean;
+  /** True when the loop guard (attempts/cost) was exhausted without recovery. */
+  guardExhausted: boolean;
+  /** $ spent across all regen LLM + re-evaluation calls. */
+  extraCostUsd: number;
+  /** Wall-clock ms for the whole regen loop. */
+  latencyMs: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
   | {
@@ -249,6 +279,8 @@ export type GenerateApiResponse =
       liveness?: LivenessMetadata;
       /** TM-186 — present when multi-frame motion-critique ran. */
       motionCritique?: MotionCritiqueMetadata;
+      /** TM-187 — present when the composition motion regen-loop fired. */
+      motionRegen?: MotionRegenMetadata;
     };
 
 /** Map of clarify question id → selected choice id */
