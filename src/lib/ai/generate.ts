@@ -55,8 +55,14 @@ import {
   isLivenessRenderEnabled,
   type LivenessRenderResult,
 } from './liveness-check';
+import {
+  isMotionRegenEnabled,
+  isMotionBad,
+  runMotionRegenLoop,
+  type MotionSignal,
+} from './composition-regen';
 import path from 'node:path';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata, LivenessMetadata, MotionCritiqueMetadata } from '@/types';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata, LivenessMetadata, MotionCritiqueMetadata, MotionRegenMetadata } from '@/types';
 
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
@@ -130,6 +136,13 @@ export interface GenerateOptions {
    * path without bundling Remotion or touching Chrome.
    */
   __motionCritique?: typeof critiqueMotion;
+  /**
+   * TM-187 — test seam for the composition motion regen-loop. When present,
+   * replaces `runMotionRegenLoop` so unit tests can drive the loop with
+   * deterministic fixtures (static 1st pass → live after regen) without any
+   * real LLM regen or Remotion render. Production uses the default.
+   */
+  __motionRegenLoop?: typeof runMotionRegenLoop;
   /**
    * TM-156 — request id forwarded from the route handler so every
    * structured latency mark emitted deeper in the stack (asset-gen,
@@ -1329,7 +1342,241 @@ async function generateAssetSingleShot(
     }
   }
 
+  // ----- TM-187 — composition motion regen-loop --------------------------
+  //
+  // TM-184/TM-186 above only TELEMETER + warn on bad motion. TM-187 closes the
+  // loop: when the served code is 'static' (TM-184) OR breaches the ADR-0016
+  // motion floor (TM-186), structure WHAT was wrong into a regen instruction,
+  // re-run the generation CODE once (same single-shot core, critique appended
+  // to the system prompt — ADR-0003 cache prefix unchanged), re-run the motion
+  // gate, and keep the better of the two. Bounded: ≤2 attempts, cost ceiling,
+  // best-effort warning on exhaustion (NEVER an unbounded loop, NEVER blocks).
+  //
+  // ADR-0001: generate path only. Opt-in (AI_MOTION_REGEN=1) until the live
+  // key-loop validates recovery rate. Only meaningful when at least one of the
+  // motion gates actually produced a verdict on this request.
+  if (
+    isMotionRegenEnabled()
+    && finalized.type === 'generate'
+  ) {
+    const initialSignal = buildMotionSignalFromMetadata(finalized);
+    if (initialSignal && isMotionBad(initialSignal)) {
+      try {
+        const loopFn = opts.__motionRegenLoop ?? runMotionRegenLoop;
+        const loop = await loopFn<typeof finalized.asset>({
+          initialAsset: finalized.asset,
+          initialSignal,
+          // Regenerate the CODE once with the critique appended to the system
+          // prompt. Re-uses the same single-shot core (PARAMS export enforced
+          // there per ADR-0002) + the SAME asset-gen PNG (we don't re-spend on
+          // gpt-image-1; only the code is regenerated to bind motion).
+          regenerate: async (addendum) => {
+            const raw = await generateAssetSingleShotCore(
+              prompt,
+              model,
+              opts,
+              assetGenAddendum + addendum,
+            );
+            const refinalized = await finalizeWithAssetGen(raw, assetGen);
+            if (refinalized.type !== 'generate') {
+              // Regen bounced to clarify/error — treat as no-better candidate by
+              // returning the same asset shape (loop keeps the incumbent).
+              return { asset: finalized.asset, costUsd: 0 };
+            }
+            // ~$0.03 LLM regen (no extra PNG — asset-gen is cached/reused).
+            return { asset: refinalized.asset, costUsd: 0.03 };
+          },
+          // Re-run the motion gates on the regenerated code and normalize to a
+          // MotionSignal. Render-light test seams flow through opts.
+          evaluateMotion: async (asset) => {
+            const regenParams = Object.fromEntries(
+              asset.parameters.map((p) => [p.key, p.value]),
+            );
+            return evaluateMotionForRegen(prompt, asset, regenParams, opts);
+          },
+        });
+
+        if (loop.triggered) {
+          // Adopt the better candidate (may be the original if regen didn't win).
+          finalized.asset = loop.chosen;
+          // The chosen code's motion signal drives the warning + telemetry.
+          if (loop.recovered) {
+            // Recovered: clear the stale TM-184/TM-186 motion warning if it was
+            // the one we set (don't clobber an unrelated warning).
+            if (finalized.warning && /not visibly move|motion quality looks weak/.test(finalized.warning)) {
+              finalized.warning = undefined;
+            }
+          } else if (loop.warning && !finalized.warning) {
+            finalized.warning = loop.warning;
+          }
+          (finalized as typeof finalized & { motionRegen?: MotionRegenMetadata }).motionRegen = {
+            triggered: loop.triggered,
+            trigger: loop.trigger,
+            attempts: loop.attempts,
+            maxAttempts: loop.maxAttempts,
+            recovered: loop.recovered,
+            guardExhausted: loop.guardExhausted,
+            extraCostUsd: loop.extraCostUsd,
+            latencyMs: loop.latencyMs,
+          };
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[generateAsset] TM-187 motion-regen:', {
+              trigger: loop.trigger,
+              attempts: loop.attempts,
+              recovered: loop.recovered,
+              guardExhausted: loop.guardExhausted,
+              extraCostUsd: loop.extraCostUsd,
+              latencyMs: loop.latencyMs,
+            });
+          }
+        }
+      } catch (err) {
+        // Never block on regen-loop failures — keep the served asset as-is.
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[generateAsset] TM-187 motion-regen threw, continuing:',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+    }
+  }
+
   return finalized;
+}
+
+/**
+ * TM-187 — normalize the just-computed TM-184 liveness + TM-186 motion-critique
+ * metadata on a finalized generate response into the small `MotionSignal` the
+ * regen loop reasons over. Returns null when neither gate produced a verdict
+ * (nothing to regen on).
+ */
+function buildMotionSignalFromMetadata(
+  finalized: GenerateApiResponse & { liveness?: LivenessMetadata; motionCritique?: MotionCritiqueMetadata },
+): MotionSignal | null {
+  const liveness = finalized.liveness;
+  const motion = finalized.motionCritique;
+  if (!liveness && !motion) return null;
+
+  const livenessStatic = liveness?.verdict === 'static';
+  const motionFloorViolated = motion?.categoryFloorViolated === true;
+
+  // Aggregate score for tie-breaking: prefer the motion-critique overall when
+  // present; otherwise synthesize from the liveness verdict (static=0, live=100,
+  // skipped=50 → no strong signal either way).
+  let aggregateScore: number;
+  if (typeof motion?.score === 'number') {
+    aggregateScore = motion.score;
+  } else if (liveness?.verdict === 'static') {
+    aggregateScore = 0;
+  } else if (liveness?.verdict === 'live') {
+    aggregateScore = 100;
+  } else {
+    aggregateScore = 50;
+  }
+
+  return {
+    livenessStatic,
+    livenessFrames: liveness?.frames,
+    livenessMaxDiff: liveness?.maxDiff,
+    livenessEpsilon: liveness?.epsilon,
+    motionFloorViolated,
+    worstCategory: motion?.worstCategory,
+    worstCategoryScore: motion && motion.worstCategory
+      ? motion.categories[motion.worstCategory as keyof typeof motion.categories]
+      : undefined,
+    motionReasoning: undefined,
+    aggregateScore,
+  };
+}
+
+/**
+ * TM-187 — re-run the motion gates (TM-184 liveness render diff + TM-186 motion
+ * critique) on a regenerated asset and normalize to a MotionSignal + cost. Used
+ * as the `evaluateMotion` effect of the regen loop. Render/judge are reached
+ * through the SAME test seams as the initial pass (opts.__livenessRender /
+ * opts.__motionCritique) so unit tests stay render-light. Never throws — a gate
+ * failure degrades to a neutral 'no worse' signal so the loop can still keep the
+ * incumbent.
+ */
+async function evaluateMotionForRegen(
+  prompt: string,
+  asset: GeneratedAsset,
+  params: Record<string, unknown>,
+  opts: GenerateOptions,
+): Promise<{ signal: MotionSignal; costUsd: number }> {
+  let costUsd = 0;
+  let livenessStatic = false;
+  let livenessFrames: number[] | undefined;
+  let livenessMaxDiff: number | undefined;
+  let livenessEpsilon: number | undefined;
+  let motionFloorViolated = false;
+  let worstCategory: string | undefined;
+  let worstCategoryScore: number | undefined;
+  let motionReasoning: string | undefined;
+  let aggregateScore = 100; // optimistic default — overwritten by any real signal
+
+  const { getSharedBundlePath } = await import('@/lib/remotion/bundle');
+  const bundlePath = await getSharedBundlePath();
+
+  // TM-184 liveness render diff.
+  if (isLivenessRenderEnabled()) {
+    try {
+      const livenessFn = opts.__livenessRender ?? checkRenderedLiveness;
+      const r = await livenessFn({
+        jsCode: asset.jsCode,
+        params,
+        durationInFrames: asset.durationInFrames,
+        bundlePath,
+      });
+      livenessStatic = r.verdict === 'static';
+      livenessFrames = r.frames;
+      livenessMaxDiff = r.maxDiff;
+      livenessEpsilon = r.epsilon;
+      if (r.verdict === 'static') aggregateScore = Math.min(aggregateScore, 0);
+    } catch {
+      // ignore — no liveness signal
+    }
+  }
+
+  // TM-186 motion critique.
+  if (shouldRunMotionCritique()) {
+    try {
+      const motionFn = opts.__motionCritique ?? critiqueMotion;
+      const r = await motionFn({
+        prompt,
+        jsCode: asset.jsCode,
+        params,
+        durationInFrames: asset.durationInFrames,
+        bundlePath,
+      });
+      if (r) {
+        costUsd += r.extraCostUsd;
+        motionFloorViolated = r.categoryFloorViolated;
+        worstCategory = r.worstCategory;
+        worstCategoryScore = r.categories[r.worstCategory as keyof typeof r.categories];
+        motionReasoning = r.reasoning;
+        aggregateScore = Math.min(aggregateScore, r.score);
+      }
+    } catch {
+      // ignore — no motion-critique signal
+    }
+  }
+
+  return {
+    signal: {
+      livenessStatic,
+      livenessFrames,
+      livenessMaxDiff,
+      livenessEpsilon,
+      motionFloorViolated,
+      worstCategory,
+      worstCategoryScore,
+      motionReasoning,
+      aggregateScore,
+    },
+    costUsd,
+  };
 }
 
 /**
