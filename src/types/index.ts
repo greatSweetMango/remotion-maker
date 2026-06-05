@@ -198,6 +198,42 @@ export interface LivenessMetadata {
   latencyMs?: number;
 }
 
+/**
+ * TM-186 — multi-frame motion-critique metadata. The qualitative motion axis
+ * (motion-present + motion-quality / easing / narrative coherence) layered on
+ * top of TM-184's binary liveness pixel-diff. Present when motion-critique ran
+ * (opt-in / default-on gate). `categoryFloorViolated` is the ADR-0016
+ * per-category min (motion ≥ 60) routed up so a collapsed motion category is
+ * not hidden behind a passing overall average.
+ */
+export interface MotionCritiqueMetadata {
+  /** Averaged motion overall score 0-100 across N runs. */
+  score: number;
+  /** Per-category averaged sub-scores (0-100). */
+  categories: {
+    motion_present: number;
+    motion_quality: number;
+    motion_polish: number;
+    narrative_coherence: number;
+  };
+  /** ADR-0016 per-category floor breach (lowest motion category < min). */
+  categoryFloorViolated: boolean;
+  /** Lowest-scoring category when the floor was breached. */
+  worstCategory: string;
+  /** Per-run overall scores (ADR-0018 variance surface). */
+  runs: number[];
+  /** Max - min of runs (noise band). */
+  deltaMax: number;
+  /** Sample std of runs. */
+  std: number;
+  /** The two frames compared (frame0, frameN). */
+  frames: [number, number];
+  /** Wall-clock ms. */
+  latencyMs: number;
+  /** $ spent across all judge calls. */
+  extraCostUsd: number;
+}
+
 export type GenerateApiResponse =
   | { type: 'clarify'; questions: ClarifyQuestion[] }
   | {
@@ -211,6 +247,8 @@ export type GenerateApiResponse =
       compositionCritique?: CompositionCritiqueMetadata;
       /** TM-184 — present when the motion-liveness render stage ran. */
       liveness?: LivenessMetadata;
+      /** TM-186 — present when multi-frame motion-critique ran. */
+      motionCritique?: MotionCritiqueMetadata;
     };
 
 /** Map of clarify question id → selected choice id */

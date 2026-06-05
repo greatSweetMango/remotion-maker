@@ -39,8 +39,15 @@ import {
 import {
   critiqueComposition,
   isCompositionCritiqueEnabled,
+  critiqueMotion,
   type CompositionCritiqueResult,
+  type MotionCritiqueResult,
 } from './composition-critique';
+import {
+  shouldRunMotionCritique,
+  buildMotionFpRecord,
+  recordMotionFp,
+} from './motion-critique-telemetry';
 import {
   detectStaticMotionSource,
   checkRenderedLiveness,
@@ -49,7 +56,7 @@ import {
   type LivenessRenderResult,
 } from './liveness-check';
 import path from 'node:path';
-import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata, LivenessMetadata } from '@/types';
+import type { GeneratedAsset, GenerateApiResponse, ClarifyAnswers, ClarifyQuestion, SelfCritiqueMetadata, CompositionCritiqueMetadata, LivenessMetadata, MotionCritiqueMetadata } from '@/types';
 
 export interface GenerateOptions {
   /** When provided, prior clarify answers are appended so LLM forces mode=generate. */
@@ -117,6 +124,12 @@ export interface GenerateOptions {
    * cross-frame diff without bundling Remotion or touching Chrome.
    */
   __livenessRender?: typeof checkRenderedLiveness;
+  /**
+   * TM-186 — test seam for the multi-frame motion-critique. When present,
+   * replaces `critiqueMotion` so unit tests can stub the renderStill + judge
+   * path without bundling Remotion or touching Chrome.
+   */
+  __motionCritique?: typeof critiqueMotion;
   /**
    * TM-156 — request id forwarded from the route handler so every
    * structured latency mark emitted deeper in the stack (asset-gen,
@@ -1230,6 +1243,86 @@ async function generateAssetSingleShot(
       if (process.env.NODE_ENV !== 'production') {
         console.warn(
           '[generateAsset] TM-184 liveness render threw, continuing:',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
+
+  // ----- TM-186 — multi-frame motion-critique (motion quality + ADR-0016) ----
+  //
+  // Layers the QUALITATIVE motion axis on top of TM-184's binary liveness diff.
+  // Renders frame0 + frameN and runs the motion judge N=3 (ADR-0018
+  // deterministic), then applies the ADR-0016 per-category floor: when the
+  // lowest motion category (motion_present / motion_quality / ...) averages
+  // below 60, that collapse routes to a FAIL warning even if the overall
+  // average passed — score collapse must not hide behind the aggregate.
+  //
+  // Gated by `shouldRunMotionCritique()` (opt-in today; default-on flips once
+  // the FP harness proves FP<5% on a labeled corpus). Generate path only
+  // (ADR-0001). Only fires for character/scene assets (the failure class) and
+  // never on cache hits. NEVER blocks — any failure → no metadata.
+  if (
+    shouldRunMotionCritique()
+    && finalized.type === 'generate'
+    && assetGen
+    && !assetGen.cached
+  ) {
+    try {
+      const { getSharedBundlePath } = await import('@/lib/remotion/bundle');
+      const bundlePath = await getSharedBundlePath();
+      const paramsRecord = Object.fromEntries(
+        finalized.asset.parameters.map((p) => [p.key, p.value]),
+      );
+      const motionFn = opts.__motionCritique ?? critiqueMotion;
+      const result: MotionCritiqueResult | null = await motionFn({
+        prompt,
+        jsCode: finalized.asset.jsCode,
+        params: paramsRecord,
+        durationInFrames: finalized.asset.durationInFrames,
+        bundlePath,
+      });
+      if (result) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[generateAsset] TM-186 motion-critique:', {
+            score: result.score,
+            categories: result.categories,
+            categoryFloorViolated: result.categoryFloorViolated,
+            worstCategory: result.worstCategory,
+            deltaMax: result.deltaMax,
+            std: result.std,
+          });
+        }
+        (finalized as typeof finalized & { motionCritique?: MotionCritiqueMetadata }).motionCritique = {
+          score: result.score,
+          categories: result.categories,
+          categoryFloorViolated: result.categoryFloorViolated,
+          worstCategory: result.worstCategory,
+          runs: result.runs,
+          deltaMax: result.deltaMax,
+          std: result.std,
+          frames: result.frames,
+          latencyMs: result.latencyMs,
+          extraCostUsd: result.extraCostUsd,
+        };
+        // ADR-0016 per-category floor → FAIL routing. A collapsed motion
+        // category surfaces a non-blocking warning so the served asset can't
+        // pass silently on a passing overall average.
+        if (result.categoryFloorViolated && !finalized.warning) {
+          finalized.warning =
+            `The motion quality looks weak (${result.worstCategory} scored ${result.categories[result.worstCategory as keyof typeof result.categories]}/100, below the 60 floor). ` +
+            'Try regenerating with a clearer motion description (e.g. smoother easing, a definite start/end).';
+        }
+        // FP telemetry — record every run for offline false-positive analysis
+        // and the default-on flip decision (never blocks; skipped under tests).
+        void recordMotionFp(
+          buildMotionFpRecord(prompt.slice(0, 80), result, 'scene'),
+        );
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[generateAsset] TM-186 motion-critique threw, continuing:',
           err instanceof Error ? err.message : String(err),
         );
       }
