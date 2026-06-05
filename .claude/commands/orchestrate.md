@@ -193,6 +193,31 @@ Agent[
 ]
 ```
 
+> **TM-206 — 재개(resume) 신호 전달 (재디스패치 시)**: watchdog/overload kill 후
+> Orchestrator 가 같은 task 를 다시 디스패치하는 경우(주로 Step 7-1b 의 `phase_loop`
+> reset+replan 경로, 또는 stale-lock 회수 후 재투입), TeamLead 가 Phase A 부터
+> 재시작하지 않고 **마지막 완료 Phase 다음부터 재개**하도록 프롬프트에 `resume=true`
+> 신호를 한 줄 덧붙인다. 재디스패치 판별은 cheap — **worktree 에 checkpoint 파일이
+> 이미 있으면** 재디스패치다:
+>
+> ```bash
+> # Step 4 디스패치 직전, 각 task 마다 (additive, 콜드 task 는 영향 없음)
+> resume_flag=""
+> if [[ -f "{worktree_path}/.agent-state/checkpoint.json" ]]; then
+>   resume_flag="resume=true"
+>   last_phase=$(jq -r '.last_completed_phase // "?"' "{worktree_path}/.agent-state/checkpoint.json" 2>/dev/null)
+>   echo "[orchestrate] TM-{task_id} re-dispatch → resume from Phase ${last_phase}"
+> fi
+> ```
+>
+> `resume_flag` 가 비어있지 않으면 위 TeamLead 프롬프트 본문에 한 줄 추가:
+> `"${resume_flag} — 첫 turn 에 .agent-state/checkpoint.json 을 읽고 team-lead.md 의 재개 preamble 에 따라 마지막 완료 Phase 다음부터 재개하세요(이미 만든 PR/커밋/산출물 재사용, 중복 생성 금지)."`
+>
+> checkpoint.json 부재(콜드 스타트)면 `resume_flag` 가 비고 프롬프트는 평소와 동일 —
+> 완전 additive. 신호는 힌트일 뿐이며 권위 있는 재개 상태는 어디까지나 worktree 의
+> checkpoint.json 이다(team-lead.md 재개 preamble 이 단독 판단). 이 블록은 **Step 4
+> 내부에만** 위치하며 Step 5(머지)·Step 7(stop-guard/replan)의 로직은 건드리지 않는다.
+
 > **TM-117**: Orchestrator 본인 세션은 매 iter 시작 시
 > `bash scripts/orchestrator/set-current-task.sh TM-<id>` 또는
 > `export CLAUDE_TASK_ID=TM-<id>` 로 자체 ledger attribution 도 잡아준다.
