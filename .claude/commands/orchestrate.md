@@ -147,6 +147,16 @@ elif execution_location == "main":
   worktree 생성 X
   branch-locks.json에 등록 X (단 동시 wiki-only 1개 직렬화)
 
+# TM-207: fail-fast preflight guardrail (ADR-PENDING-TM-207) — 디스패치 직전 cheap 검사.
+#   '미스터리 600s death'(워크트리 미부트스트랩/포트 불일치 등)를 즉시 'blocked: 명확한 사유'로 전환.
+#   기본은 env-only(키 불필요). live 앱/LLM 을 실제로 치는 task 만 --require-live 추가.
+preflight_json="$(bash scripts/orchestrator/preflight.sh {worktree_path} {dev_port})"; pf_rc=$?
+if [[ ${pf_rc} -eq 20 ]]; then
+  reason="$(echo "${preflight_json}" | jq -r '.reason')"
+  bash scripts/lib/branch-locks.sh set-status "{task_id}" blocked   # transcript 에 reason 기록, 디스패치 스킵
+  echo "[orchestrate] TM-{task_id} preflight FAIL → blocked: ${reason}"; continue
+fi
+
 # Task Master 상태 전이 (모든 task 공통, 디스패치 직전 1회)
 mcp__task-master-ai__set_task_status(id={tm_id}, status="in-progress")
 ```
