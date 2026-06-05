@@ -55,6 +55,9 @@ next-env.d.ts
 # TM-209 — tasks.json single-writer mutex runtime anchors (never tracked)
 .agent-state/.tasks.lock
 .agent-state/.tasks.mutex.d/
+# TM-215 — set-current-task.sh runtime anchor; tracking it caused repeated
+# merge/pull conflicts across concurrent TeamLead PRs (orchestrator-v2 wave1).
+.agent-state/current-task
 
 # git worktrees (per-task isolated directories, managed by PM agent)
 /worktrees/
