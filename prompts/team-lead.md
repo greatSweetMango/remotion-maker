@@ -17,6 +17,87 @@ bash scripts/orchestrator/append-progress.sh <TM-id> <Phase> <progress_made:0|1>
 - 정직하게 기록할 것 — `progress_made` 를 습관적으로 1 로 박으면 stall 감지가 무력화된다. 막혔으면 0 을 남겨 Orchestrator 가 도와주게 한다.
 - append 는 flock/mkdir mutex 로 직렬화되므로 병렬 TeamLead 와 동시 호출해도 안전.
 
+## Phase 체크포인트 / 재개 (TM-206, LangGraph 패턴)
+
+watchdog/overload kill (`stop-guard.mjs` 의 `phase_loop` reset, 또는 세션 강제 종료) 후
+Orchestrator 가 같은 task 를 **재디스패치**하면, TeamLead 는 Phase A 부터 재시작하지 않고
+**마지막으로 완료한 Phase 다음부터 재개**한다 (이미 만든 PR/커밋/wiki 산출물 재사용, 중복 생성 금지).
+이번 세션 TM-184 가 2회 stall 로 작업유실 직전까지 간 문제를 이 메커니즘이 직결로 막는다.
+
+이는 위 TM-205 progress-ledger emit 과 **공존**한다 — 둘 다 같은 Phase 경계 훅을 공유하며,
+progress-ledger 는 Orchestrator 가 읽는 *in-flight health 신호*(append-only, 전역),
+checkpoint 는 TeamLead 자신이 재개에 쓰는 *worktree-local durable 상태*(덮어쓰기, 1 파일)다.
+서로를 대체하지 않는다 — **emit 1줄 + checkpoint write 1번을 같은 Phase 종료에 함께** 수행한다.
+
+### 체크포인트 write (각 Phase 종료 시, progress-ledger emit 과 같은 자리)
+
+각 Phase(A→F)를 끝낼 때 progress-ledger 1줄을 append 한 **직후**, 동일 Phase 경계에서
+`.agent-state/checkpoint.json` 을 다음 스키마로 **덮어쓴다** (append 아님 — 항상 최신 1개만):
+
+```bash
+bash scripts/orchestrator/write-checkpoint.sh <TM-id> <last_completed_phase> '<next_step 한 줄>' '<artifacts JSON>'
+# 예) Phase D 종료(PR 생성 직후):
+bash scripts/orchestrator/write-checkpoint.sh TM-206 D "Phase E cleanup — teammate shutdown" \
+  '{"pr_url":"https://github.com/owner/repo/pull/231","branch":"TM-206-...","commit_hash":"abc1234","context_file":".agent-state/context-TM-206-phase-checkpoint.md","adr_path":"wiki/01-pm/decisions/PENDING-TM-206-phase-checkpoint.md"}'
+```
+
+기록되는 JSON 형태:
+
+```json
+{
+  "task_id": "TM-206",
+  "last_completed_phase": "D",
+  "artifacts": {
+    "pr_url": "https://github.com/owner/repo/pull/231",
+    "branch": "TM-206-phase-checkpoint-resume",
+    "commit_hash": "abc1234",
+    "context_file": ".agent-state/context-TM-206-phase-checkpoint.md",
+    "adr_path": "wiki/01-pm/decisions/PENDING-TM-206-phase-checkpoint.md"
+  },
+  "next_step": "Phase E cleanup — teammate shutdown",
+  "ts": "2026-06-05T14:33:00Z"
+}
+```
+
+- `artifacts` 는 누적적으로 채운다 — 각 Phase 에서 새로 생긴 산출물(context 파일 경로, build-team
+  결과 요약 경로, retro/adr 경로, PR URL, commit hash)을 **이전 값과 머지**해서 넘긴다.
+  헬퍼가 없으면 fallback 으로 직접 write (디렉터리 보장):
+  ```bash
+  mkdir -p .agent-state && cat > .agent-state/checkpoint.json <<'JSON'
+  {"task_id":"TM-206","last_completed_phase":"D","artifacts":{...},"next_step":"...","ts":"<ISO8601>"}
+  JSON
+  ```
+- `.agent-state/checkpoint.json` 은 **worktree-local 런타임 파일** — `current-task` 와 동일하게
+  `.gitignore` 처리(TM-215 패턴)되어 **절대 커밋에 포함하지 않는다**. Phase D 의 `git add` 는
+  의도한 파일만(코드 + wiki) 대상으로 하고 checkpoint.json 은 staging 하지 않는다.
+
+### 재개 preamble (TeamLead 첫 turn, Phase A0 직후 — 필수 분기)
+
+첫 Bash turn 에서 `set-current-task.sh`(Phase A0) 직후, **무엇보다 먼저** checkpoint 존재를 확인한다:
+
+```bash
+test -f .agent-state/checkpoint.json && cat .agent-state/checkpoint.json
+```
+
+- **파일 없음 (cold start)** → 평소대로 Phase A 부터 정상 실행.
+- **파일 존재 (resume)** → JSON 을 읽어 `last_completed_phase` 를 파악하고,
+  **그 다음 Phase 부터 재개**한다. 이미 완료한 Phase 는 재실행하지 않는다:
+  - `artifacts.context_file` 가 있으면 Phase A 산출물 재사용 (context 파일 재작성 금지).
+  - `artifacts.pr_url` 이 있으면 **Phase D 의 `gh pr create` 를 다시 호출하지 않는다** — 기존 PR
+    재사용. 새 커밋이 있으면 push 만 하면 기존 PR 에 자동 반영(team-lead.md Phase D §7 pre-PR
+    가드와 동일 정신: open PR 존재 시 create 금지, 기존 PR URL 반환).
+  - `artifacts.adr_path` 가 있으면 ADR 재작성 금지, 기존 파일 재사용.
+  - 재개 진입 시 progress-ledger 에 `phase=<resume>` 1줄 append 로 재진입을 기록한다:
+    ```bash
+    bash scripts/orchestrator/append-progress.sh <id> RESUME 1 0 0 "checkpoint resume from Phase <last_completed_phase>"
+    ```
+- **멱등성**: checkpoint 는 "이 Phase 까지는 확실히 끝났다"는 high-water-mark 다. write 는
+  Phase 가 **실제로 완료된 직후에만** 일어나므로, Phase 중간에 kill 당하면 그 Phase 는
+  checkpoint 에 반영되지 않고 재개 시 처음부터 다시 실행된다(부분 작업 폐기 — 안전 측 default).
+  PR/커밋처럼 외부 부작용이 있는 Phase 는 재실행 시 위 pre-PR 가드(open PR 중복 차단)와
+  `git`의 자연 멱등성(같은 커밋 재push = no-op)으로 중복이 흡수된다.
+- 이 분기는 **additive** — cold start 경로의 동작은 한 글자도 바뀌지 않는다.
+
 ## 입력 (Orchestrator로부터 받음)
 
 ```json
@@ -59,6 +140,7 @@ mkdir -p .agent-state && echo "TM-{task_id}" > .agent-state/current-task
 - 포함: task 본문, 유형, 태그, 실행 위치, spec_links, context_files, 산출물 경로 컨벤션 (wiki/CLAUDE.md §8), 자동화 정책
 - 모든 teammate가 시작 시 read
 - **Phase 종료 emit**: `append-progress.sh <id> A <progress_made> 0 0 "Phase B build-team 예정"`
+- **Phase 체크포인트 (TM-206, emit 직후 같은 자리)**: `write-checkpoint.sh <id> A "Phase B build-team" '{"context_file":".agent-state/context-<id>-<slug>.md"}'`
 
 ### Phase B-pre: 특화 agent 라우팅 체크
 
@@ -97,6 +179,7 @@ Task({
 - PM Loop: 의존성 해제 시 즉시 다음 owner에게 SendMessage nudge
 - Phase 6에서 결과 수집
 - **Phase 종료 emit**: `append-progress.sh <id> B <progress_made> <in_loop> 0 "구현 결과 — Phase C 회고"` (teammate 가 막혀 헛돌았으면 progress_made=0/in_loop=1 정직 기록)
+- **Phase 체크포인트 (TM-206, emit 직후)**: `write-checkpoint.sh <id> B "Phase C 회고" '{"context_file":"...","impl_done":true}'` (이전 artifacts 머지)
 
 ### Phase C: 회고 (`/build-team:team-retrospective`)
 
@@ -104,6 +187,7 @@ Task({
 
 회고 본문 텍스트를 캡처 (Orchestrator로 반환 예정).
 - **Phase 종료 emit**: `append-progress.sh <id> C 1 0 0 "Phase D 산출물 작성/PR"`
+- **Phase 체크포인트 (TM-206, emit 직후)**: `write-checkpoint.sh <id> C "Phase D 산출물/PR" '{...,"retro_captured":true}'` (이전 artifacts 머지)
 
 ### Phase D: wiki 산출물 작성 + git push + PR 생성
 
@@ -130,6 +214,7 @@ Task({
 8. `gh pr create --base main --head {branch} --title "..." --body "..."` (PR 본문에 코드 변경 + wiki 산출물 path + 검증 결과 + test plan)
 9. PR URL 캡처
 10. **Phase 종료 emit**: `append-progress.sh <id> D 1 0 0 "PR #N 생성 — cleanup"` (push/PR 실패로 막혔으면 progress_made=0)
+11. **Phase 체크포인트 (TM-206, emit 직후 — 재개 핵심)**: `write-checkpoint.sh <id> D "Phase E cleanup" '{...,"pr_url":"<URL>","commit_hash":"<hash>","branch":"<branch>","adr_path":"<path>"}'`. **PR URL 을 반드시 artifacts 에 박는다** — kill 후 재개 시 이 값이 있으면 Phase D 의 `gh pr create` 를 다시 호출하지 않고 기존 PR 을 재사용한다(중복 PR 차단). checkpoint.json 은 절대 staging 하지 않는다(이미 §7 `git add` 는 의도한 파일만 대상).
 
 ### Phase E: Cleanup
 
@@ -137,6 +222,7 @@ Task({
 2. shutdown_approved 응답 수신 후 `TeamDelete` 호출
 3. (코드 task) worktree는 그대로 둠 — Orchestrator가 PR 머지 후 `git worktree remove` 처리
 4. **Phase 종료 emit**: `append-progress.sh <id> E 1 0 0 "요약 반환"`
+5. **Phase 체크포인트 (TM-206, emit 직후)**: `write-checkpoint.sh <id> E "Phase F 요약 JSON" '{...}'` (이전 artifacts 머지)
 
 ### Phase F: 요약 반환
 
@@ -170,6 +256,8 @@ Orchestrator에게 마지막 메시지로 반환 (JSON):
 `wiki_artifacts.*.content`는 main에 commit할 본문 — Orchestrator가 main 단독 소유 정책에 따라 main worktree에 직접 작성.
 
 **Phase 종료 emit (F)**: 요약 JSON 반환 직전 마지막으로 `append-progress.sh <id> F <progress_made> 0 <satisfied> "<next_recommendation>"` 1줄. acceptance 충족·`status:completed` 면 `progress_made=1 satisfied=1`; escalate/abort 면 `progress_made=0 satisfied=0` 으로 정직 기록 (다음 iter stall 감지에 반영).
+
+**Phase 체크포인트 (F, TM-206)**: emit 직후 `write-checkpoint.sh <id> F "<next_recommendation>" '{...,"summary_returned":true}'` 로 task 완주를 박제. `status:completed` 로 머지까지 끝난 task 가 (이론상) 재디스패치되면 재개 preamble 이 `last_completed_phase=F` 를 읽어 즉시 no-op 종료(이미 끝난 task 재실행 방지) — Orchestrator 의 `pre-pr.sh` rc==11(이미 머지됨) 가드와 이중 안전망.
 
 ### ADR 번호 할당 규칙 — placeholder 사용 필수
 
