@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-207: Fail-fast preflight guardrail before TeamLead dispatch"
+title: "ADR-0031: Fail-fast preflight guardrail before TeamLead dispatch"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/orchestration, area/infra, area/reliability]
@@ -10,7 +10,7 @@ related:
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-207 — Fail-fast preflight guardrail
+# ADR-0031 — Fail-fast preflight guardrail
 
 ## TL;DR
 
