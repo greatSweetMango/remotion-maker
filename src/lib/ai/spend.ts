@@ -64,6 +64,11 @@ export const OPENAI_PRICES: Record<string, PriceTable> = {
   'gpt-4o':      { in: 2.5,  out: 10  },
   'gpt-4.1-mini':{ in: 0.4,  out: 1.6 },
   'gpt-4.1':     { in: 2,    out: 8   },
+  // TM-89 — gpt-image-1 is priced per IMAGE, not per token. asset-gen-stage
+  // encodes the flat per-image USD price as `prompt_tokens = costUsd * 1e6`
+  // so that costOpenAI (= tokens * in / 1e6) returns exactly costUsd with
+  // `in: 1`. Keep `in` at 1 — it is a unit scalar, not a real token rate.
+  'gpt-image-1': { in: 1,    out: 0   },
 };
 
 /** Resolve Anthropic family from a model id (case-insensitive). */
