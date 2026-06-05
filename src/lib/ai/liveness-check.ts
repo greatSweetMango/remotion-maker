@@ -69,13 +69,25 @@ import { validateFrameDrivenMotion } from '../remotion/sandbox';
  *   AI_LIVENESS_GATE=0        → fully disabled (both stages).
  *   AI_LIVENESS_GATE_RENDER=0 → AST stage only; skip the render diff (keeps
  *                                the free positive check, drops the 1-2s cost).
+ *   AI_LIVENESS_GATE_RENDER=1 → force the render diff ON even under the test
+ *                                runner (explicit opt-in for render-stage tests).
  */
 export function isLivenessGateEnabled(): boolean {
   return process.env.AI_LIVENESS_GATE !== '0';
 }
 
 export function isLivenessRenderEnabled(): boolean {
-  return isLivenessGateEnabled() && process.env.AI_LIVENESS_GATE_RENDER !== '0';
+  if (!isLivenessGateEnabled()) return false;
+  // Explicit override always wins.
+  if (process.env.AI_LIVENESS_GATE_RENDER === '0') return false;
+  if (process.env.AI_LIVENESS_GATE_RENDER === '1') return true;
+  // Stage 2 spins up a Remotion bundle + renderStill (heavy). Under the jest
+  // runner this turns unit suites that exercise the full generate path into
+  // slow/flaky real renders, so default the render diff OFF in tests. The free
+  // AST stage still runs; production (NODE_ENV!=='test') keeps the render diff.
+  const inTestRunner =
+    process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+  return !inTestRunner;
 }
 
 function envFloat(name: string, fallback: number): number {
@@ -174,13 +186,18 @@ export function detectStaticMotionSource(code: string): StaticMotionReason[] {
 
   // TM-185 CSS-freeze axis: a scene whose only "motion" is CSS keyframes /
   // transition is also static under frame-isolated render. Reuse the single
-  // source of truth rather than re-implementing the regexes.
-  const cssFreeze = validateFrameDrivenMotion(code ?? '');
-  if (cssFreeze.length > 0) {
-    reasons.push({
-      code: 'css-freeze',
-      message: cssFreeze[0],
-    });
+  // source of truth (sandbox.ts) rather than re-implementing the regexes.
+  // Defensive: some unit suites mock '@/lib/remotion/sandbox' with a partial
+  // shape that omits this export — treat absence as "no css-freeze signal"
+  // rather than throwing (the primary no-frame-driven-ref check stands alone).
+  if (typeof validateFrameDrivenMotion === 'function') {
+    const cssFreeze = validateFrameDrivenMotion(code ?? '');
+    if (cssFreeze.length > 0) {
+      reasons.push({
+        code: 'css-freeze',
+        message: cssFreeze[0],
+      });
+    }
   }
 
   return reasons;

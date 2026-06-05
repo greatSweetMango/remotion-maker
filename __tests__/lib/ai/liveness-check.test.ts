@@ -256,6 +256,18 @@ describe('TM-184 checkRenderedLiveness — cross-frame diff', () => {
 });
 
 describe('TM-184 evaluateLiveness — combined', () => {
+  // These exercise the render diff with a MOCKED __renderStill, so opt the
+  // render stage back in (it defaults off under the jest runner — see env
+  // gating tests above). The mock keeps it cheap; no real Remotion render.
+  const origRender = process.env.AI_LIVENESS_GATE_RENDER;
+  beforeEach(() => {
+    process.env.AI_LIVENESS_GATE_RENDER = '1';
+  });
+  afterEach(() => {
+    if (origRender === undefined) delete process.env.AI_LIVENESS_GATE_RENDER;
+    else process.env.AI_LIVENESS_GATE_RENDER = origRender;
+  });
+
   it('AST stage short-circuits the render (no render call for static source)', async () => {
     let rendered = false;
     const v = await evaluateLiveness(STATIC_FIXTURES['no-frame-hook'], {
@@ -325,12 +337,34 @@ describe('TM-184 env gating', () => {
     expect(isLivenessGateEnabled()).toBe(false);
     expect(isLivenessRenderEnabled()).toBe(false);
   });
-  it('render stage defaults ON, killable independently', () => {
+  it('render stage: explicit override wins (=1 forces on, =0 forces off)', () => {
     delete process.env.AI_LIVENESS_GATE;
-    delete process.env.AI_LIVENESS_GATE_RENDER;
+    process.env.AI_LIVENESS_GATE_RENDER = '1';
     expect(isLivenessRenderEnabled()).toBe(true);
     process.env.AI_LIVENESS_GATE_RENDER = '0';
     expect(isLivenessRenderEnabled()).toBe(false);
     expect(isLivenessGateEnabled()).toBe(true); // AST stage still on
+  });
+  it('render stage defaults OFF under the jest test runner (no real renders)', () => {
+    delete process.env.AI_LIVENESS_GATE;
+    delete process.env.AI_LIVENESS_GATE_RENDER;
+    // JEST_WORKER_ID is set by the runner → render diff defaults off so unit
+    // suites never trigger a heavy Remotion render. AST stage stays on.
+    expect(isLivenessRenderEnabled()).toBe(false);
+    expect(isLivenessGateEnabled()).toBe(true);
+  });
+  it('render stage defaults ON in a production (non-test) runtime', () => {
+    delete process.env.AI_LIVENESS_GATE;
+    delete process.env.AI_LIVENESS_GATE_RENDER;
+    const origNode = process.env.NODE_ENV;
+    const origWorker = process.env.JEST_WORKER_ID;
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+    delete process.env.JEST_WORKER_ID;
+    try {
+      expect(isLivenessRenderEnabled()).toBe(true);
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = origNode;
+      if (origWorker !== undefined) process.env.JEST_WORKER_ID = origWorker;
+    }
   });
 });
