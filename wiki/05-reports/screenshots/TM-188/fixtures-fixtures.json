@@ -1,0 +1,153 @@
+{
+  "task": "TM-188",
+  "mode": "fixtures",
+  "label": "fixtures",
+  "startedAt": "2026-06-05T08:34:02.547Z",
+  "finishedAt": "2026-06-05T08:34:02.550Z",
+  "seed": 42,
+  "deterministic": true,
+  "corpus": "scripts/bench/tm-188/motion-corpus.json",
+  "aggregate": {
+    "n": 11,
+    "motion_present_n": 6,
+    "motion_present_pct": 55,
+    "motion_score_avg": 28,
+    "classified_n": 11,
+    "classified_correct_n": 11,
+    "classification_accuracy_pct": 100
+  },
+  "fixtures_all_classified_correctly": true,
+  "rows": [
+    {
+      "id": "static-no-hook",
+      "source": "fixture-static",
+      "expectStatic": true,
+      "verdict": "static",
+      "stage": "ast",
+      "astReasonCodes": [
+        "no-frame-driven-ref"
+      ],
+      "motionScore": 0,
+      "classifiedCorrectly": true,
+      "note": "Never calls useCurrentFrame — pure static poster (locomotion prompt rendered as a single still)."
+    },
+    {
+      "id": "static-css-keyframes",
+      "source": "fixture-static",
+      "expectStatic": true,
+      "verdict": "static",
+      "stage": "ast",
+      "astReasonCodes": [
+        "no-frame-driven-ref",
+        "css-freeze"
+      ],
+      "motionScore": 0,
+      "classifiedCorrectly": true,
+      "note": "Periodic-loader expressed as a CSS @keyframes spin — frozen at t=0 under frame-isolated render (TM-185 axis)."
+    },
+    {
+      "id": "static-css-transition",
+      "source": "fixture-static",
+      "expectStatic": true,
+      "verdict": "static",
+      "stage": "ast",
+      "astReasonCodes": [
+        "no-frame-driven-ref",
+        "css-freeze"
+      ],
+      "motionScore": 0,
+      "classifiedCorrectly": true,
+      "note": "Transition prompt rendered as a CSS transition — never advances frame-to-frame."
+    },
+    {
+      "id": "static-frame-mention-comment",
+      "source": "fixture-static",
+      "expectStatic": true,
+      "verdict": "static",
+      "stage": "ast",
+      "astReasonCodes": [
+        "no-frame-driven-ref"
+      ],
+      "motionScore": 0,
+      "classifiedCorrectly": true,
+      "note": "Mentions useCurrentFrame/interpolate only in a comment + a string label — not a real call."
+    },
+    {
+      "id": "live-interpolate-walk",
+      "source": "fixture-live",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "none",
+      "astReasonCodes": [],
+      "motionScore": null,
+      "classifiedCorrectly": true,
+      "note": "Locomotion: x position interpolated from the current frame (横스크롤 walk)."
+    },
+    {
+      "id": "live-spring-counter",
+      "source": "fixture-live",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "none",
+      "astReasonCodes": [],
+      "motionScore": null,
+      "classifiedCorrectly": true,
+      "note": "Data-viz: spring-driven counter from the current frame."
+    },
+    {
+      "id": "live-parallax-layers",
+      "source": "fixture-live",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "none",
+      "astReasonCodes": [],
+      "motionScore": null,
+      "classifiedCorrectly": true,
+      "note": "Parallax: two layers interpolated at different rates off the current frame."
+    },
+    {
+      "id": "live-interpolate-colors-loader",
+      "source": "fixture-live",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "none",
+      "astReasonCodes": [],
+      "motionScore": null,
+      "classifiedCorrectly": true,
+      "note": "Periodic loader: interpolateColors over the current frame."
+    },
+    {
+      "id": "render-identical",
+      "source": "fixture-render",
+      "expectStatic": true,
+      "verdict": "static",
+      "stage": "render",
+      "astReasonCodes": [],
+      "motionScore": 0,
+      "classifiedCorrectly": true,
+      "note": "Source referenced useCurrentFrame but bound it to nothing visible — three frames identical."
+    },
+    {
+      "id": "render-moving",
+      "source": "fixture-render",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "render",
+      "astReasonCodes": [],
+      "motionScore": 100,
+      "classifiedCorrectly": true,
+      "note": "A bright region moves between frames — genuine motion."
+    },
+    {
+      "id": "render-subtle-but-live",
+      "source": "fixture-render",
+      "expectStatic": false,
+      "verdict": "live",
+      "stage": "render",
+      "astReasonCodes": [],
+      "motionScore": 94,
+      "classifiedCorrectly": true,
+      "note": "Small but real change across frames (above ε)."
+    }
+  ]
+}

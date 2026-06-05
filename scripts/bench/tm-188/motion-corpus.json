@@ -1,0 +1,43 @@
+{
+  "name": "tm-188-motion-presence",
+  "description": "TM-188 motion-presence regression corpus — prompts historically prone to producing STATIC output (no per-frame motion). Extends the TM-149/TM-173 character/横スクロール regressions with explicit motion axes: living-entity locomotion,横스크롤 parallax, data-viz animation, transitions, periodic loaders. Each entry is measured by the TM-184 liveness gate (AST + render-diff). Frozen 2026-06-05. Categories map to the prompt-corpus loader axes; motionSubtype is the TM-188-specific motion axis. seed: deterministic — no live model call needed to enumerate the corpus.",
+  "seed": 42,
+  "prompts": [
+    { "id": "loco-01", "category": "character", "motionSubtype": "locomotion", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "곰돌이가 초원을 걸어가는 약 10초분량의 횡스크롤 애니메이션 만들어줘" },
+    { "id": "loco-02", "category": "character", "motionSubtype": "locomotion", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "강아지가 공원에서 뛰어가는 8초 애니메이션, 다리가 번갈아 움직이게" },
+    { "id": "loco-03", "category": "character", "motionSubtype": "locomotion", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "a panda walking across a meadow, legs alternating, 6 second loop" },
+    { "id": "loco-04", "category": "character", "motionSubtype": "locomotion", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "우주비행사가 달 표면에서 천천히 점프하며 이동하는 7초 애니메이션" },
+
+    { "id": "parallax-01", "category": "motion-graphics", "motionSubtype": "parallax-scroll", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "횡스크롤 패럴랙스 풍경, 앞쪽 나무는 빠르게 뒤쪽 산은 느리게 흐르는 8초" },
+    { "id": "parallax-02", "category": "motion-graphics", "motionSubtype": "parallax-scroll", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "side-scrolling city skyline parallax, foreground buildings move faster than the moon, 10 seconds" },
+    { "id": "parallax-03", "category": "motion-graphics", "motionSubtype": "parallax-scroll", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "구름이 여러 레이어로 다른 속도로 흐르는 하늘 배경 루프, 6초" },
+
+    { "id": "dataviz-01", "category": "data-viz", "motionSubtype": "dataviz-anim", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "월별 매출 막대그래프가 바닥에서 위로 자라나는 애니메이션, 1~6월 [120,150,180,200,240,280]" },
+    { "id": "dataviz-02", "category": "data-viz", "motionSubtype": "dataviz-anim", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "Animated line chart drawing a stock price curve stroke from left to right, 5 seconds" },
+    { "id": "dataviz-03", "category": "data-viz", "motionSubtype": "dataviz-anim", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "0에서 100까지 spring으로 올라가는 카운터, 동시에 도넛 게이지가 채워지는 4초" },
+
+    { "id": "transition-01", "category": "motion-graphics", "motionSubtype": "transition", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "두 색 패널이 왼쪽에서 오른쪽으로 슬라이드 전환되는 트랜지션, 보라→청록" },
+    { "id": "transition-02", "category": "motion-graphics", "motionSubtype": "transition", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "iris-out wipe transition, black aperture closing over a red scene, 2 seconds" },
+    { "id": "transition-03", "category": "motion-graphics", "motionSubtype": "transition", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "원이 사각형으로 모핑되며 색이 바뀌는 전환 애니메이션" },
+
+    { "id": "loader-01", "category": "motion-graphics", "motionSubtype": "periodic-loader", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "원형 스피너 로더, 8개 점이 회전하며 밝기가 순차적으로 변하는 무한 루프" },
+    { "id": "loader-02", "category": "motion-graphics", "motionSubtype": "periodic-loader", "pastStaticFailure": true, "expectMotion": true,
+      "prompt": "bouncing 3-dot loader, ease-in-out, gray on white, looping" },
+    { "id": "loader-03", "category": "motion-graphics", "motionSubtype": "periodic-loader", "pastStaticFailure": false, "expectMotion": true,
+      "prompt": "진행률 바가 0%에서 100%까지 반복해서 차오르는 펄스 로더, 초록색" }
+  ]
+}
