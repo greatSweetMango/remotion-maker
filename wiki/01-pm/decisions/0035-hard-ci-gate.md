@@ -1,12 +1,12 @@
 ---
-title: "ADR-PENDING-TM-208: 머지 전 Hard CI 게이트 + chronically-red allowlist"
+title: "ADR-0035: 머지 전 Hard CI 게이트 + chronically-red allowlist"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/infra, area/agent-company, orchestrator-v2]
 status: accepted
 ---
 
-# ADR-PENDING-TM-208: 머지 전 Hard CI 게이트 + chronically-red allowlist
+# ADR-0035: 머지 전 Hard CI 게이트 + chronically-red allowlist
 
 ## 컨텍스트
 
