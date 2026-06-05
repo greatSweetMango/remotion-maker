@@ -1,5 +1,5 @@
 ---
-title: "ADR-PENDING-TM-204: Orchestrator v2 — 점진 강화 하드닝"
+title: "ADR-0030: Orchestrator v2 — 점진 강화 하드닝"
 created: 2026-06-05
 updated: 2026-06-05
 tags: [decision, area/infra]
@@ -7,7 +7,7 @@ status: proposed
 provenance: extracted
 ---
 
-# ADR-PENDING-TM-204: Orchestrator v2 — 점진 강화 하드닝
+# ADR-0030: Orchestrator v2 — 점진 강화 하드닝
 
 ## 컨텍스트
 

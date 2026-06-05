@@ -654,7 +654,7 @@ remotion-maker/
 야간 자율 모드에서 관측된 **5대 약점**(① TeamLead 단일 long-turn stall/작업유실 ② tasks.json 동시쓰기 race + int/str id 혼용 ③ API키/dev-server 부재 무처리 ④ 만성 red CI 무시 머지 ⑤ 느슨한 in-flight health)을 산업계 검증 패턴으로 하드닝한다. 방향: **점진 강화(#1/#2/#5/#6/#8 우선), durable-engine 즉시 도입 보류, GEPA 오프라인 전용·live self-modify 금지**.
 
 - 리서치 합본: [[../05-reports/2026-06-05-orchestrator-v2-research|2026-06-05 Orchestrator v2 리서치]]
-- 결정: [[../01-pm/decisions/PENDING-TM-204-orchestrator-v2-hardening|ADR-PENDING-TM-204]]
+- 결정: [[../01-pm/decisions/0030-orchestrator-v2-hardening|ADR-0030]]
 
 | TM | 레버 | 랭크 | 해결 약점 | 상태 |
 |---|---|---|---|---|

@@ -16,7 +16,7 @@ provenance: extracted
 
 - 우리 3-tier Ralph 루프(PM → TeamLead → build-team)는 동작하지만 **5대 약점**이 야간 자율 모드에서 반복 관측됨: long-turn stall, tasks.json race, 키/dev-server 부재 무처리, 만성 red CI 머지, 느슨한 in-flight health.
 - 2026-06-05 외부 리서치(Magentic-One progress ledger, LangGraph checkpoint, OpenAI Swarm guardrails, Hermes tool-calling, evaluator-optimizer self-healing, Temporal/Vercel WDK durable execution)로 **9개 업그레이드 레버**를 도출하고 랭킹·TM 매핑함.
-- 결정(→ ADR-PENDING-TM-204): **점진 강화(#1/#2/#5/#6/#8 우선)**, durable-engine(Temporal/WDK) **즉시 도입 보류**, GEPA는 **오프라인 전용·live self-modify 금지**.
+- 결정(→ ADR-0030): **점진 강화(#1/#2/#5/#6/#8 우선)**, durable-engine(Temporal/WDK) **즉시 도입 보류**, GEPA는 **오프라인 전용·live self-modify 금지**.
 
 ## 무엇이 바뀌었나
 
@@ -121,7 +121,7 @@ flowchart LR
 
 ## 출처 / 링크
 
-- 결정: [[../01-pm/decisions/PENDING-TM-204-orchestrator-v2-hardening|ADR-PENDING-TM-204]]
+- 결정: [[../01-pm/decisions/0030-orchestrator-v2-hardening|ADR-0030]]
 - 블루프린트: [[../02-dev/agent-company-blueprint#Orchestrator v2 하드닝(2026-06-05)]]
 - Anthropic — Building a multi-agent research system: https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Microsoft Magentic-One (progress/task ledger, orchestrator): https://www.microsoft.com/en-us/research/articles/magentic-one-a-generalist-multi-agent-system-for-solving-complex-tasks/
