@@ -48,7 +48,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT="$(cd "${HERE}/.." && pwd)"
 CHECK_CWD="${HERE}/orchestrator/check-cwd.sh"
 LOCK_DIR="${ROOT}/.agent-state"
-LOCK_FILE="${LOCK_DIR}/task-master.lock"
+
+# TM-209: serialize tasks.json mutations through the single shared writer mutex
+# (.agent-state/.tasks.lock) instead of a private task-master.lock. This makes
+# `task-master add-task` here mutually exclusive with every other tasks.json
+# writer that goes through scripts/lib/task-queue.sh, and adds the mkdir mutex
+# fallback so mac (no flock) is also protected — previously this script ran
+# add-task with NO lock on mac, the exact race TM-209 closes.
+# shellcheck source=../lib/task-queue.sh
+source "${HERE}/lib/task-queue.sh"
 
 if [[ ! -x "${CHECK_CWD}" ]] && [[ ! -f "${CHECK_CWD}" ]]; then
   echo "promote-spawned.sh: missing ${CHECK_CWD}" >&2
@@ -102,12 +110,6 @@ fi
 
 mkdir -p "${LOCK_DIR}"
 
-# Concurrency: serialize task-master add-task calls.
-exec 9>"${LOCK_FILE}"
-if command -v flock >/dev/null 2>&1; then
-  flock -w 30 9 || { echo "promote-spawned.sh: could not acquire ${LOCK_FILE}" >&2; exit 1; }
-fi
-
 # Determine task-master command path.
 TM_CMD="${TASK_MASTER_CMD:-task-master}"
 if ! command -v "${TM_CMD}" >/dev/null 2>&1; then
@@ -115,9 +117,13 @@ if ! command -v "${TM_CMD}" >/dev/null 2>&1; then
   exit 1
 fi
 
-results='[]'
-
-for i in $(seq 0 $((count - 1))); do
+# All add-task work runs inside this function, executed under the shared
+# tasks.json mutex via task_queue_with_lock (TM-209). Prints the result map
+# to stdout on success; exits non-zero on failure.
+__promote_run_all() {
+  local results='[]'
+  local i
+  for i in $(seq 0 $((count - 1))); do
   entry="$(echo "${json}" | jq -c ".[${i}]")"
   title="$(echo "${entry}" | jq -r '.title // empty')"
   desc="$(echo "${entry}"  | jq -r '.description // empty')"
@@ -154,7 +160,11 @@ for i in $(seq 0 $((count - 1))); do
       # Fallback: read tasks.json and find max id matching title.
       tasks_file="${ROOT}/.taskmaster/tasks/tasks.json"
       if [[ -f "${tasks_file}" ]]; then
-        new_id="$(jq -r --arg t "${title}" '.tasks[] | select(.title == $t) | .id' "${tasks_file}" | sort -n | tail -1)"
+        # Tagged-format aware: tasks live under a tag key (e.g. .master.tasks),
+        # falling back to legacy untagged .tasks. ids may be int or str.
+        new_id="$(jq -r --arg t "${title}" \
+          '((.. | objects | select(has("tasks")) | .tasks) // []) | .[] | select(.title == $t) | .id' \
+          "${tasks_file}" 2>/dev/null | sort -n | tail -1)"
       fi
     fi
     if [[ -z "${new_id}" ]]; then
@@ -172,7 +182,11 @@ for i in $(seq 0 $((count - 1))); do
 
   results="$(echo "${results}" | jq --arg p "${placeholder}" --arg c "${new_id}" --arg t "${title}" \
     '. + [{placeholder_id: $p, canonical_id: $c, title: $t}]')"
-done
+  done
 
-echo "${results}"
+  echo "${results}"
+}
+
+# Run the whole add-task batch under the single shared tasks.json mutex.
+task_queue_with_lock __promote_run_all
 exit 0

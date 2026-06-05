@@ -197,6 +197,10 @@ Orchestrator는 commit 직전 다음을 자동 수행 (TeamLead는 신경 쓸 �
    - placeholder_id → canonical_id 매핑을 JSON 으로 stdout 에 출력 → Orchestrator 가 retro/wiki 산출물의 placeholder 토큰을 일괄 치환.
 4. **placeholder ID 규칙** — TeamLead 가 임시 식별자가 필요하면 `TM-<parent>-spawn-<n>` (예: `TM-46-spawn-1`) 만 사용. `TM-82` 같은 실제 숫자 ID 는 절대 발급 금지.
 
+### TM-209 — TeamLead 는 tasks.json 을 직접 write 금지 (단일-writer 규약)
+
+`.taskmaster/tasks/tasks.json` 은 **Orchestrator 단독 writer** 다. TeamLead 는 워크트리 안에서 tasks.json 을 직접 `jq | mv` 하거나 `task-master set-status/add-task` 로 수정하지 않는다 (raw python write × task-master MCP write 가 동시에 물리면 int/str id 혼동 + lost-update race 가 발생 — 실측됨). 상태 변경·신규 task(spawned) 는 **Phase F 요약 JSON 으로만 반환**(`status`, `verdict`, `spawned_tasks[]`, `triggers_requalify[]`)하고, Orchestrator 가 머지 직후 단일 직렬화 지점(`scripts/lib/task-queue.sh` 의 `.agent-state/.tasks.lock` mutex)에서 직렬 적용한다. id 는 항상 문자열로 정규화된다.
+
 ### spawned_tasks 형식 (Phase F 요약 JSON)
 
 ```json

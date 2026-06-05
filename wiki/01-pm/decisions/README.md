@@ -37,3 +37,6 @@ status: active
 3. 템플릿: `_meta/templates/adr.md` 복사
 4. 상태: `proposed → accepted | rejected | superseded`
 5. 한 번 accepted된 ADR은 **수정하지 않는다**. 바꾸려면 새 ADR을 만들고 옛 것을 `superseded by ADR-NNNN`으로 표시
+- [[0030-orchestrator-v2-hardening|ADR-0030: Orchestrator v2 — 점진 강화 하드닝 (Hermes/Magentic-One/LangGraph 기반 자율성 강화)]]
+- [[0031-preflight-guardrail|ADR-0031: Preflight guardrail — 디스패치 전 키/dev-server/env fail-fast (OpenAI Swarm input-guardrail 패턴)]]
+- [[0032-tasks-json-single-writer|ADR-0032: tasks.json 단일-writer 직렬화 (TM-96 mutex 확장, 동시쓰기 race 제거)]]
